@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sura_codex
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    networks:
+      - sura
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/sura_codex?schema=public
+    depends_on:
+      - postgres
+    networks:
+      - sura
+
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    depends_on:
+      - server
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
+    networks:
+      - sura
+
+volumes:
+  postgres_data_prod:
+
+networks:
+  sura:
+    driver: bridge

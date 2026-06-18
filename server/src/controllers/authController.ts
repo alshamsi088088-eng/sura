@@ -1,0 +1,264 @@
+
+import { Request, Response, NextFunction } from 'express';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import passport from 'passport';
+import fs from 'fs';
+import { prisma } from '../services/prisma.js';
+import { createTokenPair, sendAuthCookies } from '../services/tokenService.js';
+import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail } from '../services/emailService.js';
+import { initGoogleStrategy } from '../services/passportConfig.js';
+import { initAdmin, getAuth } from '../services/Admin.js';
+import { JWT_REFRESH_SECRET } from '../services/config.js';
+
+if (process.env._SERVICE_ACCOUNT) {
+  try {
+    const raw = process.env._SERVICE_ACCOUNT;
+    const serviceAccount = raw?.trim().startsWith('{')
+      ? JSON.parse(raw)
+      : JSON.parse(raw ? fs.readFileSync(raw, 'utf-8') : '{}');
+    initAdmin(serviceAccount);
+  } catch (error) {
+    console.warn('Could not initialize  Admin from _SERVICE_ACCOUNT.  token verification features may be disabled in this environment.');
+  }
+} else {
+  console.warn('_SERVICE_ACCOUNT is not set.  token verification features may be disabled in this environment.');
+}
+
+initGoogleStrategy();
+
+export async function register(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { name, email, password } = req.body;
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) return res.status(400).json({ message: 'Email already exists' });
+    const hashed = await bcrypt.hash(password, 12);
+    const verificationToken = crypto.randomBytes(24).toString('hex');
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashed,
+        role: 'reader',
+        locale: 'en',
+        theme: 'dark',
+        verified: false,
+        verificationToken
+      }
+    });
+    await sendVerificationEmail(user, verificationToken);
+    const tokens = createTokenPair(user.id);
+    sendAuthCookies(res, tokens);
+    res.json({ user: sanitize(user) });
+    await sendWelcomeEmail(user);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function login(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email, password } = req.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+    const valid = user.password ? await bcrypt.compare(password, user.password) : false;
+    if (!valid) return res.status(401).json({ message: 'Invalid credentials' });
+    const tokens = createTokenPair(user.id);
+    sendAuthCookies(res, tokens);
+    res.json({ user: sanitize(user) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function logout(_req: Request, res: Response) {
+  res.clearCookie('token');
+  res.clearCookie('refreshToken');
+  res.json({ success: true });
+}
+
+export async function refreshToken(req: Request, res: Response) {
+  const refreshToken = req.cookies.refreshToken;
+  if (!refreshToken) return res.status(401).json({ message: 'Missing refresh token' });
+  try {
+    const payload: any = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    if (!user) return res.status(401).json({ message: 'Invalid token' });
+    const tokens = createTokenPair(user.id);
+    sendAuthCookies(res, tokens);
+    res.json({ user: sanitize(user) });
+  } catch (error) {
+    res.status(401).json({ message: 'Invalid refresh token' });
+  }
+}
+
+export async function forgotPassword(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(200).json({ message: 'If an account exists, a reset link has been sent' });
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 1000 * 60 * 60);
+    await prisma.user.update({ where: { email }, data: { resetToken, resetTokenExpires: expires } });
+    await sendPasswordResetEmail(email, resetToken);
+    res.json({ message: 'If an account exists, a reset link has been sent' });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function resetPassword(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ message: 'Token and password are required' });
+    const user = await prisma.user.findFirst({ where: { resetToken: token, resetTokenExpires: { gt: new Date() } } });
+    if (!user) return res.status(400).json({ message: 'Invalid or expired token' });
+    const hashed = await bcrypt.hash(password, 12);
+    await prisma.user.update({ where: { id: user.id }, data: { password: hashed, resetToken: null, resetTokenExpires: null } });
+    res.json({ message: 'Password has been reset successfully' });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function verifyEmail(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { token } = req.query;
+    if (!token || typeof token !== 'string') return res.status(400).json({ message: 'Invalid verification token' });
+    const user = await prisma.user.findFirst({ where: { verificationToken: token } });
+    if (!user) return res.status(400).json({ message: 'Verification token is invalid or expired' });
+    await prisma.user.update({ where: { id: user.id }, data: { verified: true, verificationToken: null } });
+    res.json({ message: 'Email verified successfully' });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function me(req: Request, res: Response) {
+  res.json({ user: req.user });
+}
+
+export async function profile(req: Request, res: Response) {
+  res.json({ user: req.user });
+}
+
+export function googleAuthRedirect(req: Request, res: Response, next: NextFunction) {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    return res.status(501).json({ message: 'Google Sign In is not configured' });
+  }
+  passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+}
+
+export function googleAuthCallback(req: Request, res: Response, next: NextFunction) {
+  passport.authenticate('google', { session: false }, async (err, profile) => {
+    if (err || !profile) return res.redirect('/login');
+    const email = profile.email;
+    let user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          name: profile.name,
+          email,
+          role: 'reader',
+          locale: 'en',
+          theme: 'dark',
+          verified: true
+        }
+      });
+    }
+    const tokens = createTokenPair(user.id);
+    sendAuthCookies(res, tokens);
+    res.redirect(process.env.CLIENT_URL || 'http://localhost:5173');
+  })(req, res, next);
+}
+
+export async function appleAuthCallback(req: Request, res: Response) {
+  const email = req.body.email || req.body.user?.email;
+  const name = req.body.name || req.body.user?.name || 'Apple Reader';
+  if (!email) {
+    return res.status(400).json({ message: 'Apple authentication failed' });
+  }
+  let user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        role: 'reader',
+        locale: 'en',
+        theme: 'dark',
+        verified: true
+      }
+    });
+  }
+  const tokens = createTokenPair(user.id);
+  sendAuthCookies(res, tokens);
+  res.redirect(process.env.CLIENT_URL || 'http://localhost:5173');
+}
+
+export async function AuthCallback(req: Request, res: Response) {
+  try {
+    const idToken = req.body.token;
+    if (!idToken) return res.status(400).json({ message: 'Missing idToken' });
+
+    const decoded = await getAuth().verifyIdToken(idToken);
+    console.debug('Verified  ID token for uid:', decoded.uid, 'email:', decoded.email);
+    const email = decoded.email;
+    const name = decoded.name || req.body.name || ' Reader';
+    const photo = decoded.picture || req.body.photo || null;
+
+    if (!email) return res.status(400).json({ message: 'Token does not contain an email' });
+
+    let user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          name,
+          email,
+          role: 'reader',
+          locale: 'en',
+          theme: 'dark',
+          verified: true,
+          avatar: photo
+        }
+      });
+    } else if (photo) {
+      await prisma.user.update({ where: { id: user.id }, data: { avatar: photo } });
+      user = await prisma.user.findUnique({ where: { id: user.id } });
+    }
+
+    if (!user) return res.status(500).json({ message: 'Failed to resolve user after  auth' });
+
+    const tokens = createTokenPair(user.id);
+    sendAuthCookies(res, tokens);
+    res.json({ user: sanitize(user) });
+  } catch (error: any) {
+    if (
+      error?.code === 'auth/argument-error' ||
+      error?.code === 'auth/id-token-expired' ||
+      error?.code === 'auth/invalid-token'
+    ) {
+      return res.status(401).json({ message: 'Invalid  token' });
+    }
+    console.error('AuthCallback error', error);
+    res.status(500).json({ message: ' auth processing failed' });
+  }
+}
+
+export function appleAuthRedirect(req: Request, res: Response) {
+  const clientId = process.env.APPLE_CLIENT_ID;
+  if (!clientId) {
+    return res.status(501).json({ message: 'Apple Sign In is not configured' });
+  }
+  const redirectUri = `${process.env.SERVER_URL || 'http://localhost:5000'}/api/auth/apple/callback`;
+  const url = `https://appleid.apple.com/auth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=name%20email&response_mode=form_post`;
+  res.redirect(url);
+}
+
+function sanitize(user: any) {
+  const { password, resetToken, resetTokenExpires, verificationToken, ...rest } = user;
+  return rest;
+}

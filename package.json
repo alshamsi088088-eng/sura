@@ -1,0 +1,23 @@
+{
+  "name": "sura-codex",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm --workspace=server run dev\" \"npm --workspace=client run dev\"",
+    "build": "npm --workspace=server run build && npm --workspace=client run build",
+    "db:migrate": "npm --workspace=server run db:migrate",
+    "db:seed": "npm --workspace=server run db:seed"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0",
+    "prisma": "^6.0.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.1",
+    "@prisma/client": "^6.0.0"
+  }
+}
