@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useLocale } from '../context/LocaleContext';
+import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { ThreadedComments } from '../components/ThreadedComments';
 
@@ -35,6 +37,7 @@ function mapArticle(row: ArticleRow): Article {
 
 export function ArticlesPage() {
   const { locale, strings } = useLocale();
+  const { user } = useAuth();
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,12 +121,25 @@ export function ArticlesPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <header className="rounded-3xl border border-sura-line bg-sura-canvas p-8">
-        <h1 className="text-4xl font-semibold">{strings.articles}</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-sura-navy/80">
-          {locale === 'ar'
-            ? 'مجموعة المقالات المنظمة مع قراءة أعمق لكل نص.'
-            : 'Browse essays with reading time, author details, and curated categories.'}
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-4xl font-semibold">{strings.articles}</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-sura-navy/80">
+              {locale === 'ar'
+                ? 'مجموعة المقالات المنظمة مع قراءة أعمق لكل نص.'
+                : 'Browse essays with reading time, author details, and curated categories.'}
+            </p>
+          </div>
+
+          {user ? (
+            <Link
+              to="/create-post"
+              className="self-start rounded-full bg-sura-gold px-5 py-2 text-sm font-semibold text-sura-dark transition hover:opacity-95"
+            >
+              {locale === 'ar' ? 'Write New Post' : 'Write New Post'}
+            </Link>
+          ) : null}
+        </div>
       </header>
       <div className="flex flex-col gap-4 rounded-3xl border border-sura-line bg-sura-canvas p-6">
         <div className="flex flex-wrap gap-2">
