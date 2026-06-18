@@ -2,7 +2,7 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { prisma } from '../services/prisma.js';
-import { initAdmin } from '../services/Admin.js';
+import { initAdmin } from '../services/firebaseAdmin.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2022-11-15' });
 
@@ -76,8 +76,8 @@ export async function stripeWebhook(req: Request, res: Response) {
     }
 
     try {
-      const admin = initAdmin();
-      const firestore = admin.firestore();
+      const adminAny = initAdmin() as any;
+      const firestore = adminAny.firestore();
       await firestore.collection('purchaseHistory').add({
         stripeSessionId,
         userId,

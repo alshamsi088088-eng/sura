@@ -1,16 +1,19 @@
-import admin from '-admin';
+import * as admin from 'firebase-admin';
 
 let initialized = false;
 
 export function initAdmin(serviceAccount?: Record<string, any>) {
   if (initialized) return admin;
 
+  // Avoid TS type mismatches across firebase-admin versions.
+  const anyAdmin = admin as any;
+
   if (serviceAccount) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
+    anyAdmin.initializeApp({
+      credential: anyAdmin.credential.cert(serviceAccount)
     });
   } else {
-    admin.initializeApp();
+    anyAdmin.initializeApp();
   }
 
   initialized = true;
@@ -19,5 +22,6 @@ export function initAdmin(serviceAccount?: Record<string, any>) {
 
 export function getAuth() {
   if (!initialized) initAdmin();
-  return admin.auth();
+  const anyAdmin = admin as any;
+  return anyAdmin.auth();
 }

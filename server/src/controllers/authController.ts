@@ -9,7 +9,7 @@ import { prisma } from '../services/prisma.js';
 import { createTokenPair, sendAuthCookies } from '../services/tokenService.js';
 import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail } from '../services/emailService.js';
 import { initGoogleStrategy } from '../services/passportConfig.js';
-import { initAdmin, getAuth } from '../services/Admin.js';
+import { initAdmin, getAuth } from '../services/firebaseAdmin.js';
 import { JWT_REFRESH_SECRET } from '../services/config.js';
 
 if (process.env._SERVICE_ACCOUNT) {

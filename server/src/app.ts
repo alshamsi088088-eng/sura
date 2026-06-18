@@ -46,7 +46,7 @@ app.use((req, res, next) => {
   if (req.path === '/api/webhooks/stripe') {
     return next();
   }
-  return csrfProtection(req, res, next);
+  return (csrfProtection as any)(req, res, next);
 });
 
 app.get('/api/csrf-token', (req, res) => {

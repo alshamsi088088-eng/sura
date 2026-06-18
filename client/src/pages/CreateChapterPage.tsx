@@ -111,6 +111,11 @@ export function CreateChapterPage() {
       return;
     }
 
+    if (!supabase) {
+      setError('تعذر الاتصال بقاعدة البيانات، تحقق من إعدادات Supabase.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const { error: insertError } = await supabase.from('Chapter').insert({
