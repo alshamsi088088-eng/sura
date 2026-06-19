@@ -30,6 +30,9 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AdminRoute } from './components/auth/AdminRoute';
 import { useTheme } from './context/ThemeContext';
 
+// الاستيراد الجديد لصفحة معالجة التحقق من البريد الإلكتروني 👇
+import AuthCallback from './pages/AuthCallback';
+
 function AppInner() {
   const { mode } = useTheme();
   return (
@@ -53,6 +56,10 @@ function AppInner() {
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              
+              {/* الرابط الجديد لاستقبال رمز التحقق من Supabase وتوجيهه للملف التعريفي 👇 */}
+              <Route path="/auth/callback" element={<AuthCallback />} />
+
               <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/create-post" element={<ProtectedRoute><CreatePostPage /></ProtectedRoute>} />
