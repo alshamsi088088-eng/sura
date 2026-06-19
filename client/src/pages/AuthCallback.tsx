@@ -1,17 +1,22 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient'; // تأكدي أن اسم الملف هنا يطابق اسم ملف السوبابيز داخل مجلد lib
+import { supabase } from '../lib/supabaseClient'; 
 
 export default function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // التقاط الجلسة تلقائياً وتحويل المستخدم
+    // وضعنا علامة استفهام بعد supabase لتفادي فحص الـ null الصارم في لغة TypeScript
+    if (!supabase) {
+      navigate('/login');
+      return;
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        navigate('/profile'); // سيتم تحويل المستخدم لصفحة الملف التعريفي
+        navigate('/profile'); 
       } else if (event === 'INITIAL_SESSION' && !session) {
-        navigate('/login'); // إذا انتهت صلاحية الرابط أو حدث خطأ سيعود لصفحة الدخول
+        navigate('/login'); 
       }
     });
 
