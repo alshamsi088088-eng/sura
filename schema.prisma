@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = "postgresql://postgres.olgkiuvwufildvzqbpiw:ircjTbSp20clx3Dr@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres"
-  
+  provider = "postgresql"
+  url      = "postgresql://postgres.olgkiuvwufildvzqbpiw:WpSAQq5gXNpuszhv@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres"
 }
 
 model User {
@@ -24,133 +23,93 @@ model User {
   resetTokenExpires DateTime?
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
-
-  orders            Order[]
   articles          Article[]  @relation("ArticleAuthor")
-  novels            Novel[]    @relation("NovelAuthor")
-  comments          Comment[]
-  ratings           Rating[]
   bookmarks         Bookmark[]
-
-  @@index([role])
-  @@index([createdAt])
+  comments          Comment[]
+  novels            Novel[]    @relation("NovelAuthor")
+  orders            Order[]
+  ratings           Rating[]
 }
 
 model Article {
-  id            String     @id @default(cuid())
-  title         String
-  slug          String     @unique
-  excerpt       String
-  content       String
-  category      String
-  language      String
-  readingTime   String
-  authorName    String
-  views         Int        @default(0)
-  claps         Int        @default(0)
-  featured      Boolean    @default(false)
-  publishedAt   DateTime   @default(now())
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-
-  authorId      String?
-  author        User?      @relation("ArticleAuthor", fields: [authorId], references: [id], onDelete: SetNull)
-
-  comments      Comment[]
-  ratings       Rating[]
-  bookmarks     Bookmark[]
-
-  @@index([slug])
-  @@index([category])
-  @@index([language])
-  @@index([authorId])
-  @@index([publishedAt])
+  id          String     @id @default(cuid())
+  title       String
+  slug        String     @unique
+  excerpt     String
+  content     String
+  category    String
+  language    String
+  readingTime String
+  authorName  String
+  views       Int        @default(0)
+  claps       Int        @default(0)
+  featured    Boolean    @default(false)
+  publishedAt DateTime   @default(now())
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  authorId    String?
+  author      User?      @relation("ArticleAuthor", fields: [authorId], references: [id], onUpdate: NoAction)
+  bookmarks   Bookmark[]
+  comments    Comment[]
+  ratings     Rating[]
 }
 
 model Novel {
-  id            String     @id @default(cuid())
-  title         String
-  slug          String     @unique
-  description   String
-  coverImage    String
-  authorName    String
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-
-  authorId      String?
-  author        User?      @relation("NovelAuthor", fields: [authorId], references: [id], onDelete: SetNull)
-
-  chapters      Chapter[]
-  comments      Comment[]
-  ratings       Rating[]
-  bookmarks     Bookmark[]
-
-  @@index([slug])
-  @@index([authorId])
-  @@index([createdAt])
+  id          String     @id @default(cuid())
+  title       String
+  slug        String     @unique
+  description String
+  coverImage  String
+  authorName  String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  authorId    String?
+  bookmarks   Bookmark[]
+  chapters    Chapter[]
+  comments    Comment[]
+  author      User?      @relation("NovelAuthor", fields: [authorId], references: [id], onUpdate: NoAction)
+  ratings     Rating[]
 }
 
 model Chapter {
-  id            String     @id @default(cuid())
-  novelId       String
-  novel         Novel      @relation(fields: [novelId], references: [id], onDelete: Cascade)
-  title         String
-  number        Int
-  content       String
-  readingTime   String
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-
-  comments      Comment[]
-  ratings       Rating[]
-  bookmarks     Bookmark[]
+  id          String     @id @default(cuid())
+  novelId     String
+  title       String
+  number      Int
+  content     String
+  readingTime String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  bookmarks   Bookmark[]
+  novel       Novel      @relation(fields: [novelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  comments    Comment[]
+  ratings     Rating[]
 
   @@unique([novelId, number])
-  @@index([novelId])
 }
 
 model Book {
-  id            String      @id @default(cuid())
-  title         String
-  author        String
-  price         Float
-  format        String
-  summary       String
-  coverImage    String
-  stock         Int
-  fileUrl       String?
-  previewUrl    String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-
-  orderItems    OrderItem[]
-  comments      Comment[]
-  ratings       Rating[]
-  bookmarks     Bookmark[]
-
-  @@index([title])
-  @@index([author])
-  @@index([createdAt])
-}
-
-model Product {
-  id            String   @id @default(cuid())
-  title         String
-  description   String
-  price         Float
-  license       String
-  type          String
-  downloadUrl   String
-  publishedAt   DateTime @default(now())
-
-  @@index([type])
-  @@index([publishedAt])
+  id         String      @id @default(cuid())
+  title      String
+  author     String
+  price      Float
+  format     String
+  summary    String
+  coverImage String
+  stock      Int
+  fileUrl    String?
+  previewUrl String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  bookmarks  Bookmark[]
+  comments   Comment[]
+  orderItems OrderItem[]
+  ratings    Rating[]
 }
 
 model Order {
   id              String      @id @default(cuid())
   userId          String?
-  user            User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   email           String
   subtotal        Float
   total           Float
@@ -161,127 +120,83 @@ model Order {
   currency        String      @default("usd")
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
-
+  user            User?       @relation(fields: [userId], references: [id], onUpdate: NoAction)
   items           OrderItem[]
-
-  @@index([userId])
-  @@index([email])
-  @@index([status])
-  @@index([createdAt])
 }
 
 model OrderItem {
   id              String   @id @default(cuid())
   orderId         String
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   bookId          String
-  book            Book     @relation(fields: [bookId], references: [id], onDelete: Restrict)
   titleSnapshot   String
   priceAtPurchase Float
   quantity        Int      @default(1)
   createdAt       DateTime @default(now())
-
-  @@index([orderId])
-  @@index([bookId])
+  book            Book     @relation(fields: [bookId], references: [id], onUpdate: NoAction)
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model Comment {
-  id          String    @id @default(cuid())
-  content     String
-  approved    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  articleId   String?
-  article     Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-
-  novelId     String?
-  novel       Novel?    @relation(fields: [novelId], references: [id], onDelete: Cascade)
-
-  chapterId   String?
-  chapter     Chapter?  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-
-  bookId      String?
-  book        Book?     @relation(fields: [bookId], references: [id], onDelete: Cascade)
-
-  parentId    String?
-  parent      Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies     Comment[] @relation("CommentReplies")
-
-  @@index([userId])
-  @@index([articleId])
-  @@index([novelId])
-  @@index([chapterId])
-  @@index([bookId])
-  @@index([parentId])
-  @@index([createdAt])
+  id        String    @id @default(cuid())
+  content   String
+  approved  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  userId    String
+  articleId String?
+  novelId   String?
+  chapterId String?
+  bookId    String?
+  parentId  String?
+  article   Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  book      Book?     @relation(fields: [bookId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  chapter   Chapter?  @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  novel     Novel?    @relation(fields: [novelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  replies   Comment[] @relation("CommentReplies")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model Rating {
-  id          String    @id @default(cuid())
-  value       Int
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  value     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  articleId String?
+  novelId   String?
+  chapterId String?
+  bookId    String?
+  article   Article? @relation(fields: [articleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  book      Book?    @relation(fields: [bookId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  chapter   Chapter? @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  novel     Novel?   @relation(fields: [novelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  articleId   String?
-  article     Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-
-  novelId     String?
-  novel       Novel?    @relation(fields: [novelId], references: [id], onDelete: Cascade)
-
-  chapterId   String?
-  chapter     Chapter?  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-
-  bookId      String?
-  book        Book?     @relation(fields: [bookId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([articleId])
-  @@index([novelId])
-  @@index([chapterId])
-  @@index([bookId])
-
-  @@unique([userId, articleId], map: "rating_user_article_unique")
-  @@unique([userId, novelId], map: "rating_user_novel_unique")
-  @@unique([userId, chapterId], map: "rating_user_chapter_unique")
-  @@unique([userId, bookId], map: "rating_user_book_unique")
+  @@unique([userId, articleId])
+  @@unique([userId, bookId])
+  @@unique([userId, chapterId])
+  @@unique([userId, novelId])
 }
 
 model Bookmark {
-  id          String    @id @default(cuid())
-  createdAt   DateTime  @default(now())
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  articleId String?
+  novelId   String?
+  chapterId String?
+  bookId    String?
+  article   Article? @relation(fields: [articleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  book      Book?    @relation(fields: [bookId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  chapter   Chapter? @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  novel     Novel?   @relation(fields: [novelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  articleId   String?
-  article     Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-
-  novelId     String?
-  novel       Novel?    @relation(fields: [novelId], references: [id], onDelete: Cascade)
-
-  chapterId   String?
-  chapter     Chapter?  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-
-  bookId      String?
-  book        Book?     @relation(fields: [bookId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([articleId])
-  @@index([novelId])
-  @@index([chapterId])
-  @@index([bookId])
-
-  @@unique([userId, articleId], map: "bookmark_user_article_unique")
-  @@unique([userId, novelId], map: "bookmark_user_novel_unique")
-  @@unique([userId, chapterId], map: "bookmark_user_chapter_unique")
-  @@unique([userId, bookId], map: "bookmark_user_book_unique")
+  @@unique([userId, articleId])
+  @@unique([userId, bookId])
+  @@unique([userId, chapterId])
+  @@unique([userId, novelId])
 }
 
 model GalleryImage {
@@ -304,20 +219,20 @@ model TechArticle {
 }
 
 model Coupon {
-  id               String   @id @default(cuid())
-  code             String   @unique
-  type             String   @default("percent")
+  id               String    @id @default(cuid())
+  code             String    @unique
+  type             String    @default("percent")
   value            Float
-  active           Boolean  @default(true)
+  active           Boolean   @default(true)
   maxUses          Int?
-  usedCount        Int      @default(0)
+  usedCount        Int       @default(0)
   minSubtotal      Float?
   startsAt         DateTime?
   endsAt           DateTime?
-  perItem          Boolean  @default(false)
+  perItem          Boolean   @default(false)
   applicableBookId String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model Message {

@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
+import { Link } from 'react-router-dom';
 import { useLocale } from '../context/LocaleContext';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 import { ThreadedComments } from '../components/ThreadedComments';
+
+type ArticleRow = Record<string, any>;
 
 interface Article {
   id: string;
@@ -17,8 +21,23 @@ interface Article {
 
 const categories = ['Literature', 'Culture', 'Technology', 'Design', 'Arabic'];
 
+function mapArticle(row: ArticleRow): Article {
+  const id = String(row.id ?? row.article_id ?? row.articleId ?? row.pk ?? '');
+  const title = String(row.title ?? '');
+  const excerpt = String(row.excerpt ?? '');
+  const category = String(row.category ?? '');
+  const language = String(row.language ?? '');
+  const readingTime = String(row.readingTime ?? row.reading_time ?? '');
+  const author = String(row.authorName ?? row.author ?? row.author_name ?? row.author_id ?? row.authorId ?? '');
+  const views = Number(row.views ?? row.view_count ?? 0);
+  const claps = Number(row.claps ?? row.clap_count ?? 0);
+
+  return { id, title, excerpt, category, language, readingTime, author, views, claps };
+}
+
 export function ArticlesPage() {
   const { locale, strings } = useLocale();
+  const { user } = useAuth();
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,28 +53,43 @@ export function ArticlesPage() {
 
   useEffect(() => {
     let mounted = true;
-    setIsLoading(true);
-    setError(null);
 
-    axios
-      .get('/api/articles')
-      .then((res) => {
-        const next = Array.isArray(res.data?.articles) ? res.data.articles : [];
-        if (mounted) setArticles(next);
-      })
-      .catch((e) => {
+    async function load() {
+      setIsLoading(true);
+      setError(null);
+
+      if (!supabase) {
+        setError(locale === 'ar' ? 'Supabase غير مهيأ.' : 'Supabase is not initialized.');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // قراءة كل الأعمدة برمجياً لضمان توافق الاسماء مع الواقع
+        const { data, error: selectError } = await supabase
+          .from('Article')
+          .select('*');
+
+        if (selectError) throw selectError;
+
+        const rows = Array.isArray(data) ? (data as ArticleRow[]) : [];
+        const mapped = rows.map(mapArticle).filter((a) => a.id && a.title);
+
+        if (mounted) setArticles(mapped);
+      } catch (e: any) {
         // eslint-disable-next-line no-console
-        console.error('Failed to fetch articles', e);
-        if (mounted) setError('Failed to load articles.');
-      })
-      .finally(() => {
+        console.error('Failed to fetch articles from Supabase', e);
+        if (mounted) setError(locale === 'ar' ? 'فشل تحميل المقالات.' : 'Failed to load articles.');
+      } finally {
         if (mounted) setIsLoading(false);
-      });
+      }
+    }
 
+    load();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [locale]);
 
   const allTags = useMemo(() => ['All', ...Array.from(new Set(articles.flatMap((a) => [a.category, a.language])))], [articles]);
   const authors = useMemo(() => ['All', ...Array.from(new Set(articles.map((a) => a.author)))], [articles]);
@@ -87,12 +121,25 @@ export function ArticlesPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <header className="rounded-3xl border border-sura-line bg-sura-canvas p-8">
-        <h1 className="text-4xl font-semibold">{strings.articles}</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-sura-navy/80">
-          {locale === 'ar'
-            ? 'مجموعة المقالات المنظمة مع قراءة أعمق لكل نص.'
-            : 'Browse essays with reading time, author details, and curated categories.'}
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-4xl font-semibold">{strings.articles}</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-sura-navy/80">
+              {locale === 'ar'
+                ? 'مجموعة المقالات المنظمة مع قراءة أعمق لكل نص.'
+                : 'Browse essays with reading time, author details, and curated categories.'}
+            </p>
+          </div>
+
+          {user ? (
+            <Link
+              to="/create-post"
+              className="self-start rounded-full bg-sura-gold px-5 py-2 text-sm font-semibold text-sura-dark transition hover:opacity-95"
+            >
+              {locale === 'ar' ? 'Write New Post' : 'Write New Post'}
+            </Link>
+          ) : null}
+        </div>
       </header>
       <div className="flex flex-col gap-4 rounded-3xl border border-sura-line bg-sura-canvas p-6">
         <div className="flex flex-wrap gap-2">

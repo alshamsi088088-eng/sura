@@ -18,20 +18,19 @@ import { ProductsPage } from './pages/ProductsPage';
 import { AboutPage } from './pages/AboutPage';
 import { ContactPage } from './pages/ContactPage';
 import { PrivacyPage } from './pages/PrivacyPage';
+import { TermsOfServicePage } from './pages/TermsOfServicePage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { AdminPage } from './pages/AdminPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import AuthCallbackPage from './pages/AuthCallbackPage';
 import { CreatePostPage } from './pages/CreatePostPage';
 import { CreateChapterPage } from './pages/CreateChapterPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AdminRoute } from './components/auth/AdminRoute';
 import { useTheme } from './context/ThemeContext';
-
-// الاستيراد الجديد لصفحة معالجة التحقق من البريد الإلكتروني 👇
-import AuthCallback from './pages/AuthCallback';
 
 function AppInner() {
   const { mode } = useTheme();
@@ -53,13 +52,10 @@ function AppInner() {
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/contact" element={<ContactPage />} />
-              <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/auth/callback" element={<AuthCallbackPage />} />
+              <Route path="/terms-of-service" element={<TermsOfServicePage />} />
               <Route path="/register" element={<RegisterPage />} />
-              
-              {/* الرابط الجديد لاستقبال رمز التحقق من Supabase وتوجيهه للملف التعريفي 👇 */}
-              <Route path="/auth/callback" element={<AuthCallback />} />
-
               <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/create-post" element={<ProtectedRoute><CreatePostPage /></ProtectedRoute>} />

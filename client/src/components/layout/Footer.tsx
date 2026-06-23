@@ -25,6 +25,7 @@ export function Footer() {
     { to: '/about', label: strings.about || 'About' },
     { to: '/contact', label: strings.contact || 'Contact' },
     { to: '/privacy', label: strings.privacy || 'Privacy' },
+    { to: '/terms-of-service', label: strings.terms || (locale === 'ar' ? 'شروط الخدمة' : 'Terms of Service') },
   ];
 
   return (

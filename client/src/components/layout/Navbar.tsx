@@ -2,8 +2,6 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useLocale } from '../../context/LocaleContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { signInWithPopup } from 'firebase/auth';
-import { auth, provider } from '../../firebaseConfig';
 import { useEffect, useRef, useState } from 'react';
 
 const navItems = [
@@ -14,8 +12,6 @@ const navItems = [
   { path: '/store', key: 'store' },
   { path: '/tech', key: 'tech' },
   { path: '/about', key: 'about' },
-  { path: '/create-post', key: 'createPost' },
-  { path: '/create-chapter', key: 'createChapter' },
 ];
 
 export function Navbar() {
@@ -24,14 +20,8 @@ export function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleGoogleLogin = async () => {
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const isNewUser = result.user.metadata.creationTime === result.user.metadata.lastSignInTime;
-      navigate(isNewUser ? '/profile' : '/dashboard');
-    } catch (error) {
-      console.error('Google sign-in error:', error);
-    }
+  const goToLogin = () => {
+    navigate('/login');
   };
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -173,7 +163,7 @@ export function Navbar() {
           </div>
 
           {!user && (
-            <button onClick={handleGoogleLogin} className="btn-primary !px-5 !py-2 !text-[13px]">
+            <button onClick={goToLogin} className="btn-primary !px-5 !py-2 !text-[13px]">
               {locale === 'ar' ? 'تسجيل الدخول' : 'Sign in'}
             </button>
           )}

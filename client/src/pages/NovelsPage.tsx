@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { Link, useNavigate } from 'react-router-dom';
 import { useLocale } from '../context/LocaleContext';
 import { ThreadedComments } from '../components/ThreadedComments';
+import { useAuth } from '../context/AuthContext';
 
 interface Chapter {
   id: string;
@@ -16,6 +18,7 @@ interface Novel {
   title: string;
   description: string;
   coverImage: string;
+  authorId?: string | null;
   chapters: Chapter[];
 }
 
@@ -23,6 +26,8 @@ const fontSizes = ['text-base', 'text-lg', 'text-xl', 'text-2xl'];
 
 export function NovelsPage() {
   const { locale } = useLocale();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [novels, setNovels] = useState<Novel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +111,15 @@ export function NovelsPage() {
               <h2 className="mt-2 text-3xl font-semibold">{activeChapter?.title || '...'}</h2>
             </div>
             <div className="space-y-3 sm:flex sm:items-center sm:gap-3 sm:space-y-0">
+              {user && activeNovel?.authorId && user.id && activeNovel.authorId === user.id ? (
+                <button
+                  onClick={() => navigate('/create-chapter', { state: { novelId: activeNovel.id } })}
+                  className="rounded-full bg-sura-gold px-5 py-2 text-sm font-semibold text-sura-dark transition hover:opacity-95"
+                >
+                  {locale === 'ar' ? 'Add New Chapter' : 'Add New Chapter'}
+                </button>
+              ) : null}
+
               <button onClick={() => setNightMode((value) => !value)} className="rounded-full border border-sura-line px-4 py-2 text-sm">
                 {nightMode ? 'Day reader' : 'Night reader'}
               </button>
