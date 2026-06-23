@@ -38,6 +38,7 @@ export function ProfilePage() {
 
   const [orders, setOrders] = useState<PurchasedOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
   const [downloadLoadingBookId, setDownloadLoadingBookId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,16 +50,17 @@ export function ProfilePage() {
   useEffect(() => {
     if (!user) return;
     setOrdersLoading(true);
+    setOrdersError(null);
     axios
       .get('/api/store/orders', { withCredentials: true })
       .then((res) => {
         setOrders(res.data.orders || []);
       })
       .catch((error) => {
-        console.error('Failed to load purchase history', error);
+        setOrdersError(locale === 'ar' ? 'فشل تحميل المشتريات.' : 'Failed to load purchases.');
       })
       .finally(() => setOrdersLoading(false));
-  }, [user]);
+  }, [user, locale]);
 
   const totalSpent = useMemo(
     () => orders.reduce((sum, order) => sum + Number(order.total || 0), 0),
@@ -167,68 +169,73 @@ export function ProfilePage() {
         </div>
 
         <div className="mt-5 space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-xl font-semibold">{locale === 'ar' ? 'مشترياتي' : 'My Purchases'}</h3>
+              <p className="text-sm text-sura-navy/70">
+                {locale === 'ar' ? 'الكتب التي لديك لها حق تنزيل.' : 'Books you have access to download.'}
+              </p>
+            </div>
+            {purchasedBooks.length > 0 ? (
+              <div className="rounded-full border border-sura-line px-4 py-2 text-sm text-sura-navy/80">
+                {locale === 'ar'
+                  ? `عدد الكتب: ${purchasedBooks.length}`
+                  : `Books: ${purchasedBooks.length}`}
+              </div>
+            ) : null}
+          </div>
+
           {ordersLoading ? (
             <div className="text-sm text-sura-navy/70">{locale === 'ar' ? 'جارٍ تحميل الطلبات...' : 'Loading orders...'}</div>
+          ) : ordersError ? (
+            <div className="text-sm text-red-500">{ordersError}</div>
           ) : orders.length === 0 ? (
             <div className="text-sm text-sura-navy/70">{locale === 'ar' ? 'لا توجد مشتريات بعد.' : 'No purchases yet.'}</div>
+          ) : purchasedBooks.length === 0 ? (
+            <div className="text-sm text-sura-navy/70">{locale === 'ar' ? 'لا توجد كتب قابلة للتنزيل.' : 'No downloadable books.'}</div>
           ) : (
-            orders.map((order) => (
-              <article key={order.id} className="rounded-3xl border border-sura-line bg-sura-canvas p-5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-sm text-sura-navy/80">
-                    <span className="font-semibold">{locale === 'ar' ? 'طلب' : 'Order'}</span> #{order.id.slice(0, 8)}
-                    <span className="mx-2">•</span>
-                    {new Date(order.createdAt).toLocaleString()}
-                  </div>
-                  <div className="text-sm text-sura-teal">
-                    {order.currency?.toUpperCase()} ${Number(order.total || 0).toFixed(2)} ({order.status})
-                  </div>
-                </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  {(order.items || []).map((item) => (
-                    <div key={item.id} className="rounded-2xl border border-sura-line bg-sura-canvas p-4">
-                      <div className="font-semibold">{item.titleSnapshot}</div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {purchasedBooks.map((item) => (
+                <div key={item.id} className="rounded-3xl border border-sura-line bg-sura-canvas p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-sura-navy/90">{item.titleSnapshot}</div>
                       <div className="mt-1 text-xs text-sura-navy/70">
                         ${Number(item.priceAtPurchase).toFixed(2)} × {item.quantity}
                       </div>
-                      <div className="mt-3 flex gap-2">
-                        {item.book?.previewUrl ? (
-                          <a
-                            href={item.book.previewUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="rounded-full border border-sura-line px-3 py-1 text-xs"
-                            onClick={() => trackEvent('preview_book', { book_id: item.bookId, source: 'profile' })}
-                          >
-                            {locale === 'ar' ? 'معاينة' : 'Preview'}
-                          </a>
-                        ) : null}
-                        <button
-                          onClick={() => handleDownload(item.bookId)}
-                          disabled={downloadLoadingBookId === item.bookId}
-                          className="rounded-full border border-sura-line px-3 py-1 text-xs disabled:opacity-60"
-                        >
-                          {downloadLoadingBookId === item.bookId
-                            ? locale === 'ar' ? 'جارٍ التحقق...' : 'Checking...'
-                            : locale === 'ar' ? 'تنزيل' : 'Download'}
-                        </button>
-                      </div>
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {item.book?.previewUrl ? (
+                      <a
+                        href={item.book.previewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-full border border-sura-line px-3 py-1 text-xs"
+                        onClick={() => trackEvent('preview_book', { book_id: item.bookId, source: 'profile' })}
+                      >
+                        {locale === 'ar' ? 'معاينة' : 'Preview'}
+                      </a>
+                    ) : null}
+
+                    <button
+                      onClick={() => handleDownload(item.bookId)}
+                      disabled={downloadLoadingBookId === item.bookId}
+                      className="rounded-full border border-sura-line px-3 py-1 text-xs disabled:opacity-60"
+                    >
+                      {downloadLoadingBookId === item.bookId
+                        ? locale === 'ar' ? 'جارٍ التحقق...' : 'Checking...'
+                        : locale === 'ar' ? 'تنزيل' : 'Download'}
+                    </button>
+                  </div>
                 </div>
-              </article>
-            ))
+              ))}
+            </div>
           )}
         </div>
-
-        {purchasedBooks.length > 0 ? (
-          <div className="mt-6 rounded-2xl border border-sura-line bg-sura-canvas p-4 text-sm text-sura-navy/75">
-            {locale === 'ar'
-              ? `عدد الكتب المشتراة: ${purchasedBooks.length}`
-              : `Purchased books available: ${purchasedBooks.length}`}
-          </div>
-        ) : null}
       </section>
     </div>
   );
 }
+

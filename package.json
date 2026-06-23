@@ -19,6 +19,8 @@
   "dependencies": {
     "@prisma/client": "^6.0.0",
     "@supabase/supabase-js": "^2.108.1",
-    "firebase-admin": "^14.0.0"
+    "epubjs": "^0.3.93",
+    "firebase-admin": "^14.0.0",
+    "pdfjs-dist": "^3.11.174"
   }
 }

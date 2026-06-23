@@ -4,6 +4,9 @@ import { useLocale } from '../context/LocaleContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { ThreadedComments } from '../components/ThreadedComments';
+import { AdsenseAd } from '../components/AdsenseAd';
+import { trackEvent } from '../lib/analytics';
+
 
 type ArticleRow = Record<string, any>;
 
@@ -169,56 +172,88 @@ export function ArticlesPage() {
       </div>
       {viewMode === 'grid' ? (
         <div className="grid gap-6 lg:grid-cols-3">
-          {(Array.isArray(paginated) ? paginated : []).map((item) => (
-            <article key={item.id} className="rounded-3xl border border-sura-line bg-sura-canvas p-6 transition hover:-translate-y-1 hover:bg-sura-canvas">
-              <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{item.category}</div>
-              <h2 className="mt-4 text-xl font-semibold">{item.title}</h2>
-              <p className="mt-3 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
-              <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-sura-navy/70">
-                <span>{item.author}</span>
-                <span>•</span>
-                <span>{item.readingTime}</span>
-                <span>•</span>
-                <span>{item.views} views</span>
-              </div>
-              <button
-                className={`mt-4 rounded-full border px-3 py-1 text-xs ${activeArticleId === item.id ? 'border-sura-gold text-sura-teal' : 'border-sura-line text-sura-navy/80'}`}
-                onClick={() => setActiveArticleId(item.id)}
-              >
-                {locale === 'ar' ? 'عرض التعليقات' : 'Open comments'}
-              </button>
-            </article>
+          {(Array.isArray(paginated) ? paginated : []).map((item, idx) => (
+            <div key={item.id} className={idx === 2 ? 'lg:col-span-2' : undefined}>
+              {idx === 2 ? (
+                <AdsenseAd
+                  adSlot={import.meta.env.VITE_ADSENSE_ARTICLES_SLOT as string}
+                  minHeightPx={280}
+                  className="my-0"
+                />
+              ) : null}
+
+              <article className="rounded-3xl border border-sura-line bg-sura-canvas p-6 transition hover:-translate-y-1 hover:bg-sura-canvas">
+                <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{item.category}</div>
+                <h2 className="mt-4 text-xl font-semibold">{item.title}</h2>
+                <p className="mt-3 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
+                <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-sura-navy/70">
+                  <span>{item.author}</span>
+                  <span>•</span>
+                  <span>{item.readingTime}</span>
+                  <span>•</span>
+                  <span>{item.views} views</span>
+                </div>
+                <button
+                  className={`mt-4 rounded-full border px-3 py-1 text-xs ${activeArticleId === item.id ? 'border-sura-gold text-sura-teal' : 'border-sura-line text-sura-navy/80'}`}
+                  onClick={() => {
+                    setActiveArticleId(item.id);
+                    trackEvent('article_read', {
+                      article_id: item.id,
+                      article_title: item.title
+                    });
+                  }}
+                >
+                  {locale === 'ar' ? 'عرض التعليقات' : 'Open comments'}
+                </button>
+              </article>
+            </div>
           ))}
         </div>
       ) : (
         <div className="space-y-4">
-          {(Array.isArray(paginated) ? paginated : []).map((item) => (
-            <article key={item.id} className="rounded-3xl border border-sura-line bg-sura-canvas p-6">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{item.category}</div>
-                  <h2 className="mt-2 text-2xl font-semibold">{item.title}</h2>
+          {(Array.isArray(paginated) ? paginated : []).map((item, idx) => (
+            <div key={item.id}>
+              {idx === 2 ? (
+                <AdsenseAd
+                  adSlot={import.meta.env.VITE_ADSENSE_ARTICLES_SLOT as string}
+                  minHeightPx={280}
+                />
+              ) : null}
+
+              <article className="rounded-3xl border border-sura-line bg-sura-canvas p-6">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{item.category}</div>
+                    <h2 className="mt-2 text-2xl font-semibold">{item.title}</h2>
+                  </div>
+                  <div className="text-sm text-sura-navy/70">{item.readingTime}</div>
                 </div>
-                <div className="text-sm text-sura-navy/70">{item.readingTime}</div>
-              </div>
-              <p className="mt-4 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
-              <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-sura-navy/70">
-                <span>{item.author}</span>
-                <span>•</span>
-                <span>{item.views} views</span>
-                <span>•</span>
-                <span>{item.claps} claps</span>
-              </div>
-              <button
-                className={`mt-4 rounded-full border px-3 py-1 text-xs ${activeArticleId === item.id ? 'border-sura-gold text-sura-teal' : 'border-sura-line text-sura-navy/80'}`}
-                onClick={() => setActiveArticleId(item.id)}
-              >
-                {locale === 'ar' ? 'عرض التعليقات' : 'Open comments'}
-              </button>
-            </article>
+                <p className="mt-4 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
+                <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-sura-navy/70">
+                  <span>{item.author}</span>
+                  <span>•</span>
+                  <span>{item.views} views</span>
+                  <span>•</span>
+                  <span>{item.claps} claps</span>
+                </div>
+                <button
+                  className={`mt-4 rounded-full border px-3 py-1 text-xs ${activeArticleId === item.id ? 'border-sura-gold text-sura-teal' : 'border-sura-line text-sura-navy/80'}`}
+                  onClick={() => {
+                    setActiveArticleId(item.id);
+                    trackEvent('article_read', {
+                      article_id: item.id,
+                      article_title: item.title
+                    });
+                  }}
+                >
+                  {locale === 'ar' ? 'عرض التعليقات' : 'Open comments'}
+                </button>
+              </article>
+            </div>
           ))}
         </div>
       )}
+
 
       <div className="flex items-center justify-center gap-2">
         <button

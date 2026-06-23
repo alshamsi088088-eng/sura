@@ -30,10 +30,9 @@ export async function initializeSeed() {
     { title: 'The Quiet Novel', author: 'Amina Parker', price: 14.99, format: 'Digital', summary: 'A reflective new book for calm evenings.', coverImage: 'https://images.unsplash.com/photo-1496104679561-38d0d1b6a73b?auto=format&fit=crop&w=900&q=80', stock: 12 },
     { title: 'Calligraphy Stories', author: 'نورا جميل', price: 19.99, format: 'Print', summary: 'A hardcover collection of short essays and poems.', coverImage: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=900&q=80', stock: 7 }
   ]});
-  await prisma.product.createMany({ data: [
-    { title: 'Editorial Template Pack', description: 'Templates for articles, reading lists, and portfolios.', price: 29.99, license: 'Personal', type: 'Template', downloadUrl: 'https://example.com/download/editorial-pack.zip' },
-    { title: 'Sura Codex eBook', description: 'A digital handbook for focused publishing.', price: 12.99, license: 'Commercial', type: 'eBook', downloadUrl: 'https://example.com/download/sura-codex-ebook.pdf' }
-  ]});
+  // “products” in older versions were modeled separately from “books”.
+  // Current schema uses the Book model for store items.
+
   await prisma.galleryImage.createMany({ data: [
     { title: 'Quiet Desk', category: 'Workspace', imageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=900&q=80' },
     { title: 'Library Light', category: 'Interior', imageUrl: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=900&q=80' },

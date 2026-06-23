@@ -3,7 +3,13 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../services/prisma.js';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2022-11-15' });
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+if (!stripeSecretKey) {
+  // Fail fast in runtime if Stripe is misconfigured
+  console.warn('[storeController] Missing STRIPE_SECRET_KEY env var');
+}
+const stripe = new Stripe(stripeSecretKey || '', { apiVersion: '2022-11-15' });
+
 
 type CartItem = { id: string; quantity?: number };
 
@@ -83,6 +89,10 @@ export async function validateCoupon(req: Request, res: Response) {
 
 export async function checkout(req: Request, res: Response, next: NextFunction) {
   try {
+    if (!stripeSecretKey) {
+      return res.status(500).json({ message: 'Stripe is not configured (missing STRIPE_SECRET_KEY)' });
+    }
+
     const user = req.user as any;
     const { items = [], couponCode } = req.body as { items: CartItem[]; couponCode?: string };
 
@@ -90,12 +100,27 @@ export async function checkout(req: Request, res: Response, next: NextFunction) 
       return res.status(400).json({ message: 'No checkout items provided' });
     }
 
-    const products = await prisma.book.findMany({ where: { id: { in: items.map((item) => item.id) } } });
+    // Normalize + validate cart quantities
+    const normalizedItems = items
+      .filter((it) => typeof it?.id === 'string' && it.id.trim().length > 0)
+      .map((it) => ({ id: it.id, quantity: Number(it.quantity ?? 1) }))
+      .filter((it) => Number.isFinite(it.quantity) && it.quantity > 0);
+
+    if (normalizedItems.length === 0) {
+      return res.status(400).json({ message: 'No valid checkout items provided' });
+    }
+
+    const productIds = Array.from(new Set(normalizedItems.map((it) => it.id)));
+    const products = await prisma.book.findMany({ where: { id: { in: productIds } } });
+
+    if (!products.length) {
+      return res.status(400).json({ message: 'Invalid checkout items' });
+    }
 
     const subtotal = Number(
       products
         .reduce((sum: number, book: { id: string; price: number }) => {
-          const quantity = items.find((it) => it.id === book.id)?.quantity || 1;
+          const quantity = normalizedItems.find((it) => it.id === book.id)?.quantity || 1;
           return sum + book.price * quantity;
         }, 0)
         .toFixed(2)
@@ -106,7 +131,34 @@ export async function checkout(req: Request, res: Response, next: NextFunction) 
       couponCode,
       products.map((p: { id: string }) => p.id)
     );
+
     const total = Number(Math.max(0, subtotal - discountAmount).toFixed(2));
+
+    // Distribute discount across items so Stripe totals match our computed total.
+    const productSubtotalMap = new Map<string, number>();
+    for (const book of products) {
+      const q = normalizedItems.find((it) => it.id === book.id)?.quantity || 1;
+      productSubtotalMap.set(book.id, book.price * q);
+    }
+
+    const lineItems = products.map((book: any) => {
+      const quantity = normalizedItems.find((it) => it.id === book.id)?.quantity || 1;
+      const itemSubtotal = productSubtotalMap.get(book.id) || 0;
+
+      const share = subtotal > 0 ? itemSubtotal / subtotal : 0;
+      const itemDiscount = Number((discountAmount * share).toFixed(2));
+      const discountedUnit = book.price - itemDiscount / (quantity || 1);
+      const unitAmountCents = Math.max(0, Math.round(discountedUnit * 100));
+
+      return {
+        price_data: {
+          currency: 'usd',
+          product_data: { name: book.title, description: book.summary },
+          unit_amount: unitAmountCents
+        },
+        quantity
+      };
+    });
 
     const metadata: Record<string, string> = {
       userId: user?.id || '',
@@ -114,31 +166,26 @@ export async function checkout(req: Request, res: Response, next: NextFunction) 
       discountCode: discountCode || '',
       discountAmount: discountAmount.toString(),
       subtotal: subtotal.toString(),
+      total: total.toString(),
       items: JSON.stringify(
         products.map((book: { id: string; title: string; price: number }) => ({
           id: book.id,
           title: book.title,
           price: book.price,
-          quantity: items.find((it) => it.id === book.id)?.quantity || 1
+          quantity: normalizedItems.find((it) => it.id === book.id)?.quantity || 1
         }))
       )
     };
 
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
       customer_email: user?.email || undefined,
       metadata,
-      line_items: products.map((book: { id: string; title: string; summary: string; price: number }) => ({
-        price_data: {
-          currency: 'usd',
-          product_data: { name: book.title, description: book.summary },
-          unit_amount: Math.round(book.price * 100)
-        },
-        quantity: items.find((it) => it.id === book.id)?.quantity || 1
-      })),
-      success_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/profile?checkout=success`,
-      cancel_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/store`
+      line_items: lineItems,
+      success_url: `${clientUrl}/profile?checkout=success`,
+      cancel_url: `${clientUrl}/store`
     });
 
     res.json({ url: session.url, subtotal, discountAmount, total, discountCode });
@@ -146,6 +193,7 @@ export async function checkout(req: Request, res: Response, next: NextFunction) 
     next(error);
   }
 }
+
 
 export async function getDownloadAccess(req: Request, res: Response) {
   const user = req.user as any;

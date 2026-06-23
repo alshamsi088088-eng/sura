@@ -1,26 +1,26 @@
-# Sura Codex – Phases 3–6 TODO
+# TODO - Sura Codex - إكمال وإصلاح المتجر
 
-- [x] Phase 3: Analytics hardening
-  - [x] Refactor BookmarkButton to emit centralized `bookmark_update`
-  - [x] Refactor ReadingProgressTracker to emit `reading_progress_update`
-  - [ ] Audit and align analytics event usage in Store/Profile/Comments flows
+- [x] مراجعة storeController.ts بالكامل (سيتم التنفيذ)
+  - [x] تصحيح checkout logic بحيث يتم تطبيق الخصم داخل line_items في Stripe (وليس فقط metadata)
+  - [x] إزالة/منع أي placeholder/logic Stripe غير مكتمل
+  - [x] تحسين validation و error handling
+  - [x] حماية من عدم توفر STRIPE_SECRET_KEY
 
-- [ ] Phase 4: Comments system completion
-  - [ ] Ensure ThreadedComments supports create/reply/moderation/realtime cleanly
-  - [ ] Integrate comments on NovelsPage
-  - [ ] Integrate comments on StorePage
-  - [ ] Improve ArticlesPage selected-article comments behavior
-  - [ ] Add Admin moderation UX around comments visibility
 
-- [ ] Phase 5: Commerce + profile + reading goals
-  - [ ] Add StorePage coupon validation flow
-  - [ ] Add StorePage preview/download CTA wiring
-  - [ ] Add StorePage checkout analytics events
-  - [ ] Add ProfilePage purchase history section
-  - [ ] Add ProfilePage gated download actions
-  - [ ] Add HomePage weekly reading aggregation panel
+- [x] تحديث StorePage.tsx
+  - [x] إضافة حالة loading/error لزر التحميل
+  - [x] (اختياري/مطلوب حسب الكود) إظهار CTA فقط للكتب المشتراة عبر API
+  - [x] عدم كسر Cart أو Checkout الحالي
 
-- [ ] Phase 6: Backend fixups + verification
-  - [ ] Remove/fix invalid Stripe discounts placeholder in storeController checkout
-  - [ ] Run critical-path build and tests
-  - [ ] Summarize coverage and remaining gaps
+- [x] تحديث ProfilePage.tsx
+  - [x] إنشاء قسم "مشترياتي" يعرض الكتب بدون تكرار
+  - [x] زر Download لكل كتاب (يستخدم endpoint الموجود)
+  - [x] معالجة حالة No purchases
+
+- [x] مراجعة storeRoutes.ts
+  - [x] التأكد من ربط جميع routes بالـ Controllers
+
+- [x] تنفيذ TypeScript validation
+- [x] تنفيذ build verification
+- [x] تقرير نهائي عن أي مشاكل متبقية تمنع الإطلاق الإنتاجي
+

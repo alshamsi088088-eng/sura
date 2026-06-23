@@ -35,9 +35,12 @@ export async function getTech(_req: Request, res: Response) {
 }
 
 export async function getProducts(_req: Request, res: Response) {
-  const products = await prisma.product.findMany({ orderBy: { publishedAt: 'desc' } });
+  // In this codebase “products” for the store are represented by the Book model.
+  // Prisma “Product” model might not exist depending on schema migrations.
+  const products = await prisma.book.findMany({ orderBy: { createdAt: 'desc' } });
   res.json({ products });
 }
+
 
 export async function getDashboard(req: Request, res: Response) {
   const user = req.user;

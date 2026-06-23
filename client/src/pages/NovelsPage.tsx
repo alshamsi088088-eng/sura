@@ -4,6 +4,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useLocale } from '../context/LocaleContext';
 import { ThreadedComments } from '../components/ThreadedComments';
 import { useAuth } from '../context/AuthContext';
+import { AdsenseAd } from '../components/AdsenseAd';
+import { trackEvent } from '../lib/analytics';
+
 
 interface Chapter {
   id: string;
@@ -90,12 +93,23 @@ export function NovelsPage() {
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         <aside className="space-y-4 rounded-3xl border border-sura-line bg-sura-canvas p-6">
           <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{locale === 'ar' ? 'رواياتي' : 'My novels'}</div>
+
+          <AdsenseAd
+            adSlot={import.meta.env.VITE_ADSENSE_NOVELS_SLOT as string}
+            minHeightPx={300}
+          />
+
           {(Array.isArray(novels) ? novels : []).map((novel) => (
             <button
               key={novel.id}
               onClick={() => {
                 setActiveNovel(novel);
                 setActiveChapter(novel.chapters[0] || null);
+
+                trackEvent('novel_read', {
+                  novel_id: novel.id,
+                  novel_title: novel.title
+                });
               }}
               className="block w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-4 text-left text-sm text-sura-navy transition hover:border-sura-teal"
             >
@@ -104,6 +118,7 @@ export function NovelsPage() {
             </button>
           ))}
         </aside>
+
         <article className={`rounded-3xl border border-sura-line p-8 ${nightMode ? 'bg-sura-canvas' : 'bg-sura-cream text-sura-brown'}`}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -150,7 +165,10 @@ export function NovelsPage() {
           </div>
         </article>
       </div>
+
+      {/* Comments under the selected novel */}
       {activeNovel ? <ThreadedComments entityId={activeNovel.id} entityType="novel" /> : null}
     </div>
   );
 }
+

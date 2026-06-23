@@ -1,15 +1,18 @@
-# Build stage
-FROM node:20-alpine AS build
+FROM node:20-alpine AS builder
 WORKDIR /app
-COPY client/package.json ./
-COPY package-lock.json ./
-RUN npm install --production=false
-COPY client/. ./
+COPY package*.json ./
+COPY client/package*.json ./client/
+RUN npm install --legacy-peer-deps
+WORKDIR /app/client
+
+COPY tsconfig.json vite.config.ts tailwind.config.js postcss.config.js ./
+COPY index.html ./
+COPY src/ ./src/
+COPY public/ ./public/
 RUN npm run build
 
-# Production stage
 FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/client/dist /usr/share/nginx/html
+COPY client/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80 443
 CMD ["nginx", "-g", "daemon off;"]
