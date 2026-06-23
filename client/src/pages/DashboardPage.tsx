@@ -77,7 +77,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     // Load history from API
-    axios.get('/api/dashboard').then((res) => setHistory(res.data.history)).catch(() => setHistory([]));
+    axios.get('/api/dashboard').then((res) => setHistory(res.data.history || [])).catch(() => setHistory([]));
   }, []);
 
   useEffect(() => {
