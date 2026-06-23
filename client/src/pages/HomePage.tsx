@@ -7,9 +7,11 @@ import { auth, db } from '../firebaseConfig';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { WeeklyTargetBanner } from '../components/WeeklyTargetBanner';
 import { Link } from 'react-router-dom';
+import { supabase } from '../lib/supabaseClient';
 
 interface FeatureCard { title: string; description: string; }
 interface ReadingProgressItem { uid: string; progress: number; }
+interface TrendingItem { id: string; title: string; type: string; views: number; }
 
 export function HomePage() {
   const { locale, strings } = useLocale();
@@ -18,6 +20,7 @@ export function HomePage() {
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [weeklyProgressCount, setWeeklyProgressCount] = useState(0);
   const [weeklyAverage, setWeeklyAverage] = useState(0);
+  const [trending, setTrending] = useState<TrendingItem[]>([]);
   const dir = locale === 'ar' ? 'rtl' : 'ltr';
 
   useEffect(() => {
@@ -38,6 +41,19 @@ export function HomePage() {
     return () => {
       mounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const loadTrending = async () => {
+      const { data: articles } = await supabase!.from('Article').select('id, title, views').order('createdAt', { ascending: false }).limit(5);
+      const { data: novels } = await supabase!.from('Novel').select('id, title, views').order('createdAt', { ascending: false }).limit(5);
+      const articleItems: TrendingItem[] = (articles || []).map(a => ({ id: a.id, title: a.title, type: 'article', views: a.views || 0 }));
+      const novelItems: TrendingItem[] = (novels || []).map(n => ({ id: n.id, title: n.title, type: 'novel', views: n.views || 0 }));
+      const allItems: TrendingItem[] = [...articleItems, ...novelItems].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 6);
+      setTrending(allItems);
+    };
+    loadTrending();
   }, []);
 
   useEffect(() => {
@@ -138,6 +154,31 @@ export function HomePage() {
                   <p className="text-sm leading-relaxed text-sura-ink/55">{card.description}</p>
                 </div>
               ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Trending */}
+        {trending?.length > 0 ? (
+          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+            <div className="eyebrow mb-3">{locale === 'ar' ? 'رائج' : 'Trending'}</div>
+            <h2 className="text-2xl font-bold mb-6 text-sura-ink">{locale === 'ar' ? 'المحتوى الرائج' : 'Trending Content'}</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              {trending?.map((item, i) => (
+                <Link key={item?.id} to={item?.type === 'article' ? `/articles/${item?.id}` : `/novels/${item?.id}`} className="glass-card p-4 text-center group">
+                  <div className="text-xs font-bold text-sura-sky/70 mb-2">#{i + 1}</div>
+                  <h3 className="font-serif text-sm font-bold mb-1 text-sura-ink line-clamp-2 group-hover:text-sura-sky">{item?.title}</h3>
+                  <div className="text-xs text-sura-ink/50">{item?.type === 'article' ? (locale === 'ar' ? 'مقال' : 'Article') : (locale === 'ar' ? 'رواية' : 'Novel')}</div>
+                </Link>
+              ))}
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+            <div className="eyebrow mb-3">{locale === 'ar' ? 'رائج' : 'Trending'}</div>
+            <h2 className="text-2xl font-bold mb-6 text-sura-ink">{locale === 'ar' ? 'المحتوى الرائج' : 'Trending Content'}</h2>
+            <div className="glass-card p-6 text-center text-sura-ink/50">
+              {locale === 'ar' ? 'لا يوجد محتوى رائج بعد.' : 'No trending content available yet.'}
             </div>
           </motion.div>
         )}

@@ -73,14 +73,24 @@ export function Navbar() {
             </NavLink>
           ))}
           {user && (
-            <NavLink to="/dashboard"
-              className={({ isActive }) =>
-                `rounded-full px-4 py-2 text-[13.5px] font-medium transition-all ${
-                  isActive ? 'glass text-sura-ink' : 'text-sura-ink/55 hover:text-sura-ink'
-                }`
-              }>
-              {strings.dashboard}
-            </NavLink>
+            <>
+              <NavLink to="/create-novel"
+                className={({ isActive }) =>
+                  `rounded-full px-4 py-2 text-[13.5px] font-medium transition-all ${
+                    isActive ? 'glass text-sura-ink' : 'text-sura-ink/55 hover:text-sura-ink'
+                  }`
+                }>
+                {locale === 'ar' ? 'إنشاء رواية' : 'Create Novel'}
+              </NavLink>
+              <NavLink to="/dashboard"
+                className={({ isActive }) =>
+                  `rounded-full px-4 py-2 text-[13.5px] font-medium transition-all ${
+                    isActive ? 'glass text-sura-ink' : 'text-sura-ink/55 hover:text-sura-ink'
+                  }`
+                }>
+                {strings.dashboard}
+              </NavLink>
+            </>
           )}
           {user?.role === 'admin' && (
             <NavLink to="/admin"

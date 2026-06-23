@@ -27,6 +27,8 @@ import { RegisterPage } from './pages/RegisterPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import { CreatePostPage } from './pages/CreatePostPage';
 import { CreateChapterPage } from './pages/CreateChapterPage';
+import { CreateNovelPage } from './pages/CreateNovelPage';
+import { CreateTechPage } from './pages/CreateTechPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AdminRoute } from './components/auth/AdminRoute';
@@ -60,6 +62,8 @@ function AppInner() {
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/create-post" element={<ProtectedRoute><CreatePostPage /></ProtectedRoute>} />
               <Route path="/create-chapter" element={<ProtectedRoute><CreateChapterPage /></ProtectedRoute>} />
+              <Route path="/create-novel" element={<ProtectedRoute><CreateNovelPage /></ProtectedRoute>} />
+              <Route path="/create-tech" element={<ProtectedRoute><CreateTechPage /></ProtectedRoute>} />
               <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>

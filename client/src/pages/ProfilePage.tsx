@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+import { supabase } from '../lib/supabaseClient';
 import { trackEvent } from '../lib/analytics';
 
 interface PurchasedOrderItem {
@@ -40,6 +41,8 @@ export function ProfilePage() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
   const [downloadLoadingBookId, setDownloadLoadingBookId] = useState<string | null>(null);
+  const [userStats, setUserStats] = useState({ articles: 0, novels: 0, chapters: 0, followers: 0, following: 0 });
+  const [statsLoading, setStatsLoading] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -61,6 +64,27 @@ export function ProfilePage() {
       })
       .finally(() => setOrdersLoading(false));
   }, [user, locale]);
+
+  useEffect(() => {
+    if (!user || !supabase) return;
+    setStatsLoading(true);
+    const loadUserStats = async () => {
+      const { data: articles } = await supabase!.from('Article').select('id').eq('authorId', user.id);
+      const { data: novels } = await supabase!.from('Novel').select('id').eq('authorId', user.id);
+      const { data: chapters } = await supabase!.from('Chapter').select('id');
+      const { data: followers } = await supabase!.from('Follow').select('id').eq('followingId', user.id);
+      const { data: following } = await supabase!.from('Follow').select('id').eq('followerId', user.id);
+      setUserStats({
+        articles: articles?.length || 0,
+        novels: novels?.length || 0,
+        chapters: chapters?.length || 0,
+        followers: followers?.length || 0,
+        following: following?.length || 0
+      });
+      setStatsLoading(false);
+    };
+    loadUserStats();
+  }, [user]);
 
   const totalSpent = useMemo(
     () => orders.reduce((sum, order) => sum + Number(order.total || 0), 0),
@@ -113,6 +137,30 @@ export function ProfilePage() {
         </p>
       </header>
 
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+        <Link to="/create-post" className="rounded-2xl border border-sura-line bg-sura-canvas p-4 text-center transition hover:border-sura-teal">
+          <div className="text-2xl font-bold text-sura-teal">{userStats.articles}</div>
+          <div className="text-xs text-sura-navy/70">{locale === 'ar' ? 'المقالات' : 'Articles'}</div>
+        </Link>
+        <Link to="/create-novel" className="rounded-2xl border border-sura-line bg-sura-canvas p-4 text-center transition hover:border-sura-teal">
+          <div className="text-2xl font-bold text-sura-teal">{userStats.novels}</div>
+          <div className="text-xs text-sura-navy/70">{locale === 'ar' ? 'الروايات' : 'Novels'}</div>
+        </Link>
+        <Link to="/create-chapter" className="rounded-2xl border border-sura-line bg-sura-canvas p-4 text-center transition hover:border-sura-teal">
+          <div className="text-2xl font-bold text-sura-teal">{userStats.chapters}</div>
+          <div className="text-xs text-sura-navy/70">{locale === 'ar' ? 'الفصول' : 'Chapters'}</div>
+        </Link>
+        <div className="rounded-2xl border border-sura-line bg-sura-canvas p-4 text-center">
+          <div className="text-2xl font-bold text-sura-teal">{userStats.followers}</div>
+          <div className="text-xs text-sura-navy/70">{locale === 'ar' ? 'المتابعون' : 'Followers'}</div>
+        </div>
+        <div className="rounded-2xl border border-sura-line bg-sura-canvas p-4 text-center">
+          <div className="text-2xl font-bold text-sura-teal">{userStats.following}</div>
+          <div className="text-xs text-sura-navy/70">{locale === 'ar' ? 'يتابع' : 'Following'}</div>
+        </div>
+      </div>
+
       <section className="grid items-start gap-6 md:grid-cols-[200px_1fr]">
         <div className="rounded-3xl border border-sura-line bg-sura-canvas p-5 text-center">
           {user.avatar ? (
@@ -131,6 +179,9 @@ export function ProfilePage() {
             <div className="mb-2 font-semibold text-sura-teal">{locale === 'ar' ? 'الاسم' : 'Display Name'}</div>
             <div>{user.name}</div>
           </div>
+          <Link to="/dashboard" className="mt-4 block w-full rounded-full border border-sura-line px-4 py-2 text-sm text-sura-navy/80">
+            {locale === 'ar' ? 'لوحة التحكم' : 'Dashboard'}
+          </Link>
         </div>
 
         <div className="space-y-4 rounded-3xl border border-sura-line bg-sura-canvas p-6">

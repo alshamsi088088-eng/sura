@@ -1,8 +1,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+import { supabase } from '../lib/supabaseClient';
 
 interface WeeklyData {
   articles: number;
@@ -18,8 +20,23 @@ interface ReadingEntry {
   lastRead: string;
 }
 
+interface UserContent {
+  articles: number;
+  novels: number;
+  chapters: number;
+}
+
+interface Badge {
+  id: string;
+  name: string;
+  icon: string;
+  earned: boolean;
+}
+
 const WEEKLY_READING_KEY = 'sura_weekly_reading';
 const PROGRESS_KEY = 'sura_reading_progress';
+const READING_STREAK_KEY = 'sura_reading_streak';
+const LAST_READ_DATE_KEY = 'sura_last_read_date';
 
 function loadWeeklyData(): WeeklyData {
   try {
@@ -43,6 +60,37 @@ function loadLastRead(): ReadingEntry[] {
   } catch {
     return [];
   }
+}
+
+function getReadingStreak(): { days: number; lastDate: string } {
+  try {
+    const streak = localStorage.getItem(READING_STREAK_KEY);
+    const lastDate = localStorage.getItem(LAST_READ_DATE_KEY);
+    const today = new Date().toDateString();
+    if (lastDate === today) {
+      return streak ? JSON.parse(streak) : { days: 0, lastDate: '' };
+    }
+    const last = lastDate ? new Date(lastDate) : null;
+    if (!last) return { days: 0, lastDate: '' };
+    const diff = Math.floor((new Date().getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff <= 2) {
+      return streak ? JSON.parse(streak) : { days: diff, lastDate: lastDate || '' };
+    }
+    return { days: 0, lastDate: '' };
+  } catch {
+    return { days: 0, lastDate: '' };
+  }
+}
+
+function updateReadingStreak() {
+  const today = new Date().toDateString();
+  const streak = getReadingStreak();
+  const newStreak = {
+    days: streak.days + 1,
+    lastDate: today
+  };
+  localStorage.setItem(READING_STREAK_KEY, JSON.stringify(newStreak));
+  localStorage.setItem(LAST_READ_DATE_KEY, today);
 }
 
 function generateWeeklyChartData(localeValue: string): { day: string; articles: number; chapters: number }[] {
@@ -74,6 +122,14 @@ export function DashboardPage() {
   const [history, setHistory] = useState<string[]>([]);
   const [weeklyData, setWeeklyData] = useState<WeeklyData>({ articles: 0, chapters: 0, date: '' });
   const [lastRead, setLastRead] = useState<ReadingEntry[]>([]);
+  const [userContent, setUserContent] = useState<UserContent>({ articles: 0, novels: 0, chapters: 0 });
+  const [streak, setStreak] = useState({ days: 0, lastDate: '' });
+  const [badges, setBadges] = useState<Badge[]>([
+    { id: 'first_article', name: locale === 'ar' ? 'كاتب جديد' : 'New Writer', icon: '✍️', earned: false },
+    { id: 'reading_streak', name: locale === 'ar' ? '7 أيام قراءة' : '7 Day Reader', icon: '🔥', earned: false },
+    { id: 'bookworm', name: locale === 'ar' ? 'مدمن قراءة' : 'Bookworm', icon: '📚', earned: false },
+    { id: 'collector', name: locale === 'ar' ? 'جامع كتب' : 'Collector', icon: '📦', earned: false },
+  ]);
 
   useEffect(() => {
     // Load history from API
@@ -86,7 +142,52 @@ export function DashboardPage() {
     setWeeklyData(weekly);
     const recent = loadLastRead();
     setLastRead(recent);
+    const s = getReadingStreak();
+    setStreak(s);
+    updateReadingStreak();
   }, []);
+
+  useEffect(() => {
+    // Load user content from Supabase
+    if (!user || !supabase) return;
+    const loadUserContent = async () => {
+      const { data: articles } = await supabase!.from('Article').select('id').eq('authorId', user.id);
+      const { data: novels } = await supabase!.from('Novel').select('id').eq('authorId', user.id);
+      const { data: chapters } = await supabase!.from('Chapter').select('id');
+      setUserContent({
+        articles: articles?.length || 0,
+        novels: novels?.length || 0,
+        chapters: chapters?.length || 0
+      });
+    };
+    loadUserContent();
+  }, [user]);
+
+  // Update badges based on achievements
+  useEffect(() => {
+    const updated = [...badges];
+    const articleCount = userContent?.articles ?? 0;
+    const novelCount = userContent?.novels ?? 0;
+    const streakDays = streak?.days ?? 0;
+
+    if (articleCount >= 1) {
+      const badge = updated.find(b => b.id === 'first_article');
+      if (badge) badge.earned = true;
+    }
+    if (streakDays >= 7) {
+      const badge = updated.find(b => b.id === 'reading_streak');
+      if (badge) badge.earned = true;
+    }
+    if (articleCount >= 5) {
+      const badge = updated.find(b => b.id === 'bookworm');
+      if (badge) badge.earned = true;
+    }
+    if ((articleCount + novelCount) >= 10) {
+      const badge = updated.find(b => b.id === 'collector');
+      if (badge) badge.earned = true;
+    }
+    setBadges(updated);
+  }, [userContent, streak]);
 
   const chartData = useMemo(() => generateWeeklyChartData(locale), [locale]);
   const totalWeekly = weeklyData.articles + weeklyData.chapters;
@@ -107,7 +208,7 @@ export function DashboardPage() {
       </header>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-5">
         <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
           <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
             {locale === 'ar' ? 'هذا الأسبوع' : 'This Week'}
@@ -119,15 +220,22 @@ export function DashboardPage() {
           <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
             {locale === 'ar' ? 'المقالات' : 'Articles'}
           </div>
-          <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{weeklyData.articles}</div>
-          <div className="text-xs text-sura-ivory/50">{locale === 'ar' ? 'مكتملة' : 'completed'}</div>
+          <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{userContent?.articles ?? 0}</div>
+          <div className="text-xs text-sura-ivory/50">{locale === 'ar' ? 'مقالات لك' : 'your articles'}</div>
         </div>
         <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
           <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
-            {locale === 'ar' ? 'الفصول' : 'Chapters'}
+            {locale === 'ar' ? 'الروايات' : 'Novels'}
           </div>
-          <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{weeklyData.chapters}</div>
-          <div className="text-xs text-sura-ivory/50">{locale === 'ar' ? 'مكتملة' : 'completed'}</div>
+          <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{userContent?.novels ?? 0}</div>
+          <div className="text-xs text-sura-ivory/50">{locale === 'ar' ? 'روايات لك' : 'your novels'}</div>
+        </div>
+        <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
+          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
+            {locale === 'ar' ? 'سلسلة القراءة' : 'Reading Streak'}
+          </div>
+          <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{streak?.days ?? 0}</div>
+          <div className="text-xs text-sura-ivory/50">{locale === 'ar' ? 'أيام متتالية' : 'days in a row'}</div>
         </div>
         <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
           <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
@@ -140,9 +248,6 @@ export function DashboardPage() {
 
       {/* Weekly Chart */}
       <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-6 sm:p-8">
-        <h2 className="text-xl font-semibold text-sura-ivory">
-          {locale === 'ar' ? 'القراءة الأسبوعية' : 'Weekly Reading'}
-        </h2>
         <h2 className="text-xl font-semibold text-sura-ivory">
           {locale === 'ar' ? 'القراءة الأسبوعية' : 'Weekly Reading'}
         </h2>
@@ -225,6 +330,35 @@ export function DashboardPage() {
           </div>
         </section>
       </div>
+
+      {/* Badges */}
+      <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
+        <h2 className="text-xl font-semibold text-sura-ivory">
+          {locale === 'ar' ? 'الإنجازات' : 'Achievements'}
+        </h2>
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {badges.map((badge) => (
+            <div
+              key={badge.id}
+              className={`flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition ${
+                badge.earned
+                  ? 'border-[#7F77DD]/50 bg-[#7F77DD]/10'
+                  : 'border-[#7F77DD]/20 bg-sura-dark/50 opacity-50'
+              }`}
+            >
+              <div className="text-3xl">{badge.icon}</div>
+              <div className={`text-sm font-medium ${badge.earned ? 'text-sura-ivory' : 'text-sura-ivory/50'}`}>
+                {badge.name}
+              </div>
+              {badge.earned && (
+                <div className="text-xs text-[#7F77DD]">
+                  {locale === 'ar' ? '✓ محقق' : '✓ Earned'}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* Recent Activity */}
       {history.length > 0 && (

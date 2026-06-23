@@ -30,6 +30,8 @@ export function CreatePostPage() {
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
 
   const [category, setCategory] = useState('Technology');
   const [language, setLanguage] = useState('English');
@@ -47,6 +49,21 @@ export function CreatePostPage() {
 
   const slug = useMemo(() => slugify(title), [title]);
   const readingTime = useMemo(() => estimateReadingTime(content), [content]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAttachment(file);
+      // Create preview URL for display
+      const url = URL.createObjectURL(file);
+      setAttachmentPreview(url);
+    }
+  };
+
+  const removeAttachment = () => {
+    setAttachment(null);
+    setAttachmentPreview(null);
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -82,6 +99,23 @@ export function CreatePostPage() {
       const authorId = user.id;
       const authorName = user.name || user.email || 'Anonymous';
 
+      let attachmentUrl = null;
+
+      // Upload attachment if selected
+      if (attachment) {
+        const fileName = `${Date.now()}-${attachment.name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('attachments')
+          .upload(fileName, attachment);
+
+        if (uploadError) {
+          console.error('Attachment upload error:', uploadError);
+        } else {
+          const { data: urlData } = supabase.storage.from('attachments').getPublicUrl(fileName);
+          attachmentUrl = urlData.publicUrl;
+        }
+      }
+
       const payload = {
         title: title.trim(),
         slug,
@@ -94,7 +128,10 @@ export function CreatePostPage() {
         authorName,
         featured: false,
         views: 0,
-        claps: 0
+        claps: 0,
+        attachment: attachmentUrl,
+        attachmentName: attachment?.name || null,
+        attachmentType: attachment?.type || null
       };
 
       const { error: insertError } = await supabase.from('Article').insert(payload);
@@ -153,6 +190,31 @@ export function CreatePostPage() {
           className="min-h-48 w-full resize-y rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
           required
         />
+
+        {/* File Attachment */}
+        <div>
+          <label className="block text-sm font-medium text-sura-navy/70 mb-2">
+            {locale === 'ar' ? 'رفع ملف مرفق (PDF, DOC, ZIP)' : 'Upload Attachment (PDF, DOC, ZIP)'}
+          </label>
+          <input
+            type="file"
+            accept=".pdf,.doc,.docx,.zip"
+            onChange={handleFileChange}
+            className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy file:mr-4 file:rounded-full file:border-0 file:bg-sura-teal file:px-4 file:py-1 file:text-sm file:font-semibold file:text-white"
+          />
+          {attachment && (
+            <div className="mt-2 flex items-center justify-between rounded-lg bg-sura-teal/10 p-2">
+              <span className="text-sm text-sura-navy truncate">{attachment.name}</span>
+              <button
+                type="button"
+                onClick={removeAttachment}
+                className="text-red-400 hover:text-red-300 text-sm"
+              >
+                {locale === 'ar' ? 'إزالة' : 'Remove'}
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="rounded-3xl border border-sura-line bg-sura-canvas p-4 text-sm text-sura-navy/80">
           <div><span className="font-semibold">{locale === 'ar' ? 'Excerpt' : 'Excerpt'}:</span> {excerpt || '—'}</div>

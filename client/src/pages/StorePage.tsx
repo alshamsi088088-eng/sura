@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import { useLocale } from '../context/LocaleContext';
+import { useAuth } from '../context/AuthContext';
 import { ThreadedComments } from '../components/ThreadedComments';
 import { trackPurchaseIntent, trackEvent } from '../lib/analytics';
 
@@ -22,6 +24,7 @@ interface CartItem {
 
 export function StorePage() {
   const { locale } = useLocale();
+  const { user } = useAuth();
   const [books, setBooks] = useState<BookItem[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [couponCode, setCouponCode] = useState('');
@@ -116,12 +119,24 @@ export function StorePage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <header className="rounded-3xl border border-sura-line bg-sura-canvas p-8">
-        <h1 className="text-4xl font-semibold">{locale === 'ar' ? 'المتجر' : 'Book Store'}</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-sura-navy/80">
-          {locale === 'ar'
-            ? 'شراء نسخ رقمية ومطبوعة مع تسليم آمن وروابط تنزيل.'
-            : 'Purchase digital and physical books with Stripe checkout and downloadable access.'}
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-4xl font-semibold">{locale === 'ar' ? 'المتجر' : 'Book Store'}</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-sura-navy/80">
+              {locale === 'ar'
+                ? 'شراء نسخ رقمية ومطبوعة مع تسليم آمن وروابط تنزيل.'
+                : 'Purchase digital and physical books with Stripe checkout and downloadable access.'}
+            </p>
+          </div>
+          {user?.role === 'admin' ? (
+            <Link
+              to="/admin?tab=books"
+              className="self-start rounded-full bg-sura-gold px-5 py-2 text-sm font-semibold text-sura-dark transition hover:opacity-95"
+            >
+              {locale === 'ar' ? 'إدارة الكتب' : 'Manage Books'}
+            </Link>
+          ) : null}
+        </div>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[1.8fr_0.9fr]">

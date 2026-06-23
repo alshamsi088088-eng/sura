@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useLocale } from '../context/LocaleContext';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -17,8 +18,21 @@ interface ModerationComment {
 
 export function AdminPage() {
   const { locale } = useLocale();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [overview, setOverview] = useState<any>(null);
   const [comments, setComments] = useState<ModerationComment[]>([]);
+  const activeTab = searchParams.get('tab') || 'overview';
+
+  const tabs = [
+    { id: 'overview', label: locale === 'ar' ? 'نظرة عامة' : 'Overview' },
+    { id: 'comments', label: locale === 'ar' ? 'التعليقات' : 'Comments' },
+    { id: 'books', label: locale === 'ar' ? 'الكتب' : 'Books' },
+    { id: 'users', label: locale === 'ar' ? 'المستخدمون' : 'Users' },
+  ];
+
+  const setTab = (tab: string) => {
+    setSearchParams({ tab });
+  };
 
   useEffect(() => {
     axios.get('/api/admin/overview').then((res) => setOverview(res.data));
@@ -115,7 +129,26 @@ export function AdminPage() {
             : 'Quick insight into users, content, revenue, and reader activity.'}
         </p>
       </header>
-      {overview && (
+
+      {/* Tab Navigation */}
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-sura-line bg-sura-canvas p-2">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setTab(tab.id)}
+            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+              activeTab === tab.id
+                ? 'bg-sura-teal text-white'
+                : 'text-sura-navy/70 hover:bg-sura-teal/10 hover:text-sura-teal'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'overview' && overview && (
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-3xl border border-sura-line bg-sura-canvas p-6">
             <div className="text-sm uppercase tracking-[0.3em] text-sura-teal">Users</div>
@@ -129,21 +162,9 @@ export function AdminPage() {
           </div>
         </div>
       )}
-      <section className="rounded-3xl border border-sura-line bg-sura-canvas p-6">
-        <div className="text-sm uppercase tracking-[0.3em] text-sura-teal">Traffic</div>
-        <div className="mt-6 h-80 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={overview?.traffic || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="day" stroke="#ddd" />
-              <YAxis stroke="#ddd" />
-              <Tooltip contentStyle={{ backgroundColor: '#0f0f0f', borderColor: '#333' }} />
-              <Line type="monotone" dataKey="visitors" stroke="#c9a84c" strokeWidth={3} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
 
+      {/* Comments Tab */}
+      {activeTab === 'comments' && (
       <section className="rounded-3xl border border-sura-line bg-sura-canvas p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -212,6 +233,7 @@ export function AdminPage() {
           )}
         </div>
       </section>
+      )}
 
     </div>
   );

@@ -5,6 +5,7 @@ import { useLocale } from '../context/LocaleContext';
 import { ThreadedComments } from '../components/ThreadedComments';
 import { useAuth } from '../context/AuthContext';
 import { AdsenseAd } from '../components/AdsenseAd';
+import { LikeShareBar } from '../components/LikeShareBar';
 import { trackEvent } from '../lib/analytics';
 
 
@@ -22,6 +23,12 @@ interface Novel {
   description: string;
   coverImage: string;
   authorId?: string | null;
+  authorName?: string;
+  category?: string;
+  tags?: string;
+  status?: string;
+  views?: number;
+  likes?: number;
   chapters: Chapter[];
 }
 
@@ -83,12 +90,24 @@ export function NovelsPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <header className="rounded-3xl border border-sura-line bg-sura-canvas p-8">
-        <h1 className="text-4xl font-semibold">{locale === 'ar' ? 'الروايات' : 'Novels'}</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-sura-navy/80">
-          {locale === 'ar'
-            ? 'استكشف الروايات مع قارئ مخصص وفهرس فصول.'
-            : 'Explore serialized novels with a chapter reader, progress tracking, and night mode.'}
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-4xl font-semibold">{locale === 'ar' ? 'الروايات' : 'Novels'}</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-sura-navy/80">
+              {locale === 'ar'
+                ? 'استكشف الروايات مع قارئ مخصص وفهرس فصول.'
+                : 'Explore serialized novels with a chapter reader, progress tracking, and night mode.'}
+            </p>
+          </div>
+          {user ? (
+            <Link
+              to="/create-novel"
+              className="self-start rounded-full bg-sura-gold px-5 py-2 text-sm font-semibold text-sura-dark transition hover:opacity-95"
+            >
+              {locale === 'ar' ? 'Create Novel' : 'Create Novel'}
+            </Link>
+          ) : null}
+        </div>
       </header>
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         <aside className="space-y-4 rounded-3xl border border-sura-line bg-sura-canvas p-6">
@@ -113,8 +132,34 @@ export function NovelsPage() {
               }}
               className="block w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-4 text-left text-sm text-sura-navy transition hover:border-sura-teal"
             >
-              <div className="font-semibold">{novel.title}</div>
-              <div className="mt-2 text-xs text-sura-navy/70">{novel.description}</div>
+              <div className="flex gap-3">
+                {novel.coverImage && (
+                  <div className="w-16 h-24 rounded-lg overflow-hidden shrink-0">
+                    <img src={novel.coverImage} alt={novel.title} className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold truncate">{novel.title}</div>
+                  <div className="mt-1 text-xs text-sura-navy/70 line-clamp-2">{novel.description}</div>
+                  {novel.category && (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-sura-teal">
+                      <span>{novel.category}</span>
+                      {novel.status && (
+                        <span className="px-2 py-0.5 rounded-full bg-sura-gold/20 text-sura-gold">
+                          {novel.status === 'completed' ? (locale === 'ar' ? 'مكتملة' : 'Complete') : (locale === 'ar' ? 'قيد الكتابة' : 'Ongoing')}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {novel.chapters && (
+                <div className="mt-3 flex items-center gap-4 text-xs text-sura-navy/50">
+                  <span>📖 {novel.chapters.length} {locale === 'ar' ? 'فصل' : 'chapters'}</span>
+                  {novel.views != null && <span>👁 {novel.views}</span>}
+                  {novel.likes != null && <span>❤️ {novel.likes}</span>}
+                </div>
+              )}
             </button>
           ))}
         </aside>
@@ -165,6 +210,17 @@ export function NovelsPage() {
           </div>
         </article>
       </div>
+
+      {/* Engagement Bar */}
+      {activeNovel && activeChapter && (
+        <div className="rounded-3xl border border-sura-line bg-sura-canvas p-4">
+          <LikeShareBar
+            entityId={activeChapter.id}
+            entityType="chapter"
+            title={activeChapter.title}
+          />
+        </div>
+      )}
 
       {/* Comments under the selected novel */}
       {activeNovel ? <ThreadedComments entityId={activeNovel.id} entityType="novel" /> : null}
