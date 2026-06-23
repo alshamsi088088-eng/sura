@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
@@ -125,19 +124,17 @@ export function DashboardPage() {
   const [userContent, setUserContent] = useState<UserContent>({ articles: 0, novels: 0, chapters: 0 });
   const [streak, setStreak] = useState({ days: 0, lastDate: '' });
   const [badges, setBadges] = useState<Badge[]>([
-    { id: 'first_article', name: locale === 'ar' ? 'كاتب جديد' : 'New Writer', icon: '✍️', earned: false },
-    { id: 'reading_streak', name: locale === 'ar' ? '7 أيام قراءة' : '7 Day Reader', icon: '🔥', earned: false },
-    { id: 'bookworm', name: locale === 'ar' ? 'مدمن قراءة' : 'Bookworm', icon: '📚', earned: false },
-    { id: 'collector', name: locale === 'ar' ? 'جامع كتب' : 'Collector', icon: '📦', earned: false },
+    { id: 'first_article', name: 'New Writer', icon: '✍️', earned: false },
+    { id: 'reading_streak', name: '7 Day Reader', icon: '🔥', earned: false },
+    { id: 'bookworm', name: 'Bookworm', icon: '📚', earned: false },
+    { id: 'collector', name: 'Collector', icon: '📦', earned: false },
   ]);
 
   useEffect(() => {
-    // Load history from API
     axios.get('/api/dashboard').then((res) => setHistory(res.data.history || [])).catch(() => setHistory([]));
   }, []);
 
   useEffect(() => {
-    // Load reading data from localStorage (offline support)
     const weekly = loadWeeklyData();
     setWeeklyData(weekly);
     const recent = loadLastRead();
@@ -148,7 +145,6 @@ export function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    // Load user content from Supabase
     if (!user || !supabase) return;
     const loadUserContent = async () => {
       const { data: articles } = await supabase!.from('Article').select('id').eq('authorId', user.id);
@@ -163,7 +159,6 @@ export function DashboardPage() {
     loadUserContent();
   }, [user]);
 
-  // Update badges based on achievements
   useEffect(() => {
     const updated = [...badges];
     const articleCount = userContent?.articles ?? 0;
@@ -193,63 +188,60 @@ export function DashboardPage() {
   const totalWeekly = weeklyData.articles + weeklyData.chapters;
   const totalRead = lastRead.length;
   const maxChartValue = Math.max(...chartData.map(d => d.articles + d.chapters), 1);
+  const isArabic = locale === 'ar';
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
         <h1 className="text-4xl font-semibold text-sura-ivory">
-          {locale === 'ar' ? 'لوحة الأعضاء' : 'Member Dashboard'}
+          {isArabic ? 'لوحة الأعضاء' : 'Member Dashboard'}
         </h1>
         <p className="mt-3 text-sm leading-7 text-sura-ivory/60">
-          {locale === 'ar'
-            ? 'مركز تحكمك الشخصي للكتب والمفضلات والمشتريات.'
-            : 'Your hub for bookmarks, reading progress, and purchases.'}
+          {isArabic ? 'مركز تحكمك الشخصي للكتب والمفضلات والمشتريات.' : 'Your hub for bookmarks, reading progress, and purchases.'}
         </p>
       </header>
 
-      {/* Stats Cards */}
       <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-5">
         <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
           <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
-            {locale === 'ar' ? 'هذا الأسبوع' : 'This Week'}
+            {isArabic ? 'هذا الأسبوع' : 'This Week'}
           </div>
           <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{totalWeekly}</div>
-          <div className="text-xs text-sura-ivory/50">{locale === 'ar' ? 'مقال/فصل' : 'items read'}</div>
+          <div className="text-xs text-sura-ivory/50">{isArabic ? 'مقال/فصل' : 'items read'}</div>
         </div>
         <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
           <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
-            {locale === 'ar' ? 'المقالات' : 'Articles'}
+            {isArabic ? 'المقالات' : 'Articles'}
           </div>
           <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{userContent?.articles ?? 0}</div>
-          <div className="text-xs text-sura-ivory/50">{locale === 'ar' ? 'مقالات لك' : 'your articles'}</div>
+          <div className="text-xs text-sura-ivory/50">{isArabic ? 'مقالات لك' : 'your articles'}</div>
         </div>
         <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
           <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
-            {locale === 'ar' ? 'الروايات' : 'Novels'}
+            {isArabic ? 'الروايات' : 'Novels'}
           </div>
           <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{userContent?.novels ?? 0}</div>
-          <div className="text-xs text-sura-ivory/50">{locale === 'ar' ? 'روايات لك' : 'your novels'}</div>
+          <div className="text-xs text-sura-ivory/50">{isArabic ? 'روايات لك' : 'your novels'}</div>
         </div>
         <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
           <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
-            {locale === 'ar' ? 'سلسلة القراءة' : 'Reading Streak'}
+            {isArabic ? 'سلسلة القراءة' : 'Reading Streak'}
           </div>
           <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{streak?.days ?? 0}</div>
-          <div className="text-xs text-sura-ivory/50">{locale === 'ar' ? 'أيام متتالية' : 'days in a row'}</div>
+          <div className="text-xs text-sura-ivory/50">{isArabic ? 'أيام متتالية' : 'days in a row'}</div>
         </div>
         <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
           <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
-            {locale === 'ar' ? 'الإجمالي' : 'Total'}
+            {isArabic ? 'الإجمالي' : 'Total'}
           </div>
           <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{totalRead}</div>
-          <div className="text-xs text-sura-ivory/50">{locale === 'ar' ? 'عنوان مقروء' : 'titles read'}</div>
+          <div className="text-xs text-sura-ivory/50">{isArabic ? 'عنوان مقروء' : 'titles read'}</div>
         </div>
       </div>
 
-      {/* Weekly Chart */}
       <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-6 sm:p-8">
         <h2 className="text-xl font-semibold text-sura-ivory">
-          {locale === 'ar' ? 'القراءة الأسبوعية' : 'Weekly Reading'}
+          {isArabic ? 'القراءة الأسبوعية' : 'Weekly Reading'}
         </h2>
         <div className="mt-6 flex h-40 items-end gap-2">
           {chartData.map((day, i) => {
@@ -259,9 +251,7 @@ export function DashboardPage() {
               <div key={i} className="flex flex-1 flex-col items-center gap-2">
                 <div className="w-full rounded-t-sm bg-[#7F77DD]/60 transition-all duration-300" style={{ height: `${height}%` }}>
                   {value > 0 && (
-                    <div className="text-center text-xs font-bold text-sura-dark">
-                      {value}
-                    </div>
+                    <div className="text-center text-xs font-bold text-sura-dark">{value}</div>
                   )}
                 </div>
                 <div className="text-xs text-sura-ivory/50">{day.day}</div>
@@ -272,17 +262,16 @@ export function DashboardPage() {
         <div className="mt-4 flex justify-center gap-6 text-xs text-sura-ivory/50">
           <div className="flex items-center gap-2">
             <div className="h-3 w-3 rounded-sm bg-[#7F77DD]/60" />
-            <span>{locale === 'ar' ? 'المقالات' : 'Articles'}</span>
+            <span>{isArabic ? 'المقالات' : 'Articles'}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="h-3 w-3 rounded-sm bg-[#7F77DD]/30" />
-            <span>{locale === 'ar' ? 'الفصول' : 'Chapters'}</span>
+            <span>{isArabic ? 'الفصول' : 'Chapters'}</span>
           </div>
         </div>
       </section>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* User Profile */}
         <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#7F77DD]/20 text-2xl font-bold text-[#7F77DD]">
@@ -294,20 +283,19 @@ export function DashboardPage() {
             </div>
           </div>
           <div className="mt-6 space-y-3 text-sm text-sura-ivory/60">
-            <div>{locale === 'ar' ? 'البريد الإلكتروني:' : 'Email:'} {user?.email}</div>
-            <div>{locale === 'ar' ? 'اللغة' : 'Language'}: {user?.locale.toUpperCase()} / {user?.theme}</div>
+            <div>{isArabic ? 'البريد الإلكتروني:' : 'Email:'} {user?.email}</div>
+            <div>{isArabic ? 'اللغة' : 'Language'}: {user?.locale.toUpperCase()} / {user?.theme}</div>
           </div>
         </section>
 
-        {/* Last Read */}
         <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
           <h2 className="text-xl font-semibold text-sura-ivory">
-            {locale === 'ar' ? 'آخر قراءة' : 'Last Read'}
+            {isArabic ? 'آخر قراءة' : 'Last Read'}
           </h2>
           <div className="mt-4 space-y-3">
             {lastRead.length === 0 ? (
               <div className="text-sm text-sura-ivory/50">
-                {locale === 'ar' ? 'لا توجد قراءات بعد.' : 'No reading history yet.'}
+                {isArabic ? 'لا توجد قراءات بعد.' : 'No reading history yet.'}
               </div>
             ) : (
               lastRead.slice(0, 5).map((entry) => (
@@ -315,13 +303,13 @@ export function DashboardPage() {
                   <div>
                     <div className="text-sm font-medium text-sura-ivory">{entry.title}</div>
                     <div className="text-xs text-sura-ivory/50">
-                      {entry.type === 'article' ? (locale === 'ar' ? 'مقال' : 'Article') : (locale === 'ar' ? 'رواية' : 'Novel')}
+                      {entry.type === 'article' ? (isArabic ? 'مقال' : 'Article') : (isArabic ? 'رواية' : 'Novel')}
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-bold text-[#7F77DD]">{entry.progress}%</div>
                     <div className="text-xs text-sura-ivory/50">
-                      {new Date(entry.lastRead).toLocaleDateString(locale === 'ar' ? 'ar-SA' : 'en-US', { month: 'short', day: 'numeric' })}
+                      {new Date(entry.lastRead).toLocaleDateString(isArabic ? 'ar-SA' : 'en-US', { month: 'short', day: 'numeric' })}
                     </div>
                   </div>
                 </div>
@@ -331,10 +319,9 @@ export function DashboardPage() {
         </section>
       </div>
 
-      {/* Badges */}
       <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
         <h2 className="text-xl font-semibold text-sura-ivory">
-          {locale === 'ar' ? 'الإنجازات' : 'Achievements'}
+          {isArabic ? 'الإنجازات' : 'Achievements'}
         </h2>
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {badges.map((badge) => (
@@ -352,7 +339,7 @@ export function DashboardPage() {
               </div>
               {badge.earned && (
                 <div className="text-xs text-[#7F77DD]">
-                  {locale === 'ar' ? '✓ محقق' : '✓ Earned'}
+                  {isArabic ? '✓ محقق' : '✓ Earned'}
                 </div>
               )}
             </div>
@@ -360,11 +347,10 @@ export function DashboardPage() {
         </div>
       </section>
 
-      {/* Recent Activity */}
       {history.length > 0 && (
         <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
           <h2 className="text-xl font-semibold text-sura-ivory">
-            {locale === 'ar' ? 'الأنشطة الأخيرة' : 'Recent Activity'}
+            {isArabic ? 'الأنشطة الأخيرة' : 'Recent Activity'}
           </h2>
           <div className="mt-4 space-y-3 text-sm text-sura-ivory/60">
             {history.map((entry, i) => (

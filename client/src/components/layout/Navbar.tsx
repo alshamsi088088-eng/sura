@@ -126,13 +126,13 @@ export function Navbar() {
                   </div>
                   <div className="grid grid-cols-4 gap-2">
                     {[{ v: '0.9rem', l: 'S' }, { v: '1rem', l: 'M' }, { v: '1.1rem', l: 'L' }, { v: '1.2rem', l: 'XL' }].map((o) => (
-                      <button key={o.v} onClick={() => setFontSize(o.v)}
-                        className={`rounded-lg border py-1.5 text-xs font-semibold transition ${
-                          fontSize === o.v ? 'border-sura-sky/60 bg-white/10 text-sura-ink' : 'border-white/10 text-sura-ink/50 hover:text-sura-ink'
-                        }`}>
-                        {o.l}
-                      </button>
-                    ))}
+                        <button key={o.v} onClick={() => setFontSize(o.v)}
+                          className={`rounded-lg border py-1.5 text-xs font-semibold transition ${
+                            fontSize === o.v ? 'border-sura-sky/60 bg-white/10 text-sura-ink' : 'border-white/10 text-sura-ink/50 hover:text-sura-ink'
+                          }`}>
+                          {o.l}
+                        </button>
+                      ))}
                   </div>
                 </div>
 
