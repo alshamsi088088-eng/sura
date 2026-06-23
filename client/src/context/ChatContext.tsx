@@ -25,7 +25,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(false);
   const [unread, setUnread] = useState(0);
 
-  const socket = useMemo(() => io('http://localhost:5000', { autoConnect: false, withCredentials: true }), []);
+  const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+  const socket = useMemo(() => io(socketUrl, { autoConnect: false, withCredentials: true }), [socketUrl]);
 
   useEffect(() => {
     socket.connect();
