@@ -74,14 +74,48 @@ export function Navbar() {
           ))}
           {user && (
             <>
-              <NavLink to="/create-novel"
+              <div className="flex items-center gap-1">
+                <div className="px-2 text-[12px] font-semibold uppercase tracking-[0.18em] text-sura-ink/45">
+                  {locale === 'ar' ? 'Writer Actions' : 'Writer Actions'}
+                </div>
+
+                <NavLink to="/create-novel"
+                  className={({ isActive }) =>
+                    `rounded-full px-4 py-2 text-[13.5px] font-medium transition-all ${
+                      isActive ? 'glass text-sura-ink' : 'text-sura-ink/55 hover:text-sura-ink'
+                    }`
+                  }>
+                  {locale === 'ar' ? 'إنشاء رواية' : 'Create Novel'}
+                </NavLink>
+
+                <NavLink to="/create-post"
+                  className={({ isActive }) =>
+                    `rounded-full px-4 py-2 text-[13.5px] font-medium transition-all ${
+                      isActive ? 'glass text-sura-ink' : 'text-sura-ink/55 hover:text-sura-ink'
+                    }`
+                  }>
+                  {locale === 'ar' ? 'إنشاء مقال' : 'Create Post'}
+                </NavLink>
+
+                <NavLink to="/create-tech"
+                  className={({ isActive }) =>
+                    `rounded-full px-4 py-2 text-[13.5px] font-medium transition-all ${
+                      isActive ? 'glass text-sura-ink' : 'text-sura-ink/55 hover:text-sura-ink'
+                    }`
+                  }>
+                  {locale === 'ar' ? 'مقال تقني' : 'Tech Article'}
+                </NavLink>
+              </div>
+
+              <NavLink to="/gallery"
                 className={({ isActive }) =>
                   `rounded-full px-4 py-2 text-[13.5px] font-medium transition-all ${
                     isActive ? 'glass text-sura-ink' : 'text-sura-ink/55 hover:text-sura-ink'
                   }`
                 }>
-                {locale === 'ar' ? 'إنشاء رواية' : 'Create Novel'}
+                {locale === 'ar' ? 'المعرض' : 'Gallery'}
               </NavLink>
+
               <NavLink to="/dashboard"
                 className={({ isActive }) =>
                   `rounded-full px-4 py-2 text-[13.5px] font-medium transition-all ${
@@ -232,7 +266,50 @@ export function Navbar() {
                 {strings[item.key] || item.key}
               </NavLink>
             ))}
-            {user && (
+          {user && (
+            <>
+              <div className="mt-2 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-sura-ink/45">
+                {locale === 'ar' ? 'Writer Actions' : 'Writer Actions'}
+              </div>
+
+              <NavLink to="/create-novel" onClick={() => setMobileOpen(false)}
+                className={({ isActive }) =>
+                  `rounded-lg px-4 py-2.5 text-sm font-medium transition ${
+                    isActive ? 'glass text-sura-ink' : 'text-sura-ink/60 hover:text-sura-ink'
+                  }`
+                }>
+                {locale === 'ar' ? 'إنشاء رواية' : 'Create Novel'}
+              </NavLink>
+
+              <NavLink to="/create-post" onClick={() => setMobileOpen(false)}
+                className={({ isActive }) =>
+                  `rounded-lg px-4 py-2.5 text-sm font-medium transition ${
+                    isActive ? 'glass text-sura-ink' : 'text-sura-ink/60 hover:text-sura-ink'
+                  }`
+                }>
+                {locale === 'ar' ? 'إنشاء مقال' : 'Create Post'}
+              </NavLink>
+
+              <NavLink to="/create-tech" onClick={() => setMobileOpen(false)}
+                className={({ isActive }) =>
+                  `rounded-lg px-4 py-2.5 text-sm font-medium transition ${
+                    isActive ? 'glass text-sura-ink' : 'text-sura-ink/60 hover:text-sura-ink'
+                  }`
+                }>
+                {locale === 'ar' ? 'مقال تقني' : 'Tech Article'}
+              </NavLink>
+
+              <div className="my-1 h-px bg-white/10" />
+
+              <NavLink to="/gallery" onClick={() => setMobileOpen(false)}
+                className={({ isActive }) =>
+                  `rounded-lg px-4 py-2.5 text-sm font-medium transition ${
+                    isActive ? 'glass text-sura-ink' : 'text-sura-ink/60 hover:text-sura-ink'
+                  }`
+                }>
+                {locale === 'ar' ? 'المعرض' : 'Gallery'}
+              </NavLink>
+
               <NavLink to="/dashboard" onClick={() => setMobileOpen(false)}
                 className={({ isActive }) =>
                   `rounded-lg px-4 py-2.5 text-sm font-medium transition ${
@@ -241,7 +318,8 @@ export function Navbar() {
                 }>
                 {strings.dashboard}
               </NavLink>
-            )}
+            </>
+          )}
           </div>
         </nav>
       )}

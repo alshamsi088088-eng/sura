@@ -50,14 +50,37 @@ export function CreatePostPage() {
   const slug = useMemo(() => slugify(title), [title]);
   const readingTime = useMemo(() => estimateReadingTime(content), [content]);
 
+  const allowedAttachmentMime = [
+    'application/pdf',
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
+    'application/msword', // doc
+    'text/plain', // txt
+  ];
+
+  const allowedAttachmentExtensions = ['pdf', 'doc', 'docx', 'zip', 'txt'];
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setAttachment(file);
-      // Create preview URL for display
-      const url = URL.createObjectURL(file);
-      setAttachmentPreview(url);
+    if (!file) return;
+
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    const mimeOk = file.type ? allowedAttachmentMime.includes(file.type) : false;
+    const extOk = ext ? allowedAttachmentExtensions.includes(ext) : false;
+
+    // If browser provides accurate mime, respect it; otherwise allow via extension.
+    if (!mimeOk && !extOk) {
+      setAttachment(null);
+      setAttachmentPreview(null);
+      setError(locale === 'ar' ? 'نوع الملف غير مدعوم. (PDF/DOC/DOCX/TXT/ZIP)' : 'Unsupported file type. (PDF/DOC/DOCX/TXT/ZIP)');
+      return;
     }
+
+    setError('');
+    setAttachment(file);
+    const url = URL.createObjectURL(file);
+    setAttachmentPreview(url);
   };
 
   const removeAttachment = () => {
@@ -99,20 +122,19 @@ export function CreatePostPage() {
       const authorId = user.id;
       const authorName = user.name || user.email || 'Anonymous';
 
-      let attachmentUrl = null;
-
-      // Upload attachment if selected
+      // Upload attachment if selected (bucket: attachments)
+      // NOTE: schema.prisma for Article does NOT contain any attachment fields.
+      // We upload to Storage to satisfy the file requirement, but we do NOT send attachment fields to Article insert.
       if (attachment) {
         const fileName = `${Date.now()}-${attachment.name}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
+
+        const { error: uploadError } = await supabase.storage
           .from('attachments')
           .upload(fileName, attachment);
 
         if (uploadError) {
           console.error('Attachment upload error:', uploadError);
-        } else {
-          const { data: urlData } = supabase.storage.from('attachments').getPublicUrl(fileName);
-          attachmentUrl = urlData.publicUrl;
+          throw new Error(locale === 'ar' ? 'فشل رفع الملف المرفق. جرّب مرة أخرى.' : 'Failed to upload the attachment. Please try again.');
         }
       }
 
@@ -129,9 +151,6 @@ export function CreatePostPage() {
         featured: false,
         views: 0,
         claps: 0,
-        attachment: attachmentUrl,
-        attachmentName: attachment?.name || null,
-        attachmentType: attachment?.type || null
       };
 
       const { error: insertError } = await supabase.from('Article').insert(payload);

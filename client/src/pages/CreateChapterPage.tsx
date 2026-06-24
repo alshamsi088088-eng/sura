@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 
@@ -12,6 +12,9 @@ type NovelRow = {
 export function CreateChapterPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const queryNovelId = searchParams.get('novelId') || '';
 
   const [novels, setNovels] = useState<NovelRow[]>([]);
   const [loadingNovels, setLoadingNovels] = useState(true);
@@ -65,8 +68,12 @@ export function CreateChapterPage() {
         const rows = (data ?? []) as NovelRow[];
         setNovels(rows);
 
-        // default to first novel
-        if (rows[0]?.id) setNovelId(rows[0].id);
+        // If query provided, use it; otherwise default to first novel
+        if (queryNovelId && rows.some((r) => r.id === queryNovelId)) {
+          setNovelId(queryNovelId);
+        } else if (rows[0]?.id) {
+          setNovelId(rows[0].id);
+        }
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message ? e.message : 'Failed to load novels.');

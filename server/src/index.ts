@@ -22,5 +22,10 @@ registerSocketServer(server);
 const port = Number(process.env.PORT || 5000);
 server.listen(port, async () => {
   console.log(`Server listening on http://localhost:${port}`);
-  await initializeSeed();
+
+  // MVP-first / dev stability:
+  // Disable seedService in development to avoid failing on invalid DB credentials.
+  if (process.env.NODE_ENV !== 'development') {
+    await initializeSeed();
+  }
 });

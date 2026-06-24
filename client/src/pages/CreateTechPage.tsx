@@ -13,8 +13,6 @@ function slugify(input: string) {
     .replace(/^-+|-+$/g, '');
 }
 
-const languages = ['JavaScript', 'TypeScript', 'Python', 'Rust', 'Go', 'Java', 'C++', 'Swift', 'Kotlin', 'Ruby', 'PHP'];
-const difficulties = ['Beginner', 'Intermediate', 'Advanced'];
 
 export function CreateTechPage() {
   const { user } = useAuth();
@@ -26,10 +24,6 @@ export function CreateTechPage() {
   const [code, setCode] = useState('');
   const [series, setSeries] = useState('');
   const [tags, setTags] = useState('');
-  const [language, setLanguage] = useState('TypeScript');
-  const [difficulty, setDifficulty] = useState('Intermediate');
-  const [githubUrl, setGithubUrl] = useState('');
-  const [demoUrl, setDemoUrl] = useState('');
 
   const [error, setError] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
@@ -80,6 +74,11 @@ export function CreateTechPage() {
       const authorId = user.id;
       const authorName = user.name || user.email || 'Anonymous';
 
+      if (!excerpt.trim() || !series.trim() || !tags.trim()) {
+        setError(locale === 'ar' ? 'الملخص والسلسلة والكلمات الدلالية مطلوبة.' : 'Excerpt, series, and tags are required.');
+        return;
+      }
+
       const payload = {
         title: title.trim(),
         slug,
@@ -87,14 +86,8 @@ export function CreateTechPage() {
         code: code.trim(),
         series: series.trim(),
         tags: tags.trim(),
-        language: language.trim(),
-        difficulty: difficulty.trim(),
-        githubUrl: githubUrl.trim() || null,
-        demoUrl: demoUrl.trim() || null,
-        authorId,
-        authorName,
-        views: 0,
-        likes: 0,
+        // NOTE: schema.prisma TechArticle includes only: title, slug, series, tags, excerpt, code, (publishedAt default)
+        // No language/difficulty/githubUrl/demoUrl fields here.
       };
 
       const { error: insertError } = await supabase.from('TechArticle').insert(payload);
@@ -137,33 +130,7 @@ export function CreateTechPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className={themeClasses.label}>Language / اللغة</label>
-            <select
-              className={themeClasses.select}
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-            >
-              {languages.map((lang) => (
-                <option key={lang} value={lang}>{lang}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className={themeClasses.label}>Difficulty / مستوى الصعوبة</label>
-            <select
-              className={themeClasses.select}
-              value={difficulty}
-              onChange={(e) => setDifficulty(e.target.value)}
-            >
-              {difficulties.map((diff) => (
-                <option key={diff} value={diff}>{diff}</option>
-              ))}
-            </select>
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className={themeClasses.label}>Series / السلسلة</label>
             <input
@@ -171,18 +138,20 @@ export function CreateTechPage() {
               value={series}
               onChange={(e) => setSeries(e.target.value)}
               placeholder={locale === 'ar' ? 'اسم السلسلة' : 'Series name'}
+              required
             />
           </div>
-        </div>
 
-        <div>
-          <label className={themeClasses.label}>Tags / الكلمات الدلالية</label>
-          <input
-            className={themeClasses.input}
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            placeholder={locale === 'ar' ? 'react, hooks, state' : 'react, hooks, state'}
-          />
+          <div>
+            <label className={themeClasses.label}>Tags / الكلمات الدلالية</label>
+            <input
+              className={themeClasses.input}
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder={locale === 'ar' ? 'react, hooks, state' : 'react, hooks, state'}
+              required
+            />
+          </div>
         </div>
 
         <div>
@@ -196,27 +165,6 @@ export function CreateTechPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className={themeClasses.label}>GitHub URL (optional)</label>
-            <input
-              className={themeClasses.input}
-              value={githubUrl}
-              onChange={(e) => setGithubUrl(e.target.value)}
-              placeholder="https://github.com/username/repo"
-            />
-          </div>
-
-          <div>
-            <label className={themeClasses.label}>Demo URL (optional)</label>
-            <input
-              className={themeClasses.input}
-              value={demoUrl}
-              onChange={(e) => setDemoUrl(e.target.value)}
-              placeholder="https://demo.example.com"
-            />
-          </div>
-        </div>
 
         <button type="submit" disabled={submitting} className={themeClasses.primary}>
           {submitting

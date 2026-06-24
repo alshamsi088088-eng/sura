@@ -133,11 +133,16 @@ export function CreateNovelPage() {
         likes: 0,
       };
 
-      const { error: insertError } = await supabase.from('Novel').insert(payload);
+      const { data: inserted, error: insertError } = await supabase
+        .from('Novel')
+        .insert(payload)
+        .select('id,title,slug')
+        .single();
 
       if (insertError) throw insertError;
 
-      navigate('/novels');
+      // MVP: بعد إنشاء الرواية مباشرة أرسل الكاتب إلى إنشاء أول فصل
+      navigate(`/create-chapter?novelId=${encodeURIComponent(inserted.id)}`);
     } catch (err: any) {
       setError(err?.message ? err.message : (locale === 'ar' ? 'فشل حفظ الرواية.' : 'Failed to save the novel.'));
     } finally {
