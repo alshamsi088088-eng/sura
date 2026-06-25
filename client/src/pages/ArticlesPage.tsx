@@ -5,7 +5,9 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { ThreadedComments } from '../components/ThreadedComments';
 import { AdsenseAd } from '../components/AdsenseAd';
+import { LikeShareBar } from '../components/LikeShareBar';
 import { trackEvent } from '../lib/analytics';
+
 
 
 type ArticleRow = Record<string, any>;
@@ -273,7 +275,15 @@ export function ArticlesPage() {
         </button>
       </div>
 
+      {/* Engagement Bar */}
+      {activeArticleId ? (
+        <div className="rounded-3xl border border-sura-line bg-sura-canvas p-4">
+          <LikeShareBar entityId={activeArticleId} entityType="article" title={articles.find((a) => a.id === activeArticleId)?.title} />
+        </div>
+      ) : null}
+
       {activeArticleId ? <ThreadedComments entityId={activeArticleId} entityType="article" /> : null}
+
     </div>
   );
 }

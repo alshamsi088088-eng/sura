@@ -224,6 +224,7 @@ export function NovelsPage() {
 
       {/* Comments under the selected novel */}
       {activeNovel ? <ThreadedComments entityId={activeNovel.id} entityType="novel" /> : null}
+
     </div>
   );
 }

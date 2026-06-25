@@ -13,7 +13,6 @@ function slugify(input: string) {
     .replace(/^-+|-+$/g, '');
 }
 
-
 export function CreateTechPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -64,8 +63,22 @@ export function CreateTechPage() {
       return;
     }
 
+    if (!series.trim() || !tags.trim() || !excerpt.trim()) {
+      setError(
+        locale === 'ar'
+          ? 'الملخص والسلسلة والكلمات الدلالية مطلوبة.'
+          : 'Excerpt, series, and tags are required.'
+      );
+      return;
+    }
+
     if (!supabase) {
       setError(locale === 'ar' ? 'تعذر الاتصال بقاعدة البيانات.' : 'Unable to connect to database.');
+      return;
+    }
+
+    if (!slug) {
+      setError(locale === 'ar' ? 'تعذر إنشاء slug من العنوان.' : 'Failed to generate slug from title.');
       return;
     }
 
@@ -74,20 +87,19 @@ export function CreateTechPage() {
       const authorId = user.id;
       const authorName = user.name || user.email || 'Anonymous';
 
-      if (!excerpt.trim() || !series.trim() || !tags.trim()) {
-        setError(locale === 'ar' ? 'الملخص والسلسلة والكلمات الدلالية مطلوبة.' : 'Excerpt, series, and tags are required.');
-        return;
-      }
-
+      // schema.prisma -> TechArticle fields:
+      // id, title, slug, series, tags, excerpt, code, publishedAt
       const payload = {
         title: title.trim(),
         slug,
-        excerpt: excerpt.trim(),
-        code: code.trim(),
         series: series.trim(),
         tags: tags.trim(),
-        // NOTE: schema.prisma TechArticle includes only: title, slug, series, tags, excerpt, code, (publishedAt default)
-        // No language/difficulty/githubUrl/demoUrl fields here.
+        excerpt: excerpt.trim(),
+        code: code.trim(),
+        authorId,
+        authorName,
+        views: 0,
+        likes: 0,
       };
 
       const { error: insertError } = await supabase.from('TechArticle').insert(payload);
@@ -127,6 +139,7 @@ export function CreateTechPage() {
             value={excerpt}
             onChange={(e) => setExcerpt(e.target.value)}
             placeholder={locale === 'ar' ? 'ملخص قصير...' : 'Brief summary...'}
+            required
           />
         </div>
 
@@ -165,7 +178,6 @@ export function CreateTechPage() {
           />
         </div>
 
-
         <button type="submit" disabled={submitting} className={themeClasses.primary}>
           {submitting
             ? locale === 'ar'
@@ -181,3 +193,4 @@ export function CreateTechPage() {
     </div>
   );
 }
+

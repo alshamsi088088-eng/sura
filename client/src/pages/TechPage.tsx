@@ -6,6 +6,8 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useLocale } from '../context/LocaleContext';
 import { useAuth } from '../context/AuthContext';
+import { LikeShareBar } from '../components/LikeShareBar';
+
 
 interface TechArticle {
   id: string;
@@ -50,6 +52,7 @@ export function TechPage() {
       <div className="space-y-6">
         {(Array.isArray(articles) ? articles : []).map((item) => (
           <article key={item.id} className="rounded-3xl border border-sura-line bg-sura-canvas p-6">
+
             <div className="mb-4 flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.3em] text-sura-teal">
               <span>{item.series}</span>
               {(Array.isArray(item.tags) ? item.tags : []).map((tag) => (<span key={tag} className="rounded-full border border-sura-line px-3 py-1">{tag}</span>))}
@@ -67,10 +70,23 @@ export function TechPage() {
             <h2 className="text-2xl font-semibold">{item.title}</h2>
             <p className="mt-3 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
             <div className="mt-6 overflow-hidden rounded-3xl border border-sura-line bg-sura-canvas">
-              <SyntaxHighlighter language={item.language || 'typescript'} style={oneDark} customStyle={{ margin: 0, background: 'transparent' }}>
+              <SyntaxHighlighter
+                language={item.language || 'typescript'}
+                style={oneDark}
+                customStyle={{ margin: 0, background: 'transparent' }}
+              >
                 {item.code}
               </SyntaxHighlighter>
             </div>
+
+            <div className="mt-6">
+              <LikeShareBar
+                entityId={item.id}
+                entityType="tech"
+                title={item.title}
+              />
+            </div>
+
             {(item.githubUrl || item.demoUrl) && (
               <div className="mt-4 flex gap-3">
                 {item.githubUrl && (

@@ -30,13 +30,15 @@
 # TODO - Sura Codex - MVP-first (مرحلة 1)
 - [x] إضافة/تحديث Tabs وروابط إنشاء المحتوى في Navbar
   - [x] إضافة Create Post / Create Tech / Gallery (روابط)
-  - [ ] التأكد من تقييد Books/Store للأدمن فقط (Route/Visibility)
+- [x] التأكد من أن روابط Create (Novel/Post/Tech) تظهر فقط للمسجلين داخل Navbar عبر قسم محمي (Writer Actions)
+- [ ] التأكد من تقييد Books/Store للأدمن فقط (Route/Visibility)
 - [ ] تحسين Create Novel/Post/Tech الأساسية (تصير “جاهزة لـ MVP”)
-  - [x] Create Tech: إصلاح حفظ TechArticle عبر توافق schema (حذف githubUrl/demoUrl من payload لأنهما غير موجودين في schema)
+  - [x] Create Tech: مواءمة UI/payload بالكامل مع schema.prisma (إزالة language/difficulty/github/demo وحقن payload مطابق)
   - [x] Create Novel: Redirect بعد إنشاء Novel إلى CreateChapter مع تمرير novelId عبر query
   - [x] Create Chapter: تعبئة novelId تلقائيًا من query
   - [ ] Create Novel: دعم رفع ملف الرواية (PDF/DOCX/TXT) + حفظ Novel وربط chapters (إن وجد) (بدون Migration في هذا MVP الحالي)
   - [ ] Create Post: إدخال Rich Editor + Live Preview
+  - [x] Create Post: تثبيت MVP insert عبر حذف حقول attachment غير موجودة في Article schema + إيقاف الإنشاء عند فشل upload
   - [ ] Create Tech: Syntax Highlighting + تحسين UI للـ Code Snippets (MVP: بلوك واحد على الأقل)
 - [ ] تفعيل/توحيد نظام التفاعل على صفحات التفاصيل
   - [ ] Like Button + Like count
