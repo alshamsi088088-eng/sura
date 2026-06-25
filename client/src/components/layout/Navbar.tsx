@@ -14,6 +14,108 @@ const navItems = [
   { path: '/about', key: 'about' },
 ];
 
+function CreateContentDropdown({
+  locale
+}: {
+  locale: string;
+}) {
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, []);
+
+  if (!user) return null;
+
+  // writers/admins can create content
+  const isWriter = user.role === 'writer' || user.role === 'admin';
+
+  if (!isWriter) return null;
+
+  const contentBtnCls = ({ isActive }: { isActive: boolean }) =>
+    `block w-full rounded-lg px-3 py-2 text-sm text-sura-ink/80 transition hover:bg-white/5 hover:text-sura-ink ${
+      isActive ? 'bg-white/5' : ''
+    }`;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="rounded-full px-4 py-2 text-[13.5px] font-medium transition-all glass flex items-center gap-2"
+      >
+        <span className="text-[12px] font-semibold uppercase tracking-[0.18em] text-sura-ink/45">
+          {locale === 'ar' ? 'Create Content' : 'Create Content'}
+        </span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="glass-card absolute top-[calc(100%+10px)] z-50 w-56 p-2" style={{ left: 0 }}>
+          <NavLink
+            to="/create-post"
+            onClick={() => setOpen(false)}
+            className={({ isActive }) => contentBtnCls({ isActive })}
+          >
+            {locale === 'ar' ? 'Create Article' : 'Create Article'}
+          </NavLink>
+          <NavLink
+            to="/create-novel"
+            onClick={() => setOpen(false)}
+            className={({ isActive }) => contentBtnCls({ isActive })}
+          >
+            {locale === 'ar' ? 'Create Novel' : 'Create Novel'}
+          </NavLink>
+          <NavLink
+            to="/create-tech"
+            onClick={() => setOpen(false)}
+            className={({ isActive }) => contentBtnCls({ isActive })}
+          >
+            {locale === 'ar' ? 'Create Tech Article' : 'Create Tech Article'}
+          </NavLink>
+
+          {user?.role === 'admin' ? (
+            <div className="mt-2 border-t border-white/10 pt-2">
+              <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-sura-ink/45">
+                {locale === 'ar' ? 'Admin' : 'Admin'}
+              </div>
+              <Link
+                to="/admin?tab=books"
+                onClick={() => setOpen(false)}
+                className="block w-full rounded-lg px-3 py-2 text-sm text-sura-ink/80 transition hover:bg-white/5 hover:text-sura-ink"
+              >
+                {locale === 'ar' ? 'Manage Books' : 'Manage Books'}
+              </Link>
+              <Link
+                to="/admin?tab=comments"
+                onClick={() => setOpen(false)}
+                className="block w-full rounded-lg px-3 py-2 text-sm text-sura-ink/80 transition hover:bg-white/5 hover:text-sura-ink"
+              >
+                {locale === 'ar' ? 'Manage Comments' : 'Manage Comments'}
+              </Link>
+              <Link
+                to="/admin?tab=analytics"
+                onClick={() => setOpen(false)}
+                className="block w-full rounded-lg px-3 py-2 text-sm text-sura-ink/80 transition hover:bg-white/5 hover:text-sura-ink"
+              >
+                {locale === 'ar' ? 'Analytics' : 'Analytics'}
+              </Link>
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Navbar() {
   const { locale, strings, toggle: toggleLocale } = useLocale();
   const { mode, toggle: toggleTheme, fontSize, fontFamilyKey, setFontSize, setFontFamily } = useTheme();
@@ -74,37 +176,9 @@ export function Navbar() {
           ))}
           {user && (
             <>
-              <div className="flex items-center gap-1">
-                <div className="px-2 text-[12px] font-semibold uppercase tracking-[0.18em] text-sura-ink/45">
-                  {locale === 'ar' ? 'Writer Actions' : 'Writer Actions'}
-                </div>
-
-                <NavLink to="/create-novel"
-                  className={({ isActive }) =>
-                    `rounded-full px-4 py-2 text-[13.5px] font-medium transition-all ${
-                      isActive ? 'glass text-sura-ink' : 'text-sura-ink/55 hover:text-sura-ink'
-                    }`
-                  }>
-                  {locale === 'ar' ? 'إنشاء رواية' : 'Create Novel'}
-                </NavLink>
-
-                <NavLink to="/create-post"
-                  className={({ isActive }) =>
-                    `rounded-full px-4 py-2 text-[13.5px] font-medium transition-all ${
-                      isActive ? 'glass text-sura-ink' : 'text-sura-ink/55 hover:text-sura-ink'
-                    }`
-                  }>
-                  {locale === 'ar' ? 'إنشاء مقال' : 'Create Post'}
-                </NavLink>
-
-                <NavLink to="/create-tech"
-                  className={({ isActive }) =>
-                    `rounded-full px-4 py-2 text-[13.5px] font-medium transition-all ${
-                      isActive ? 'glass text-sura-ink' : 'text-sura-ink/55 hover:text-sura-ink'
-                    }`
-                  }>
-                  {locale === 'ar' ? 'مقال تقني' : 'Tech Article'}
-                </NavLink>
+              {/* Create Content dropdown (writers/admins) */}
+              <div className="relative flex items-center gap-2">
+                <CreateContentDropdown locale={locale} />
               </div>
 
               <NavLink to="/gallery"

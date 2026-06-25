@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
-import { supabase } from '../lib/supabaseClient';
 import { trackEvent } from '../lib/analytics';
 
 interface PurchasedOrderItem {
@@ -32,6 +31,12 @@ interface PurchasedOrder {
   items: PurchasedOrderItem[];
 }
 
+interface DownloadStatus {
+  loading: boolean;
+  allowed?: boolean;
+  error?: string;
+}
+
 export function ProfilePage() {
   const { user, loading } = useAuth();
   const { locale } = useLocale();
@@ -39,254 +44,282 @@ export function ProfilePage() {
 
   const [orders, setOrders] = useState<PurchasedOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
-  const [ordersError, setOrdersError] = useState<string | null>(null);
-  const [downloadLoadingBookId, setDownloadLoadingBookId] = useState<string | null>(null);
-  const [userStats, setUserStats] = useState({ articles: 0, novels: 0, chapters: 0, followers: 0, following: 0 });
-  const [statsLoading, setStatsLoading] = useState(false);
+  const [downloadStatusByBookId, setDownloadStatusByBookId] = useState<Record<string, DownloadStatus>>({});
 
+  // Redirect if not authenticated
   useEffect(() => {
     if (!loading && !user) {
       navigate('/login');
     }
   }, [loading, user, navigate]);
 
+  // ✅ Fetch orders on mount
   useEffect(() => {
     if (!user) return;
-    setOrdersLoading(true);
-    setOrdersError(null);
-    axios
-      .get('/api/store/orders', { withCredentials: true })
-      .then((res) => {
-        setOrders(res.data.orders || []);
-      })
-      .catch((error) => {
-        setOrdersError(locale === 'ar' ? 'فشل تحميل المشتريات.' : 'Failed to load purchases.');
-      })
-      .finally(() => setOrdersLoading(false));
-  }, [user, locale]);
 
-  useEffect(() => {
-    if (!user || !supabase) return;
-    setStatsLoading(true);
-    const loadUserStats = async () => {
-      const { data: articles } = await supabase!.from('Article').select('id').eq('authorId', user.id);
-      const { data: novels } = await supabase!.from('Novel').select('id').eq('authorId', user.id);
-      const { data: chapters } = await supabase!.from('Chapter').select('id');
-      const { data: followers } = await supabase!.from('Follow').select('id').eq('followingId', user.id);
-      const { data: following } = await supabase!.from('Follow').select('id').eq('followerId', user.id);
-      setUserStats({
-        articles: articles?.length || 0,
-        novels: novels?.length || 0,
-        chapters: chapters?.length || 0,
-        followers: followers?.length || 0,
-        following: following?.length || 0
-      });
-      setStatsLoading(false);
+    const fetchOrders = async () => {
+      try {
+        setOrdersLoading(true);
+        const response = await axios.get('/api/store/orders');
+        setOrders(response.data.orders || []);
+        trackEvent('view_purchase_history');
+      } catch (error) {
+        console.error('Failed to fetch orders:', error);
+        setOrders([]);
+      } finally {
+        setOrdersLoading(false);
+      }
     };
-    loadUserStats();
+
+    fetchOrders();
   }, [user]);
 
-  const totalSpent = useMemo(
-    () => orders.reduce((sum, order) => sum + Number(order.total || 0), 0),
-    [orders]
-  );
-
+  // ✅ Aggregate purchased books without duplication
   const purchasedBooks = useMemo(() => {
-    const map = new Map<string, PurchasedOrderItem>();
-    for (const order of orders) {
-      for (const item of order.items || []) {
-        if (!map.has(item.bookId)) map.set(item.bookId, item);
-      }
-    }
-    return Array.from(map.values());
+    const booksMap = new Map<string, { 
+      book: PurchasedOrderItem['book']; 
+      priceAtPurchase: number; 
+      quantity: number;
+      purchaseDate: string;
+      orderId: string;
+    }>();
+
+    orders.forEach((order) => {
+      order.items.forEach((item) => {
+        // Keep first occurrence or latest (using order.createdAt)
+        if (!booksMap.has(item.bookId)) {
+          booksMap.set(item.bookId, {
+            book: item.book,
+            priceAtPurchase: item.priceAtPurchase,
+            quantity: item.quantity,
+            purchaseDate: order.createdAt,
+            orderId: order.id
+          });
+        }
+      });
+    });
+
+    return Array.from(booksMap.values());
   }, [orders]);
 
+  // ✅ Handle download verification
   const handleDownload = async (bookId: string) => {
-    setDownloadLoadingBookId(bookId);
     try {
-      const response = await axios.get(`/api/store/download/${bookId}`, { withCredentials: true });
-      if (response.data?.allowed && response.data?.book?.fileUrl) {
-        window.open(response.data.book.fileUrl, '_blank', 'noopener,noreferrer');
-        trackEvent('download_book', { book_id: bookId, source: 'profile', allowed: true });
-      } else {
-        trackEvent('download_book', { book_id: bookId, source: 'profile', allowed: false });
+      setDownloadStatusByBookId((prev) => ({
+        ...prev,
+        [bookId]: { loading: true }
+      }));
+
+      const response = await axios.get(`/api/store/download/${bookId}`);
+      
+      if (response.data.allowed && response.data.book.fileUrl) {
+        // Trigger download
+        const link = document.createElement('a');
+        link.href = response.data.book.fileUrl;
+        link.download = `${response.data.book.title}.pdf`;
+        link.click();
+
+        setDownloadStatusByBookId((prev) => ({
+          ...prev,
+          [bookId]: { loading: false, allowed: true }
+        }));
+
+        trackEvent('book_download', { book_id: bookId, book_title: response.data.book.title });
       }
-    } catch {
-      trackEvent('download_book', { book_id: bookId, source: 'profile', allowed: false });
-    } finally {
-      setDownloadLoadingBookId(null);
+    } catch (error: any) {
+      setDownloadStatusByBookId((prev) => ({
+        ...prev,
+        [bookId]: { 
+          loading: false, 
+          allowed: false, 
+          error: error?.response?.data?.message || 'Failed to download' 
+        }
+      }));
     }
   };
 
-  if (loading || !user) {
+  // ✅ Handle preview
+  const handlePreview = async (bookId: string) => {
+    try {
+      const response = await axios.get(`/api/store/download/${bookId}`);
+      
+      if (response.data.allowed && response.data.book.previewUrl) {
+        window.open(response.data.book.previewUrl, '_blank');
+        trackEvent('book_preview', { book_id: bookId });
+      }
+    } catch (error) {
+      console.error('Failed to preview:', error);
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="mx-auto max-w-4xl rounded-3xl border border-sura-line bg-sura-canvas p-8 text-center text-sura-navy">
-        {locale === 'ar' ? 'جارٍ التحميل...' : 'Loading profile...'}
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-purple-500"></div>
       </div>
     );
   }
 
+  const t = {
+    en: {
+      myProfile: 'My Profile',
+      myPurchases: 'My Purchases',
+      noPurchases: 'No purchases yet',
+      startShopping: 'Start Shopping',
+      purchaseDate: 'Purchase Date',
+      price: 'Price',
+      actions: 'Actions',
+      download: 'Download',
+      preview: 'Preview',
+      downloading: 'Downloading...',
+      error: 'Error'
+    },
+    ar: {
+      myProfile: 'ملفي الشخصي',
+      myPurchases: 'مشترياتي',
+      noPurchases: 'لا توجد مشتريات بعد',
+      startShopping: 'ابدأ التسوق',
+      purchaseDate: 'تاريخ الشراء',
+      price: 'السعر',
+      actions: 'الإجراءات',
+      download: 'تحميل',
+      preview: 'معاينة',
+      downloading: 'جاري التحميل...',
+      error: 'خطأ'
+    }
+  };
+
+  const lang = locale === 'ar' ? t.ar : t.en;
+
   return (
-    <div className="mx-auto max-w-5xl space-y-6 rounded-3xl border border-sura-line bg-sura-canvas p-8">
-      <header className="space-y-3">
-        <h1 className="text-4xl font-semibold">{locale === 'ar' ? 'الملف الشخصي' : 'Your Profile'}</h1>
-        <p className="text-sura-navy/70">
-          {locale === 'ar'
-            ? 'عرض معلومات حسابك وتفاصيل تسجيل الدخول.'
-            : 'View your account details and Firebase profile information.'}
-        </p>
-      </header>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-        <Link to="/create-post" className="rounded-2xl border border-sura-line bg-sura-canvas p-4 text-center transition hover:border-sura-teal">
-          <div className="text-2xl font-bold text-sura-teal">{userStats.articles}</div>
-          <div className="text-xs text-sura-navy/70">{locale === 'ar' ? 'المقالات' : 'Articles'}</div>
-        </Link>
-        <Link to="/create-novel" className="rounded-2xl border border-sura-line bg-sura-canvas p-4 text-center transition hover:border-sura-teal">
-          <div className="text-2xl font-bold text-sura-teal">{userStats.novels}</div>
-          <div className="text-xs text-sura-navy/70">{locale === 'ar' ? 'الروايات' : 'Novels'}</div>
-        </Link>
-        <Link to="/create-chapter" className="rounded-2xl border border-sura-line bg-sura-canvas p-4 text-center transition hover:border-sura-teal">
-          <div className="text-2xl font-bold text-sura-teal">{userStats.chapters}</div>
-          <div className="text-xs text-sura-navy/70">{locale === 'ar' ? 'الفصول' : 'Chapters'}</div>
-        </Link>
-        <div className="rounded-2xl border border-sura-line bg-sura-canvas p-4 text-center">
-          <div className="text-2xl font-bold text-sura-teal">{userStats.followers}</div>
-          <div className="text-xs text-sura-navy/70">{locale === 'ar' ? 'المتابعون' : 'Followers'}</div>
-        </div>
-        <div className="rounded-2xl border border-sura-line bg-sura-canvas p-4 text-center">
-          <div className="text-2xl font-bold text-sura-teal">{userStats.following}</div>
-          <div className="text-xs text-sura-navy/70">{locale === 'ar' ? 'يتابع' : 'Following'}</div>
-        </div>
-      </div>
-
-      <section className="grid items-start gap-6 md:grid-cols-[200px_1fr]">
-        <div className="rounded-3xl border border-sura-line bg-sura-canvas p-5 text-center">
-          {user.avatar ? (
-            <img
-              src={user.avatar}
-              alt={user.name}
-              className="mx-auto mb-4 h-32 w-32 rounded-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <div className="mx-auto mb-4 flex h-32 w-32 items-center justify-center rounded-full bg-sura-canvas text-4xl text-sura-navy/80">
-              {user.name?.charAt(0)}
-            </div>
-          )}
-          <div className="rounded-3xl bg-sura-canvas px-4 py-3 text-left text-sm text-sura-navy/80">
-            <div className="mb-2 font-semibold text-sura-teal">{locale === 'ar' ? 'الاسم' : 'Display Name'}</div>
-            <div>{user.name}</div>
-          </div>
-          <Link to="/dashboard" className="mt-4 block w-full rounded-full border border-sura-line px-4 py-2 text-sm text-sura-navy/80">
-            {locale === 'ar' ? 'لوحة التحكم' : 'Dashboard'}
-          </Link>
+    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 py-8 px-4">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">{lang.myProfile}</h1>
+          <p className="text-slate-400">Welcome, {user?.name || 'User'}</p>
         </div>
 
-        <div className="space-y-4 rounded-3xl border border-sura-line bg-sura-canvas p-6">
-          <div className="rounded-3xl bg-sura-canvas p-5 text-left text-sura-navy/80">
-            <div className="mb-2 text-sm font-semibold uppercase tracking-widest text-sura-teal">
-              {locale === 'ar' ? 'البريد الإلكتروني' : 'Email'}
-            </div>
-            <div>{user.email}</div>
-          </div>
-          <div className="rounded-3xl bg-sura-canvas p-5 text-left text-sura-navy/80">
-            <div className="mb-2 text-sm font-semibold uppercase tracking-widest text-sura-teal">
-              {locale === 'ar' ? 'الدور' : 'Role'}
-            </div>
-            <div>{user.role}</div>
-          </div>
-          <div className="rounded-3xl bg-sura-canvas p-5 text-left text-sura-navy/80">
-            <div className="mb-2 text-sm font-semibold uppercase tracking-widest text-sura-teal">
-              {locale === 'ar' ? 'النظام' : 'Theme'}
-            </div>
-            <div>{user.theme}</div>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-sura-line bg-sura-canvas p-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold">{locale === 'ar' ? 'سجل المشتريات' : 'Purchase History'}</h2>
-            <p className="text-sm text-sura-navy/70">
-              {locale === 'ar' ? 'جميع طلباتك والكتب المتاحة للتنزيل.' : 'All your orders and downloadable purchased books.'}
-            </p>
-          </div>
-          <div className="rounded-full border border-sura-line px-4 py-2 text-sm text-sura-navy/80">
-            {locale === 'ar' ? 'إجمالي الإنفاق' : 'Total spent'}: ${totalSpent.toFixed(2)}
-          </div>
-        </div>
-
-        <div className="mt-5 space-y-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-xl font-semibold">{locale === 'ar' ? 'مشترياتي' : 'My Purchases'}</h3>
-              <p className="text-sm text-sura-navy/70">
-                {locale === 'ar' ? 'الكتب التي لديك لها حق تنزيل.' : 'Books you have access to download.'}
-              </p>
-            </div>
-            {purchasedBooks.length > 0 ? (
-              <div className="rounded-full border border-sura-line px-4 py-2 text-sm text-sura-navy/80">
-                {locale === 'ar'
-                  ? `عدد الكتب: ${purchasedBooks.length}`
-                  : `Books: ${purchasedBooks.length}`}
-              </div>
-            ) : null}
-          </div>
+        {/* My Purchases Section */}
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+          <h2 className="text-2xl font-bold text-white mb-6">{lang.myPurchases}</h2>
 
           {ordersLoading ? (
-            <div className="text-sm text-sura-navy/70">{locale === 'ar' ? 'جارٍ تحميل الطلبات...' : 'Loading orders...'}</div>
-          ) : ordersError ? (
-            <div className="text-sm text-red-500">{ordersError}</div>
-          ) : orders.length === 0 ? (
-            <div className="text-sm text-sura-navy/70">{locale === 'ar' ? 'لا توجد مشتريات بعد.' : 'No purchases yet.'}</div>
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-purple-500"></div>
+            </div>
           ) : purchasedBooks.length === 0 ? (
-            <div className="text-sm text-sura-navy/70">{locale === 'ar' ? 'لا توجد كتب قابلة للتنزيل.' : 'No downloadable books.'}</div>
+            <div className="text-center py-12">
+              <p className="text-slate-400 mb-4">{lang.noPurchases}</p>
+              <button
+                onClick={() => navigate('/store')}
+                className="inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition"
+              >
+                {lang.startShopping}
+              </button>
+            </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {purchasedBooks.map((item) => (
-                <div key={item.id} className="rounded-3xl border border-sura-line bg-sura-canvas p-5">
-                  <div className="flex items-start justify-between gap-3">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-slate-700">
+                    <th className="pb-3 text-slate-300 font-semibold">{locale === 'ar' ? 'اسم الكتاب' : 'Book'}</th>
+                    <th className="pb-3 text-slate-300 font-semibold">{lang.purchaseDate}</th>
+                    <th className="pb-3 text-slate-300 font-semibold">{lang.price}</th>
+                    <th className="pb-3 text-slate-300 font-semibold">{lang.actions}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {purchasedBooks.map((purchase) => {
+                    const status = downloadStatusByBookId[purchase.book?.id || ''];
+                    
+                    return (
+                      <tr 
+                        key={purchase.book?.id} 
+                        className="border-b border-slate-700 hover:bg-slate-700/30 transition"
+                      >
+                        <td className="py-4 text-white">{purchase.book?.title || 'Unknown'}</td>
+                        <td className="py-4 text-slate-400">
+                          {new Date(purchase.purchaseDate).toLocaleDateString(locale === 'ar' ? 'ar-SA' : 'en-US')}
+                        </td>
+                        <td className="py-4 text-white font-medium">${purchase.priceAtPurchase.toFixed(2)}</td>
+                        <td className="py-4">
+                          <div className="flex gap-3">
+                            {/* Download Button */}
+                            <button
+                              onClick={() => handleDownload(purchase.book?.id || '')}
+                              disabled={status?.loading}
+                              className={`px-3 py-1 rounded text-sm font-medium transition ${
+                                status?.loading
+                                  ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                                  : status?.error
+                                  ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30'
+                                  : 'bg-purple-600/20 text-purple-400 hover:bg-purple-600/30'
+                              }`}
+                            >
+                              {status?.loading ? lang.downloading : status?.error ? lang.error : lang.download}
+                            </button>
+
+                            {/* Preview Button */}
+                            {purchase.book?.previewUrl && (
+                              <button
+                                onClick={() => handlePreview(purchase.book?.id || '')}
+                                className="px-3 py-1 rounded text-sm font-medium bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 transition"
+                              >
+                                {lang.preview}
+                              </button>
+                            )}
+                          </div>
+                          {status?.error && (
+                            <p className="text-red-400 text-xs mt-1">{status.error}</p>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Order History Section (Optional) */}
+        {orders.length > 0 && (
+          <div className="mt-8 bg-slate-800 rounded-lg border border-slate-700 p-6">
+            <h2 className="text-2xl font-bold text-white mb-6">
+              {locale === 'ar' ? 'سجل الطلبات' : 'Order History'}
+            </h2>
+            <div className="space-y-4">
+              {orders.map((order) => (
+                <div key={order.id} className="bg-slate-700/50 rounded p-4 border border-slate-600">
+                  <div className="flex justify-between items-start mb-2">
                     <div>
-                      <div className="text-sm font-semibold text-sura-navy/90">{item.titleSnapshot}</div>
-                      <div className="mt-1 text-xs text-sura-navy/70">
-                        ${Number(item.priceAtPurchase).toFixed(2)} × {item.quantity}
-                      </div>
+                      <p className="text-white font-medium">
+                        {locale === 'ar' ? 'الطلب' : 'Order'} #{order.id.slice(0, 8)}
+                      </p>
+                      <p className="text-slate-400 text-sm">
+                        {new Date(order.createdAt).toLocaleDateString(locale === 'ar' ? 'ar-SA' : 'en-US')}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-white font-semibold">${order.total.toFixed(2)}</p>
+                      <p className={`text-xs font-medium ${order.status === 'paid' ? 'text-green-400' : 'text-yellow-400'}`}>
+                        {order.status === 'paid' ? (locale === 'ar' ? 'مدفوع' : 'Paid') : (locale === 'ar' ? 'معلق' : 'Pending')}
+                      </p>
                     </div>
                   </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {item.book?.previewUrl ? (
-                      <a
-                        href={item.book.previewUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-full border border-sura-line px-3 py-1 text-xs"
-                        onClick={() => trackEvent('preview_book', { book_id: item.bookId, source: 'profile' })}
-                      >
-                        {locale === 'ar' ? 'معاينة' : 'Preview'}
-                      </a>
-                    ) : null}
-
-                    <button
-                      onClick={() => handleDownload(item.bookId)}
-                      disabled={downloadLoadingBookId === item.bookId}
-                      className="rounded-full border border-sura-line px-3 py-1 text-xs disabled:opacity-60"
-                    >
-                      {downloadLoadingBookId === item.bookId
-                        ? locale === 'ar' ? 'جارٍ التحقق...' : 'Checking...'
-                        : locale === 'ar' ? 'تنزيل' : 'Download'}
-                    </button>
-                  </div>
+                  {order.discountCode && (
+                    <p className="text-slate-400 text-sm">
+                      {locale === 'ar' ? 'الكود' : 'Code'}: {order.discountCode} 
+                      {order.discountAmount && ` (-$${order.discountAmount.toFixed(2)})`}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      </section>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-

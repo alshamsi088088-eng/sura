@@ -1,55 +1,40 @@
-# TODO - Sura Codex - إكمال وإصلاح المتجر
+# TODO - Stripe Checkout & Store/Profile/Navbar fixes
 
-- [x] مراجعة storeController.ts بالكامل (سيتم التنفيذ)
-  - [x] تصحيح checkout logic بحيث يتم تطبيق الخصم داخل line_items في Stripe (وليس فقط metadata)
-  - [x] إزالة/منع أي placeholder/logic Stripe غير مكتمل
-  - [x] تحسين validation و error handling
-  - [x] حماية من عدم توفر STRIPE_SECRET_KEY
-
-
-- [x] تحديث StorePage.tsx
-  - [x] إضافة حالة loading/error لزر التحميل
-  - [x] (اختياري/مطلوب حسب الكود) إظهار CTA فقط للكتب المشتراة عبر API
-  - [x] عدم كسر Cart أو Checkout الحالي
-
-- [x] تحديث ProfilePage.tsx
-  - [x] إنشاء قسم "مشترياتي" يعرض الكتب بدون تكرار
-  - [x] زر Download لكل كتاب (يستخدم endpoint الموجود)
-  - [x] معالجة حالة No purchases
-
-- [x] مراجعة storeRoutes.ts
-  - [x] التأكد من ربط جميع routes بالـ Controllers
-
-- [x] تنفيذ TypeScript validation
-- [x] تنفيذ build verification
-- [x] تقرير نهائي عن أي مشاكل متبقية تمنع الإطلاق الإنتاجي
+## Step 1 (Server)
+- [ ] Update `server/src/controllers/storeController.ts`
+  - [x] Strengthen STRIPE_SECRET_KEY validation + create Stripe client only when present
+  - [x] Refactor `computeDiscount` to return `discountPercentage` (keep `discountAmount` for compatibility)
+  - [x] Update `checkout` to apply discount to each Stripe `line_item` so Stripe totals are correct
+  - [x] Improve Stripe error handling (map Stripe error types to HTTP responses)
+  - [x] Update `validateCoupon` to return `discountPercentage` (and keep `discountAmount`)
 
 
----
 
-# TODO - Sura Codex - MVP-first (مرحلة 1)
-- [x] إضافة/تحديث Tabs وروابط إنشاء المحتوى في Navbar
-  - [x] إضافة Create Post / Create Tech / Gallery (روابط)
-- [x] التأكد من أن روابط Create (Novel/Post/Tech) تظهر فقط للمسجلين داخل Navbar عبر قسم محمي (Writer Actions)
-- [ ] التأكد من تقييد Books/Store للأدمن فقط (Route/Visibility)
-- [ ] تحسين Create Novel/Post/Tech الأساسية (تصير “جاهزة لـ MVP”)
-  - [x] Create Tech: مواءمة UI/payload بالكامل مع schema.prisma (إزالة language/difficulty/github/demo وحقن payload مطابق)
-  - [x] Create Novel: Redirect بعد إنشاء Novel إلى CreateChapter مع تمرير novelId عبر query
-  - [x] Create Chapter: تعبئة novelId تلقائيًا من query
-  - [ ] Create Novel: دعم رفع ملف الرواية (PDF/DOCX/TXT) + حفظ Novel وربط chapters (إن وجد) (بدون Migration في هذا MVP الحالي)
-  - [ ] Create Post: إدخال Rich Editor + Live Preview
-  - [x] Create Post: تثبيت MVP insert عبر حذف حقول attachment غير موجودة في Article schema + إيقاف الإنشاء عند فشل upload
-  - [ ] Create Tech: Syntax Highlighting + تحسين UI للـ Code Snippets (MVP: بلوك واحد على الأقل)
-- [ ] تفعيل/توحيد نظام التفاعل على صفحات التفاصيل
-  - [ ] Like Button + Like count
-  - [ ] Save/Bookmark
-  - [ ] Nested Comments + Reply
-  - [ ] Rating Stars (1-5) + average + count
-  - [ ] Emoji reactions + counters
-  - [ ] التأكد من أن كل هذه التفاعلات تعمل في:
-    - [ ] صفحة المقالات (Article detail)
-    - [ ] صفحة الروايات (Novel/Chapter detail)
-    - [ ] صفحة Tech articles
-- [ ] Lighthouse/Performance: Lazy Loading للصور في Gallery/Covers
-- [ ] فحص TypeScript + build verify بعد كل دفعة
+## Step 2 (Server routes)
+- [ ] Verify `server/src/routes/storeRoutes.ts` matches required endpoints (no DB changes expected)
+
+## Step 3 (Client Store page)
+- [ ] Update `client/src/pages/StorePage.tsx`
+  - [x] Add loading/error state for Download button
+  - [ ] On activeBook change (and/or download click), call `/api/store/download/:bookId` to confirm ownership
+  - [ ] Only show/enable preview & download when allowed; keep cart/checkout intact
+
+
+## Step 4 (Client Profile page)
+- [ ] Update `client/src/pages/ProfilePage.tsx`
+  - [ ] Ensure “My Purchases” aggregates books without duplicates
+  - [ ] Show purchase price + purchase date
+  - [ ] Render Download button per book
+  - [ ] Proper “No purchases” empty state
+
+
+## Step 5 (Client Navbar)
+- [ ] Update `client/src/components/layout/Navbar.tsx`
+  - [ ] Add dropdown/submenu “Create Content” for writers/admins
+  - [ ] Add admin-only links: Manage Books, Manage Comments, Analytics
+
+## Step 6 (Testing)
+- [ ] Typecheck/build client and server
+- [ ] Manual test: coupon percent/fixed affects checkout totals correctly
+- [ ] Manual test: download gating for purchased/non-purchased users
 

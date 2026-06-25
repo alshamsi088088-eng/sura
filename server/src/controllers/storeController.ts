@@ -4,18 +4,25 @@ import { prisma } from '../services/prisma.js';
 import Stripe from 'stripe';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
 if (!stripeSecretKey) {
-  // Fail fast in runtime if Stripe is misconfigured
-  console.warn('[storeController] Missing STRIPE_SECRET_KEY env var');
+  console.error('[storeController] Missing STRIPE_SECRET_KEY env var');
 }
-const stripe = new Stripe(stripeSecretKey || '', { apiVersion: '2022-11-15' });
+
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, { apiVersion: '2022-11-15' }) : null;
+
 
 
 type CartItem = { id: string; quantity?: number };
 
 async function computeDiscount(subtotal: number, couponCode?: string | null, bookIds: string[] = []) {
   if (!couponCode) {
-    return { discountAmount: 0, discountCode: null as string | null, coupon: null as any };
+    return {
+      discountAmount: 0,
+      discountPercentage: 0,
+      discountCode: null as string | null,
+      coupon: null as any
+    };
   }
 
   const code = couponCode.trim().toUpperCase();
@@ -39,8 +46,14 @@ async function computeDiscount(subtotal: number, couponCode?: string | null, boo
   }
 
   discountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount.toFixed(2))));
-  return { discountAmount, discountCode: code, coupon };
+
+  // Stripe needs percentage to reflect the discount. For fixed coupons,
+  // we convert it to an equivalent percentage against current subtotal.
+  const discountPercentage = subtotal > 0 ? (discountAmount / subtotal) * 100 : 0;
+
+  return { discountAmount, discountPercentage, discountCode: code, coupon };
 }
+
 
 export async function getStoreItems(_req: Request, res: Response) {
   const books = await prisma.book.findMany({ orderBy: { createdAt: 'desc' } });
@@ -74,26 +87,36 @@ export async function validateCoupon(req: Request, res: Response) {
         .toFixed(2)
     );
 
-    const { discountAmount, discountCode } = await computeDiscount(
+    const { discountAmount, discountPercentage, discountCode } = await computeDiscount(
       subtotal,
       couponCode,
       products.map((p: { id: string }) => p.id)
     );
     const total = Number(Math.max(0, subtotal - discountAmount).toFixed(2));
 
-    res.json({ valid: true, subtotal, discountAmount, discountCode, total });
+    res.json({
+      valid: true,
+      subtotal,
+      discountAmount,
+      discountPercentage,
+      discountCode,
+      total
+    });
   } catch (error: any) {
     res.status(400).json({ valid: false, message: error?.message || 'Coupon validation failed' });
   }
 }
 
+
 export async function checkout(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!stripeSecretKey) {
+    if (!stripe) {
       return res.status(500).json({ message: 'Stripe is not configured (missing STRIPE_SECRET_KEY)' });
     }
 
+
     const user = req.user as any;
+
     const { items = [], couponCode } = req.body as { items: CartItem[]; couponCode?: string };
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -126,7 +149,7 @@ export async function checkout(req: Request, res: Response, next: NextFunction) 
         .toFixed(2)
     );
 
-    const { discountAmount, discountCode } = await computeDiscount(
+    const { discountAmount, discountPercentage, discountCode } = await computeDiscount(
       subtotal,
       couponCode,
       products.map((p: { id: string }) => p.id)
@@ -134,37 +157,34 @@ export async function checkout(req: Request, res: Response, next: NextFunction) 
 
     const total = Number(Math.max(0, subtotal - discountAmount).toFixed(2));
 
-    // Distribute discount across items so Stripe totals match our computed total.
-    const productSubtotalMap = new Map<string, number>();
-    for (const book of products) {
-      const q = normalizedItems.find((it) => it.id === book.id)?.quantity || 1;
-      productSubtotalMap.set(book.id, book.price * q);
-    }
-
+    // Apply discount on each Stripe line_item using the effective discountPercentage.
+    // This ensures Stripe computes totals correctly (not just metadata).
     const lineItems = products.map((book: any) => {
       const quantity = normalizedItems.find((it) => it.id === book.id)?.quantity || 1;
-      const itemSubtotal = productSubtotalMap.get(book.id) || 0;
-
-      const share = subtotal > 0 ? itemSubtotal / subtotal : 0;
-      const itemDiscount = Number((discountAmount * share).toFixed(2));
-      const discountedUnit = book.price - itemDiscount / (quantity || 1);
+      const discountedUnit = book.price * (1 - discountPercentage / 100);
       const unitAmountCents = Math.max(0, Math.round(discountedUnit * 100));
 
       return {
         price_data: {
           currency: 'usd',
           product_data: { name: book.title, description: book.summary },
-          unit_amount: unitAmountCents
+          unit_amount: unitAmountCents,
+          metadata: {
+            discount_percentage: discountPercentage.toString(),
+            book_id: book.id
+          }
         },
         quantity
       };
     });
+
 
     const metadata: Record<string, string> = {
       userId: user?.id || '',
       email: user?.email || '',
       discountCode: discountCode || '',
       discountAmount: discountAmount.toString(),
+      discountPercentage: discountPercentage.toString(),
       subtotal: subtotal.toString(),
       total: total.toString(),
       items: JSON.stringify(
@@ -177,8 +197,9 @@ export async function checkout(req: Request, res: Response, next: NextFunction) 
       )
     };
 
+
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-    const session = await stripe.checkout.sessions.create({
+    const session = await stripe!.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
       customer_email: user?.email || undefined,
@@ -188,10 +209,23 @@ export async function checkout(req: Request, res: Response, next: NextFunction) 
       cancel_url: `${clientUrl}/store`
     });
 
+
     res.json({ url: session.url, subtotal, discountAmount, total, discountCode });
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    // Better Stripe error responses
+    const stripeError = error;
+    const status = stripeError?.statusCode || 400;
+    const message = stripeError?.message || 'Stripe checkout failed';
+
+    return res.status(status).json({
+      message,
+      code: stripeError?.code || undefined,
+      type: stripeError?.type || undefined,
+      details: stripeError?.raw?.message || stripeError?.decline_code || undefined
+    });
   }
+
+
 }
 
 

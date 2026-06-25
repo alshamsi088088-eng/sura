@@ -31,7 +31,11 @@ export function StorePage() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [couponMessage, setCouponMessage] = useState('');
   const [activeBook, setActiveBook] = useState<BookItem | null>(null);
+  const [activeBookAccess, setActiveBookAccess] = useState<{ allowed: boolean; fileUrl?: string; previewUrl?: string } | null>(null);
+
   const [downloadLoadingId, setDownloadLoadingId] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
 
   useEffect(() => {
     axios.get('/api/store').then((res) => {
@@ -40,6 +44,29 @@ export function StorePage() {
       setActiveBook(loadedBooks[0] || null);
     });
   }, []);
+
+  useEffect(() => {
+    setActiveBookAccess(null);
+    setDownloadError(null);
+
+    if (!activeBook) return;
+    if (!user) return;
+
+    // Validate download access for the active book only (prevents flooding API)
+    axios
+      .get(`/api/store/download/${activeBook.id}`, { withCredentials: true })
+      .then((response) => {
+        setActiveBookAccess({
+          allowed: !!response.data?.allowed,
+          fileUrl: response.data?.book?.fileUrl,
+          previewUrl: response.data?.book?.previewUrl
+        });
+      })
+      .catch(() => {
+        setActiveBookAccess({ allowed: false });
+      });
+  }, [activeBook?.id, user]);
+
 
   const cartBooks = useMemo(
     () => cart.map((item) => ({ ...item, book: books.find((b) => b.id === item.id) })).filter((x) => x.book),
@@ -101,20 +128,24 @@ export function StorePage() {
 
   const tryDownload = async (bookId: string) => {
     setDownloadLoadingId(bookId);
+    setDownloadError(null);
     try {
       const response = await axios.get(`/api/store/download/${bookId}`, { withCredentials: true });
       if (response.data?.allowed && response.data?.book?.fileUrl) {
         window.open(response.data.book.fileUrl, '_blank', 'noopener,noreferrer');
         trackEvent('download_book', { book_id: bookId, allowed: true });
       } else {
+        setDownloadError(locale === 'ar' ? 'لا يوجد صلاحية للتنزيل' : 'No permission to download');
         trackEvent('download_book', { book_id: bookId, allowed: false });
       }
-    } catch {
+    } catch (error: any) {
+      setDownloadError(error?.response?.data?.message || (locale === 'ar' ? 'فشل التحقق من الصلاحية' : 'Failed to verify access'));
       trackEvent('download_book', { book_id: bookId, allowed: false });
     } finally {
       setDownloadLoadingId(null);
     }
   };
+
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -253,19 +284,71 @@ export function StorePage() {
             <div className="rounded-3xl border border-sura-line bg-sura-canvas p-4">
               <div className="text-sm font-semibold">{activeBook.title}</div>
               <p className="mt-1 text-xs text-sura-navy/70">
-                {locale === 'ar' ? 'تنزيل للمشترين فقط' : 'Download available for purchased users only'}
+                {locale === 'ar'
+                  ? 'معاينة وتنزيل للمشترين فقط'
+                  : 'Preview and download available for purchased users only'}
               </p>
-              <button
-                onClick={() => tryDownload(activeBook.id)}
-                disabled={downloadLoadingId === activeBook.id}
-                className="mt-3 w-full rounded-full border border-sura-line px-4 py-2 text-xs"
-              >
-                {downloadLoadingId === activeBook.id
-                  ? locale === 'ar' ? 'جارٍ التحقق...' : 'Checking access...'
-                  : locale === 'ar' ? 'تنزيل (بعد الشراء)' : 'Download (after purchase)'}
-              </button>
+
+              {user ? (
+                activeBookAccess?.allowed ? (
+                  <>
+                    {activeBookAccess.previewUrl ? (
+                      <a
+                        href={activeBookAccess.previewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-sura-line px-4 py-2 text-xs"
+                        onClick={() => trackEvent('preview_book', { book_id: activeBook.id })}
+                      >
+                        {locale === 'ar' ? 'معاينة' : 'Preview'}
+                      </a>
+                    ) : null}
+
+                    <button
+                      onClick={() => tryDownload(activeBook.id)}
+                      disabled={downloadLoadingId === activeBook.id}
+                      className="mt-3 w-full rounded-full bg-sura-gold px-4 py-2 text-xs font-semibold text-sura-dark disabled:opacity-60"
+                    >
+                      {downloadLoadingId === activeBook.id
+                        ? locale === 'ar' ? 'جارٍ التحقق...' : 'Checking access...'
+                        : locale === 'ar' ? 'تنزيل' : 'Download'}
+                    </button>
+                  </>
+                ) : activeBookAccess ? (
+                  <>
+                    <button
+                      onClick={() => tryDownload(activeBook.id)}
+                      disabled={downloadLoadingId === activeBook.id}
+                      className="mt-3 w-full rounded-full border border-sura-line px-4 py-2 text-xs disabled:opacity-60"
+                    >
+                      {downloadLoadingId === activeBook.id
+                        ? locale === 'ar' ? 'جارٍ التحقق...' : 'Checking access...'
+                        : locale === 'ar' ? 'غير متاح للتنزيل' : 'Download not available'}
+                    </button>
+                    {downloadError ? <p className="mt-2 text-xs text-red-500">{downloadError}</p> : null}
+                  </>
+                ) : (
+                  <button
+                    disabled
+                    className="mt-3 w-full rounded-full border border-sura-line px-4 py-2 text-xs opacity-70"
+                  >
+                    {locale === 'ar' ? 'جارٍ التحقق...' : 'Checking...'}
+                  </button>
+                )
+              ) : (
+                <button
+                  onClick={() => {
+                    // Keep cart/checkout intact; just block download/preview without auth.
+                    setDownloadError(locale === 'ar' ? 'سجّل الدخول أولاً' : 'Please sign in first');
+                  }}
+                  className="mt-3 w-full rounded-full border border-sura-line px-4 py-2 text-xs"
+                >
+                  {locale === 'ar' ? 'تحتاج تسجيل الدخول' : 'Sign in required'}
+                </button>
+              )}
             </div>
           ) : null}
+
         </aside>
       </div>
 
