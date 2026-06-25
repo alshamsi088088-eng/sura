@@ -8,13 +8,32 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { WeeklyTargetBanner } from '../components/WeeklyTargetBanner';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { useSeoTags } from '../hooks/useSeoTags';
+
 
 interface FeatureCard { title: string; description: string; }
 interface ReadingProgressItem { uid: string; progress: number; }
-interface TrendingItem { id: string; title: string; type: string; views: number; }
+interface TrendingItem { id: string; title: string; type: string; views: number; slug?: string; }
 
 export function HomePage() {
   const { locale, strings } = useLocale();
+  useSeoTags({
+    title: locale === 'ar' ? 'سُرى — مدونة القراءة العميقة' : 'Sura Codex — A Space for Thought & Creativity',
+    description:
+      locale === 'ar'
+        ? 'مدونة ومتجر رقمي للقراءة العميقة والإصدارات المختارة من المقالات والروايات.'
+        : 'A publishing platform and digital store for deep reading and curated essays & novels.',
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/`,
+    openGraph: {
+      type: 'website',
+      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex' },
+    },
+    twitter: {
+      cardType: 'summary_large_image',
+      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex' },
+    },
+  });
+
   const { user } = useAuth();
   const [featured, setFeatured] = useState<FeatureCard[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
@@ -46,9 +65,9 @@ export function HomePage() {
   useEffect(() => {
     if (!supabase) return;
     const loadTrending = async () => {
-      const { data: articles } = await supabase!.from('Article').select('id, title, views').order('createdAt', { ascending: false }).limit(5);
+      const { data: articles } = await supabase!.from('Article').select('id, title, views, slug').order('createdAt', { ascending: false }).limit(5);
       const { data: novels } = await supabase!.from('Novel').select('id, title, views').order('createdAt', { ascending: false }).limit(5);
-      const articleItems: TrendingItem[] = (articles || []).map(a => ({ id: a.id, title: a.title, type: 'article', views: a.views || 0 }));
+      const articleItems: TrendingItem[] = (articles || []).map(a => ({ id: a.id, title: a.title, type: 'article', views: a.views || 0, slug: a.slug }));
       const novelItems: TrendingItem[] = (novels || []).map(n => ({ id: n.id, title: n.title, type: 'novel', views: n.views || 0 }));
       const allItems: TrendingItem[] = [...articleItems, ...novelItems].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 6);
       setTrending(allItems);
@@ -165,7 +184,7 @@ export function HomePage() {
             <h2 className="text-2xl font-bold mb-6 text-sura-ink">{locale === 'ar' ? 'المحتوى الرائج' : 'Trending Content'}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
               {trending?.map((item, i) => (
-                <Link key={item?.id} to={item?.type === 'article' ? `/articles/${item?.id}` : `/novels/${item?.id}`} className="glass-card p-4 text-center group">
+                <Link key={item?.id} to={item?.type === 'article' ? `/articles/${item?.slug || item?.id}` : `/novels/${item?.id}`} className="glass-card p-4 text-center group">
                   <div className="text-xs font-bold text-sura-sky/70 mb-2">#{i + 1}</div>
                   <h3 className="font-serif text-sm font-bold mb-1 text-sura-ink line-clamp-2 group-hover:text-sura-sky">{item?.title}</h3>
                   <div className="text-xs text-sura-ink/50">{item?.type === 'article' ? (locale === 'ar' ? 'مقال' : 'Article') : (locale === 'ar' ? 'رواية' : 'Novel')}</div>

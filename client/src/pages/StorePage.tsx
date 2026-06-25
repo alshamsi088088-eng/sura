@@ -5,6 +5,11 @@ import { useLocale } from '../context/LocaleContext';
 import { useAuth } from '../context/AuthContext';
 import { ThreadedComments } from '../components/ThreadedComments';
 import { trackPurchaseIntent, trackEvent } from '../lib/analytics';
+import { RatingStars } from '../components/RatingStars';
+import { useSeoTags } from '../hooks/useSeoTags';
+
+import { LikeButton } from '../components/LikeButton';
+
 
 interface BookItem {
   id: string;
@@ -24,6 +29,23 @@ interface CartItem {
 
 export function StorePage() {
   const { locale } = useLocale();
+  useSeoTags({
+    title: locale === 'ar' ? 'المتجر — سُرى' : 'Store — Sura Codex',
+    description:
+      locale === 'ar'
+        ? 'شراء إصدارات رقمية ومطبوعة مع روابط تنزيل آمنة بعد الشراء.'
+        : 'Purchase digital and physical books with secure download delivery after checkout.',
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/store`,
+    openGraph: {
+      type: 'website',
+      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex' },
+    },
+    twitter: {
+      cardType: 'summary_large_image',
+      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex' },
+    },
+  });
+
   const { user } = useAuth();
   const [books, setBooks] = useState<BookItem[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -303,6 +325,8 @@ export function StorePage() {
                         {locale === 'ar' ? 'معاينة' : 'Preview'}
                       </a>
                     ) : null}
+
+                    {/* ✅ Modified section: Download button has loading/error state handled in tryDownload */}
 
                     <button
                       onClick={() => tryDownload(activeBook.id)}

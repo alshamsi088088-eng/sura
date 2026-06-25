@@ -44,6 +44,8 @@ export function ProfilePage() {
 
   const [orders, setOrders] = useState<PurchasedOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+
+  // bookId -> status
   const [downloadStatusByBookId, setDownloadStatusByBookId] = useState<Record<string, DownloadStatus>>({});
 
   // Redirect if not authenticated
@@ -53,7 +55,7 @@ export function ProfilePage() {
     }
   }, [loading, user, navigate]);
 
-  // ✅ Fetch orders on mount
+  // Fetch orders
   useEffect(() => {
     if (!user) return;
 
@@ -74,19 +76,22 @@ export function ProfilePage() {
     fetchOrders();
   }, [user]);
 
-  // ✅ Aggregate purchased books without duplication
+  // Aggregate purchased books without duplication
   const purchasedBooks = useMemo(() => {
-    const booksMap = new Map<string, { 
-      book: PurchasedOrderItem['book']; 
-      priceAtPurchase: number; 
-      quantity: number;
-      purchaseDate: string;
-      orderId: string;
-    }>();
+    const booksMap = new Map<
+      string,
+      {
+        book?: PurchasedOrderItem['book'];
+        priceAtPurchase: number;
+        quantity: number;
+        purchaseDate: string;
+        orderId: string;
+      }
+    >();
 
+    // No duplication: keep first occurrence (earliest/latest depending on API ordering).
     orders.forEach((order) => {
       order.items.forEach((item) => {
-        // Keep first occurrence or latest (using order.createdAt)
         if (!booksMap.has(item.bookId)) {
           booksMap.set(item.bookId, {
             book: item.book,
@@ -102,21 +107,24 @@ export function ProfilePage() {
     return Array.from(booksMap.values());
   }, [orders]);
 
-  // ✅ Handle download verification
+  // Download verification + triggering file download
   const handleDownload = async (bookId: string) => {
-    try {
-      setDownloadStatusByBookId((prev) => ({
-        ...prev,
-        [bookId]: { loading: true }
-      }));
+    if (!bookId) return;
 
-      const response = await axios.get(`/api/store/download/${bookId}`);
-      
-      if (response.data.allowed && response.data.book.fileUrl) {
-        // Trigger download
+    setDownloadStatusByBookId((prev) => ({
+      ...prev,
+      [bookId]: { loading: true }
+    }));
+
+    try {
+      const response = await axios.get(`/api/store/download/${bookId}`, { withCredentials: true });
+
+      if (response.data?.allowed && response.data?.book?.fileUrl) {
+        const { fileUrl, title } = response.data.book;
+
         const link = document.createElement('a');
-        link.href = response.data.book.fileUrl;
-        link.download = `${response.data.book.title}.pdf`;
+        link.href = fileUrl;
+        link.download = `${title || 'book'}.pdf`;
         link.click();
 
         setDownloadStatusByBookId((prev) => ({
@@ -124,27 +132,38 @@ export function ProfilePage() {
           [bookId]: { loading: false, allowed: true }
         }));
 
-        trackEvent('book_download', { book_id: bookId, book_title: response.data.book.title });
+        trackEvent('book_download', { book_id: bookId });
+      } else {
+        setDownloadStatusByBookId((prev) => ({
+          ...prev,
+          [bookId]: {
+            loading: false,
+            allowed: false,
+            error: locale === 'ar' ? 'غير مسموح بالتنزيل' : 'Download not allowed'
+          }
+        }));
       }
     } catch (error: any) {
       setDownloadStatusByBookId((prev) => ({
         ...prev,
-        [bookId]: { 
-          loading: false, 
-          allowed: false, 
-          error: error?.response?.data?.message || 'Failed to download' 
+        [bookId]: {
+          loading: false,
+          allowed: false,
+          error: error?.response?.data?.message || (locale === 'ar' ? 'فشل التنزيل' : 'Failed to download')
         }
       }));
     }
   };
 
-  // ✅ Handle preview
+  // Preview (still verifies access)
   const handlePreview = async (bookId: string) => {
+    if (!bookId) return;
+
     try {
-      const response = await axios.get(`/api/store/download/${bookId}`);
-      
-      if (response.data.allowed && response.data.book.previewUrl) {
-        window.open(response.data.book.previewUrl, '_blank');
+      const response = await axios.get(`/api/store/download/${bookId}`, { withCredentials: true });
+
+      if (response.data?.allowed && response.data?.book?.previewUrl) {
+        window.open(response.data.book.previewUrl, '_blank', 'noopener,noreferrer');
         trackEvent('book_preview', { book_id: bookId });
       }
     } catch (error) {
@@ -200,7 +219,7 @@ export function ProfilePage() {
           <p className="text-slate-400">Welcome, {user?.name || 'User'}</p>
         </div>
 
-        {/* My Purchases Section */}
+        {/* ✅ My Purchases Section */}
         <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
           <h2 className="text-2xl font-bold text-white mb-6">{lang.myPurchases}</h2>
 
@@ -231,26 +250,28 @@ export function ProfilePage() {
                 </thead>
                 <tbody>
                   {purchasedBooks.map((purchase) => {
-                    const status = downloadStatusByBookId[purchase.book?.id || ''];
-                    
+                    const bookId = purchase.book?.id || '';
+                    const status = bookId ? downloadStatusByBookId[bookId] : undefined;
+
                     return (
-                      <tr 
-                        key={purchase.book?.id} 
-                        className="border-b border-slate-700 hover:bg-slate-700/30 transition"
-                      >
+                      <tr key={bookId} className="border-b border-slate-700 hover:bg-slate-700/30 transition">
                         <td className="py-4 text-white">{purchase.book?.title || 'Unknown'}</td>
                         <td className="py-4 text-slate-400">
-                          {new Date(purchase.purchaseDate).toLocaleDateString(locale === 'ar' ? 'ar-SA' : 'en-US')}
+                          {purchase.purchaseDate
+                            ? new Date(purchase.purchaseDate).toLocaleDateString(locale === 'ar' ? 'ar-SA' : 'en-US')
+                            : '-'}
                         </td>
                         <td className="py-4 text-white font-medium">${purchase.priceAtPurchase.toFixed(2)}</td>
                         <td className="py-4">
-                          <div className="flex gap-3">
-                            {/* Download Button */}
+                          <div className="flex flex-wrap gap-3">
+                            {/* ✅ Download Button */}
                             <button
-                              onClick={() => handleDownload(purchase.book?.id || '')}
-                              disabled={status?.loading}
+                              onClick={() => handleDownload(bookId)}
+                              disabled={!bookId || status?.loading}
                               className={`px-3 py-1 rounded text-sm font-medium transition ${
-                                status?.loading
+                                !bookId
+                                  ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                                  : status?.loading
                                   ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
                                   : status?.error
                                   ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30'
@@ -260,19 +281,20 @@ export function ProfilePage() {
                               {status?.loading ? lang.downloading : status?.error ? lang.error : lang.download}
                             </button>
 
-                            {/* Preview Button */}
+                            {/* ✅ Preview Button */}
                             {purchase.book?.previewUrl && (
                               <button
-                                onClick={() => handlePreview(purchase.book?.id || '')}
+                                onClick={() => handlePreview(bookId)}
+                                disabled={!bookId}
                                 className="px-3 py-1 rounded text-sm font-medium bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 transition"
                               >
                                 {lang.preview}
                               </button>
                             )}
                           </div>
-                          {status?.error && (
-                            <p className="text-red-400 text-xs mt-1">{status.error}</p>
-                          )}
+
+                          {/* Error message */}
+                          {status?.error ? <p className="text-red-400 text-xs mt-1">{status.error}</p> : null}
                         </td>
                       </tr>
                     );
@@ -283,12 +305,10 @@ export function ProfilePage() {
           )}
         </div>
 
-        {/* Order History Section (Optional) */}
+        {/* Order history (optional) - kept minimal */}
         {orders.length > 0 && (
           <div className="mt-8 bg-slate-800 rounded-lg border border-slate-700 p-6">
-            <h2 className="text-2xl font-bold text-white mb-6">
-              {locale === 'ar' ? 'سجل الطلبات' : 'Order History'}
-            </h2>
+            <h2 className="text-2xl font-bold text-white mb-6">{locale === 'ar' ? 'سجل الطلبات' : 'Order History'}</h2>
             <div className="space-y-4">
               {orders.map((order) => (
                 <div key={order.id} className="bg-slate-700/50 rounded p-4 border border-slate-600">
@@ -303,17 +323,27 @@ export function ProfilePage() {
                     </div>
                     <div className="text-right">
                       <p className="text-white font-semibold">${order.total.toFixed(2)}</p>
-                      <p className={`text-xs font-medium ${order.status === 'paid' ? 'text-green-400' : 'text-yellow-400'}`}>
-                        {order.status === 'paid' ? (locale === 'ar' ? 'مدفوع' : 'Paid') : (locale === 'ar' ? 'معلق' : 'Pending')}
+                      <p
+                        className={`text-xs font-medium ${
+                          order.status === 'paid' ? 'text-green-400' : 'text-yellow-400'
+                        }`}
+                      >
+                        {order.status === 'paid'
+                          ? locale === 'ar'
+                            ? 'مدفوع'
+                            : 'Paid'
+                          : locale === 'ar'
+                          ? 'معلق'
+                          : 'Pending'}
                       </p>
                     </div>
                   </div>
-                  {order.discountCode && (
+                  {order.discountCode ? (
                     <p className="text-slate-400 text-sm">
-                      {locale === 'ar' ? 'الكود' : 'Code'}: {order.discountCode} 
-                      {order.discountAmount && ` (-$${order.discountAmount.toFixed(2)})`}
+                      {locale === 'ar' ? 'الكود' : 'Code'}: {order.discountCode}
+                      {order.discountAmount ? ` (-$${order.discountAmount.toFixed(2)})` : ''}
                     </p>
-                  )}
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -323,3 +353,4 @@ export function ProfilePage() {
     </div>
   );
 }
+

@@ -74,9 +74,10 @@ export function CreateChapterPage() {
         } else if (rows[0]?.id) {
           setNovelId(rows[0].id);
         }
-      } catch (e: any) {
+    } catch (e) {
         if (!mounted) return;
-        setError(e?.message ? e.message : 'Failed to load novels.');
+        const err = e as { message?: string };
+        setError(err?.message ? err.message : 'Failed to load novels.');
       } finally {
         if (mounted) setLoadingNovels(false);
       }
@@ -137,8 +138,9 @@ export function CreateChapterPage() {
       if (insertError) throw insertError;
 
       navigate('/dashboard');
-    } catch (err: any) {
-      setError(err?.message ? err.message : 'Failed to save the chapter. Please try again.');
+    } catch (err) {
+      const e = err as { message?: string };
+      setError(e?.message ? e.message : 'Failed to save the chapter. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -215,8 +217,18 @@ export function CreateChapterPage() {
         </div>
 
         <button type="submit" disabled={submitting} className={themeClasses.primary}>
-          {submitting ? 'Publishing...' : 'Publish Chapter'}
+          {submitting ? 'Publishing...' : 'Save Chapter'}
         </button>
+
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => navigate(`/create-chapter?novelId=${encodeURIComponent(novelId)}`)}
+            className={themeClasses.primary}
+          >
+            Create Another Chapter
+          </button>
+        </div>
       </form>
 
       {error ? <div className={themeClasses.error}>{error}</div> : null}

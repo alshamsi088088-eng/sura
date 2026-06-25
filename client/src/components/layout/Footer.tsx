@@ -94,10 +94,95 @@ export function Footer() {
           </div>
         </div>
 
+        {/* Social links */}
+        <div style={{ marginBottom: 48 }}>
+          <div style={{ color: c.navy, fontWeight: 600, fontSize: 12, marginBottom: 18, textTransform: 'uppercase', letterSpacing: '0.18em' }}>
+            {locale === 'ar' ? 'روابطنا' : 'Social Links'}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            <a
+              href="#"
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                color: c.muted,
+                textDecoration: 'none',
+                fontSize: 14,
+                transition: 'color 0.2s',
+                padding: '6px 10px',
+                borderRadius: 999,
+                border: `1px solid ${c.border}`,
+                background: c.canvas,
+              }}
+              onMouseEnter={(e) => ((e.currentTarget.style.color = c.teal), (e.currentTarget.style.borderColor = c.teal))}
+              onMouseLeave={(e) => ((e.currentTarget.style.color = c.muted), (e.currentTarget.style.borderColor = c.border))}
+            >
+              {locale === 'ar' ? 'X / تويتر' : 'X / Twitter'}
+            </a>
+            <a
+              href="#"
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                color: c.muted,
+                textDecoration: 'none',
+                fontSize: 14,
+                transition: 'color 0.2s',
+                padding: '6px 10px',
+                borderRadius: 999,
+                border: `1px solid ${c.border}`,
+                background: c.canvas,
+              }}
+              onMouseEnter={(e) => ((e.currentTarget.style.color = c.teal), (e.currentTarget.style.borderColor = c.teal))}
+              onMouseLeave={(e) => ((e.currentTarget.style.color = c.muted), (e.currentTarget.style.borderColor = c.border))}
+            >
+              GitHub
+            </a>
+            <a
+              href="#"
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                color: c.muted,
+                textDecoration: 'none',
+                fontSize: 14,
+                transition: 'color 0.2s',
+                padding: '6px 10px',
+                borderRadius: 999,
+                border: `1px solid ${c.border}`,
+                background: c.canvas,
+              }}
+              onMouseEnter={(e) => ((e.currentTarget.style.color = c.teal), (e.currentTarget.style.borderColor = c.teal))}
+              onMouseLeave={(e) => ((e.currentTarget.style.color = c.muted), (e.currentTarget.style.borderColor = c.border))}
+            >
+              {locale === 'ar' ? 'Instagram' : 'Instagram'}
+            </a>
+            <a
+              href="#"
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                color: c.muted,
+                textDecoration: 'none',
+                fontSize: 14,
+                transition: 'color 0.2s',
+                padding: '6px 10px',
+                borderRadius: 999,
+                border: `1px solid ${c.border}`,
+                background: c.canvas,
+              }}
+              onMouseEnter={(e) => ((e.currentTarget.style.color = c.teal), (e.currentTarget.style.borderColor = c.teal))}
+              onMouseLeave={(e) => ((e.currentTarget.style.color = c.muted), (e.currentTarget.style.borderColor = c.border))}
+            >
+              YouTube
+            </a>
+          </div>
+        </div>
+
         {/* Bottom bar */}
         <div style={{ borderTop: `1px solid ${c.border}`, paddingTop: 24, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           <span style={{ color: c.muted, fontSize: 12.5 }}>
-            © 2024 The Sura Codex. {locale === 'ar' ? 'جميع الحقوق محفوظة.' : 'All rights reserved.'}
+            © {new Date().getFullYear()} The Sura Codex. {locale === 'ar' ? 'جميع الحقوق محفوظة.' : 'All rights reserved.'}
           </span>
           <span style={{ color: c.muted, fontSize: 12.5, letterSpacing: '0.05em' }}>
             {locale === 'ar' ? 'تقاطع الكود والأدب' : 'The Intersection of Code and Literature'}

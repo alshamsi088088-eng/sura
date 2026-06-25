@@ -7,6 +7,8 @@ import csurf from 'csurf';
 import { authRoutes } from './routes/authRoutes.js';
 import { contentRoutes } from './routes/contentRoutes.js';
 import { storeRoutes } from './routes/storeRoutes.js';
+import { seoRouter } from './routes/seoRoutes.js';
+
 import { adminRoutes } from './routes/adminRoutes.js';
 import { webhookRoutes } from './routes/webhookRoutes.js';
 import { contactRoutes } from './routes/contactRoutes.js';
@@ -60,4 +62,8 @@ app.use('/api/store', storeRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
+// SEO: robots.txt + sitemap.xml
+app.use('/', seoRouter);
+
 app.use(errorHandler);
+

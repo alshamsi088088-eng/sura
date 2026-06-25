@@ -7,13 +7,39 @@ import { ThreadedComments } from '../components/ThreadedComments';
 import { AdsenseAd } from '../components/AdsenseAd';
 import { LikeShareBar } from '../components/LikeShareBar';
 import { trackEvent } from '../lib/analytics';
+import { LikeButton } from '../components/LikeButton';
+import { BookmarkButton } from '../components/BookmarkButton';
+import { RatingStars } from '../components/RatingStars';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 
+interface ArticleRow {
+  id?: string;
+  slug?: string;
+  article_id?: string;
+  articleId?: string;
+  pk?: string;
+  title?: string;
+  excerpt?: string;
+  category?: string;
+  language?: string;
+  readingTime?: string;
+  reading_time?: string;
+  authorName?: string;
+  author?: string;
+  author_name?: string;
+  author_id?: string;
+  authorId?: string;
+  views?: number;
+  view_count?: number;
+  claps?: number;
+  clap_count?: number;
+}
 
-type ArticleRow = Record<string, any>;
 
 interface Article {
   id: string;
+  slug: string;
   title: string;
   excerpt: string;
   category: string;
@@ -28,20 +54,47 @@ const categories = ['Literature', 'Culture', 'Technology', 'Design', 'Arabic'];
 
 function mapArticle(row: ArticleRow): Article {
   const id = String(row.id ?? row.article_id ?? row.articleId ?? row.pk ?? '');
+  const slug = String((row as any).slug ?? row.id ?? row.article_id ?? row.articleId ?? row.pk ?? '');
   const title = String(row.title ?? '');
   const excerpt = String(row.excerpt ?? '');
   const category = String(row.category ?? '');
   const language = String(row.language ?? '');
   const readingTime = String(row.readingTime ?? row.reading_time ?? '');
-  const author = String(row.authorName ?? row.author ?? row.author_name ?? row.author_id ?? row.authorId ?? '');
+  const author = String(
+    row.authorName ??
+      row.author ??
+      row.author_name ??
+      row.author_id ??
+      row.authorId ??
+      ''
+  );
   const views = Number(row.views ?? row.view_count ?? 0);
   const claps = Number(row.claps ?? row.clap_count ?? 0);
 
-  return { id, title, excerpt, category, language, readingTime, author, views, claps };
+  return { id, slug, title, excerpt, category, language, readingTime, author, views, claps };
 }
+
+
 
 export function ArticlesPage() {
   const { locale, strings } = useLocale();
+  useSeoTags({
+    title: locale === 'ar' ? 'المقالات — سُرى' : 'Articles — Sura Codex',
+    description:
+      locale === 'ar'
+        ? 'مجموعة مقالات منظمة مع قراءة أعمق: المؤلف، وقت القراءة، وفئات مختارة.'
+        : 'Browse curated articles with deeper reading: author details, reading time, and categories.',
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/articles`,
+    openGraph: {
+      type: 'website',
+      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex' },
+    },
+    twitter: {
+      cardType: 'summary_large_image',
+      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex' },
+    },
+  });
+
   const { user } = useAuth();
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -185,6 +238,10 @@ export function ArticlesPage() {
               ) : null}
 
               <article className="rounded-3xl border border-sura-line bg-sura-canvas p-6 transition hover:-translate-y-1 hover:bg-sura-canvas">
+                <Link to={`/articles/${encodeURIComponent(item.slug || '')}`} className="sr-only">
+                  {item.title}
+                </Link>
+
                 <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{item.category}</div>
                 <h2 className="mt-4 text-xl font-semibold">{item.title}</h2>
                 <p className="mt-3 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
@@ -278,11 +335,24 @@ export function ArticlesPage() {
       {/* Engagement Bar */}
       {activeArticleId ? (
         <div className="rounded-3xl border border-sura-line bg-sura-canvas p-4">
-          <LikeShareBar entityId={activeArticleId} entityType="article" title={articles.find((a) => a.id === activeArticleId)?.title} />
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <LikeShareBar
+              entityId={activeArticleId}
+              entityType="article"
+              title={articles.find((a) => a.id === activeArticleId)?.title}
+            />
+
+            <div className="flex flex-wrap items-center gap-3">
+              <LikeButton itemId={activeArticleId} />
+              <BookmarkButton entityId={activeArticleId} entityType="article" />
+              <RatingStars entityId={activeArticleId} entityType="article" />
+            </div>
+          </div>
         </div>
       ) : null}
 
       {activeArticleId ? <ThreadedComments entityId={activeArticleId} entityType="article" /> : null}
+
 
     </div>
   );

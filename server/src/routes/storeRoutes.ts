@@ -1,4 +1,3 @@
-
 import { Router } from 'express';
 import {
   checkout,
@@ -15,3 +14,4 @@ storeRoutes.get('/orders', authGuard, getUserOrders);
 storeRoutes.post('/validate-coupon', authGuard, validateCoupon);
 storeRoutes.get('/download/:bookId', authGuard, getDownloadAccess);
 storeRoutes.post('/checkout', authGuard, checkout);
+

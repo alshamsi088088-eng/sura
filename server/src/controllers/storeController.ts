@@ -1,32 +1,49 @@
-
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../services/prisma.js';
 import Stripe from 'stripe';
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-
-if (!stripeSecretKey) {
-  console.error('[storeController] Missing STRIPE_SECRET_KEY env var');
-}
-
-const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, { apiVersion: '2022-11-15' }) : null;
-
-
-
 type CartItem = { id: string; quantity?: number };
 
-async function computeDiscount(subtotal: number, couponCode?: string | null, bookIds: string[] = []) {
-  if (!couponCode) {
+type DiscountResult = {
+  discountAmount: number;
+  discountPercentage: number;
+  discountCode: string | null;
+};
+
+function requireStripeOrThrow(): Stripe {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) {
+    // Fail-fast: Stripe cannot work without this key
+    throw Object.assign(new Error('Missing STRIPE_SECRET_KEY env var'), { statusCode: 500 });
+  }
+
+  return new Stripe(stripeSecretKey, { apiVersion: '2022-11-15' });
+}
+
+function normalizeCouponCode(couponCode?: string | null): string | null {
+  if (!couponCode) return null;
+  const trimmed = String(couponCode).trim();
+  if (!trimmed) return null;
+  return trimmed.toUpperCase();
+}
+
+function round2(n: number): number {
+  return Number(n.toFixed(2));
+}
+
+async function computeDiscount(subtotal: number, couponCode?: string | null, bookIds: string[] = []): Promise<DiscountResult> {
+  const normalizedCode = normalizeCouponCode(couponCode);
+
+  if (!normalizedCode) {
     return {
       discountAmount: 0,
       discountPercentage: 0,
-      discountCode: null as string | null,
-      coupon: null as any
+      discountCode: null
     };
   }
 
-  const code = couponCode.trim().toUpperCase();
-  const coupon = await prisma.coupon.findUnique({ where: { code } });
+  const coupon = await prisma.coupon.findUnique({ where: { code: normalizedCode } });
+
   if (!coupon || !coupon.active) {
     throw new Error('Invalid coupon');
   }
@@ -34,26 +51,58 @@ async function computeDiscount(subtotal: number, couponCode?: string | null, boo
   const now = new Date();
   if (coupon.startsAt && coupon.startsAt > now) throw new Error('Coupon not active yet');
   if (coupon.endsAt && coupon.endsAt < now) throw new Error('Coupon expired');
-  if (typeof coupon.maxUses === 'number' && coupon.usedCount >= coupon.maxUses) throw new Error('Coupon usage limit reached');
-  if (typeof coupon.minSubtotal === 'number' && subtotal < coupon.minSubtotal) throw new Error('Minimum subtotal not reached');
-  if (coupon.applicableBookId && !bookIds.includes(coupon.applicableBookId)) throw new Error('Coupon not applicable to selected items');
+  if (typeof coupon.maxUses === 'number' && coupon.usedCount >= coupon.maxUses) {
+    throw new Error('Coupon usage limit reached');
+  }
+  if (typeof coupon.minSubtotal === 'number' && subtotal < coupon.minSubtotal) {
+    throw new Error('Minimum subtotal not reached');
+  }
+  if (coupon.applicableBookId && !bookIds.includes(coupon.applicableBookId)) {
+    throw new Error('Coupon not applicable to selected items');
+  }
 
   let discountAmount = 0;
   if (coupon.type === 'percent') {
     discountAmount = (subtotal * coupon.value) / 100;
   } else {
+    // fixed amount coupon
     discountAmount = coupon.value;
   }
 
-  discountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount.toFixed(2))));
+  discountAmount = Math.max(0, Math.min(subtotal, round2(discountAmount)));
 
-  // Stripe needs percentage to reflect the discount. For fixed coupons,
-  // we convert it to an equivalent percentage against current subtotal.
-  const discountPercentage = subtotal > 0 ? (discountAmount / subtotal) * 100 : 0;
+  const discountPercentage = subtotal > 0 ? clamp((discountAmount / subtotal) * 100, 0, 100) : 0;
 
-  return { discountAmount, discountPercentage, discountCode: code, coupon };
+  return {
+    discountAmount,
+    discountPercentage,
+    discountCode: normalizedCode
+  };
 }
 
+function clamp(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n));
+}
+
+function safeStripeErrorPayload(error: any) {
+  const statusCode = error?.statusCode || 400;
+  const message = error?.message || 'Stripe request failed';
+
+  return {
+    statusCode,
+    payload: {
+      message,
+      code: error?.code || undefined,
+      type: error?.type || undefined,
+      details:
+        error?.raw?.message ||
+        error?.decline_code ||
+        error?.raw?.decline_code ||
+        error?.raw?.error?.message ||
+        undefined
+    }
+  };
+}
 
 export async function getStoreItems(_req: Request, res: Response) {
   const books = await prisma.book.findMany({ orderBy: { createdAt: 'desc' } });
@@ -76,25 +125,45 @@ export async function getUserOrders(req: Request, res: Response) {
 export async function validateCoupon(req: Request, res: Response) {
   try {
     const { items = [], couponCode } = req.body as { items: CartItem[]; couponCode?: string };
-    const products = await prisma.book.findMany({ where: { id: { in: items.map((item) => item.id) } } });
 
-    const subtotal = Number(
-      products
-        .reduce((sum: number, book: { id: string; price: number }) => {
-          const quantity = items.find((it) => it.id === book.id)?.quantity || 1;
-          return sum + book.price * quantity;
-        }, 0)
-        .toFixed(2)
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ valid: false, message: 'No items provided' });
+    }
+
+    const normalizedItems = items
+      .filter((it) => typeof it?.id === 'string' && it.id.trim().length > 0)
+      .map((it) => ({ id: it.id, quantity: Number(it.quantity ?? 1) }))
+      .filter((it) => Number.isFinite(it.quantity) && it.quantity > 0);
+
+    if (normalizedItems.length === 0) {
+      return res.status(400).json({ valid: false, message: 'No valid items provided' });
+    }
+
+    const productIds = Array.from(new Set(normalizedItems.map((it) => it.id)));
+    const products = await prisma.book.findMany({ where: { id: { in: productIds } } });
+
+    if (!products.length) {
+      return res.status(400).json({ valid: false, message: 'Invalid items' });
+    }
+
+    // Always compute financials from DB prices and client quantities.
+    const subtotal = round2(
+      products.reduce((sum: number, book: { id: string; price: number }) => {
+        const quantity = normalizedItems.find((it) => it.id === book.id)?.quantity || 1;
+        return sum + book.price * quantity;
+      }, 0)
     );
 
+    // Use all selected book ids when checking applicability.
     const { discountAmount, discountPercentage, discountCode } = await computeDiscount(
       subtotal,
       couponCode,
       products.map((p: { id: string }) => p.id)
     );
-    const total = Number(Math.max(0, subtotal - discountAmount).toFixed(2));
 
-    res.json({
+    const total = round2(Math.max(0, subtotal - discountAmount));
+
+    return res.json({
       valid: true,
       subtotal,
       discountAmount,
@@ -103,17 +172,13 @@ export async function validateCoupon(req: Request, res: Response) {
       total
     });
   } catch (error: any) {
-    res.status(400).json({ valid: false, message: error?.message || 'Coupon validation failed' });
+    return res.status(400).json({ valid: false, message: error?.message || 'Coupon validation failed' });
   }
 }
 
-
 export async function checkout(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!stripe) {
-      return res.status(500).json({ message: 'Stripe is not configured (missing STRIPE_SECRET_KEY)' });
-    }
-
+    const stripe = requireStripeOrThrow();
 
     const user = req.user as any;
 
@@ -123,7 +188,6 @@ export async function checkout(req: Request, res: Response, next: NextFunction) 
       return res.status(400).json({ message: 'No checkout items provided' });
     }
 
-    // Normalize + validate cart quantities
     const normalizedItems = items
       .filter((it) => typeof it?.id === 'string' && it.id.trim().length > 0)
       .map((it) => ({ id: it.id, quantity: Number(it.quantity ?? 1) }))
@@ -136,17 +200,15 @@ export async function checkout(req: Request, res: Response, next: NextFunction) 
     const productIds = Array.from(new Set(normalizedItems.map((it) => it.id)));
     const products = await prisma.book.findMany({ where: { id: { in: productIds } } });
 
-    if (!products.length) {
+    if (products.length !== productIds.length) {
       return res.status(400).json({ message: 'Invalid checkout items' });
     }
 
-    const subtotal = Number(
-      products
-        .reduce((sum: number, book: { id: string; price: number }) => {
-          const quantity = normalizedItems.find((it) => it.id === book.id)?.quantity || 1;
-          return sum + book.price * quantity;
-        }, 0)
-        .toFixed(2)
+    const subtotal = round2(
+      products.reduce((sum: number, book: { id: string; price: number }) => {
+        const quantity = normalizedItems.find((it) => it.id === book.id)?.quantity || 1;
+        return sum + book.price * quantity;
+      }, 0)
     );
 
     const { discountAmount, discountPercentage, discountCode } = await computeDiscount(
@@ -155,22 +217,30 @@ export async function checkout(req: Request, res: Response, next: NextFunction) 
       products.map((p: { id: string }) => p.id)
     );
 
-    const total = Number(Math.max(0, subtotal - discountAmount).toFixed(2));
+    const total = round2(Math.max(0, subtotal - discountAmount));
 
-    // Apply discount on each Stripe line_item using the effective discountPercentage.
-    // This ensures Stripe computes totals correctly (not just metadata).
+    // IMPORTANT: apply discount to Stripe line item pricing.
+    // Stripe will calculate the final amount based on unit_amount and quantity.
+    // Metadata is only for tracing.
     const lineItems = products.map((book: any) => {
       const quantity = normalizedItems.find((it) => it.id === book.id)?.quantity || 1;
+
+      // Compute discounted unit price (in USD) then convert to cents.
       const discountedUnit = book.price * (1 - discountPercentage / 100);
-      const unitAmountCents = Math.max(0, Math.round(discountedUnit * 100));
+      const unitAmountCents = Math.max(0, Math.round(round2(discountedUnit) * 100));
 
       return {
         price_data: {
           currency: 'usd',
-          product_data: { name: book.title, description: book.summary },
+          product_data: {
+            name: book.title,
+            description: book.summary
+          },
           unit_amount: unitAmountCents,
           metadata: {
+            // trace only
             discount_percentage: discountPercentage.toString(),
+            couponCode: discountCode || '',
             book_id: book.id
           }
         },
@@ -178,10 +248,10 @@ export async function checkout(req: Request, res: Response, next: NextFunction) 
       };
     });
 
-
     const metadata: Record<string, string> = {
       userId: user?.id || '',
       email: user?.email || '',
+      // trace only
       discountCode: discountCode || '',
       discountAmount: discountAmount.toString(),
       discountPercentage: discountPercentage.toString(),
@@ -197,37 +267,32 @@ export async function checkout(req: Request, res: Response, next: NextFunction) 
       )
     };
 
-
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-    const session = await stripe!.checkout.sessions.create({
+
+    const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
       customer_email: user?.email || undefined,
       metadata,
-      line_items: lineItems,
+      line_items: lineItems as any,
       success_url: `${clientUrl}/profile?checkout=success`,
       cancel_url: `${clientUrl}/store`
     });
 
-
-    res.json({ url: session.url, subtotal, discountAmount, total, discountCode });
+    return res.json({ url: session.url, subtotal, discountAmount, total, discountCode });
   } catch (error: any) {
-    // Better Stripe error responses
-    const stripeError = error;
-    const status = stripeError?.statusCode || 400;
-    const message = stripeError?.message || 'Stripe checkout failed';
+    // If it is our own error (missing key, invalid coupon), preserve API behavior.
+    const statusCode = error?.statusCode || (error?.message ? 400 : 500);
 
-    return res.status(status).json({
-      message,
-      code: stripeError?.code || undefined,
-      type: stripeError?.type || undefined,
-      details: stripeError?.raw?.message || stripeError?.decline_code || undefined
-    });
+    // Stripe specific payload improvement.
+    if (error?.raw || error?.type || error?.code || error?.statusCode) {
+      const { statusCode: stripeStatusCode, payload } = safeStripeErrorPayload(error);
+      return res.status(stripeStatusCode).json(payload);
+    }
+
+    return res.status(statusCode).json({ message: error?.message || 'Stripe checkout failed' });
   }
-
-
 }
-
 
 export async function getDownloadAccess(req: Request, res: Response) {
   const user = req.user as any;
@@ -258,3 +323,4 @@ export async function getDownloadAccess(req: Request, res: Response) {
     }
   });
 }
+

@@ -1,12 +1,17 @@
-import { useEffect } from 'react';
+import { useSeoTags } from './useSeoTags';
 
-export function usePageMetadata(title: string, description: string) {
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    document.title = title;
-    const descriptionMeta = document.querySelector('meta[name="description"]');
-    if (descriptionMeta) {
-      descriptionMeta.setAttribute('content', description);
-    }
-  }, [title, description]);
+export function usePageMetadata(title: string, description: string, canonicalUrl?: string) {
+  useSeoTags({
+    title,
+    description,
+    canonicalUrl: canonicalUrl || (typeof window !== 'undefined' ? window.location.href : ''),
+    openGraph: {
+      type: 'website',
+    },
+    twitter: {
+      cardType: 'summary_large_image',
+    },
+  });
 }
+
+

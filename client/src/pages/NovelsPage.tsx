@@ -6,7 +6,12 @@ import { ThreadedComments } from '../components/ThreadedComments';
 import { useAuth } from '../context/AuthContext';
 import { AdsenseAd } from '../components/AdsenseAd';
 import { LikeShareBar } from '../components/LikeShareBar';
+import { LikeButton } from '../components/LikeButton';
+import { RatingStars } from '../components/RatingStars';
+import { BookmarkButton } from '../components/BookmarkButton';
 import { trackEvent } from '../lib/analytics';
+import { useSeoTags } from '../hooks/useSeoTags';
+
 
 
 interface Chapter {
@@ -36,6 +41,23 @@ const fontSizes = ['text-base', 'text-lg', 'text-xl', 'text-2xl'];
 
 export function NovelsPage() {
   const { locale } = useLocale();
+  useSeoTags({
+    title: locale === 'ar' ? 'الروايات — سُرى' : 'Novels — Sura Codex',
+    description:
+      locale === 'ar'
+        ? 'استكشف الروايات بسرد متسلسل مع قارئ فصول وتتبع التقدم.'
+        : 'Explore serialized novels with a chapter reader and progress tracking.',
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/novels`,
+    openGraph: {
+      type: 'website',
+      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex' },
+    },
+    twitter: {
+      cardType: 'summary_large_image',
+      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex' },
+    },
+  });
+
   const { user } = useAuth();
   const navigate = useNavigate();
   const [novels, setNovels] = useState<Novel[]>([]);
@@ -214,16 +236,25 @@ export function NovelsPage() {
       {/* Engagement Bar */}
       {activeNovel && activeChapter && (
         <div className="rounded-3xl border border-sura-line bg-sura-canvas p-4">
-          <LikeShareBar
-            entityId={activeChapter.id}
-            entityType="chapter"
-            title={activeChapter.title}
-          />
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <LikeShareBar
+              entityId={activeChapter.id}
+              entityType="chapter"
+              title={activeChapter.title}
+            />
+
+            <div className="flex flex-wrap items-center gap-3">
+              <LikeButton itemId={activeChapter.id} initialCount={activeNovel.likes ?? 0} />
+              <BookmarkButton entityId={activeChapter.id} entityType="book" />
+              <RatingStars entityId={activeChapter.id} entityType="book" />
+            </div>
+          </div>
         </div>
       )}
 
       {/* Comments under the selected novel */}
       {activeNovel ? <ThreadedComments entityId={activeNovel.id} entityType="novel" /> : null}
+
 
     </div>
   );
