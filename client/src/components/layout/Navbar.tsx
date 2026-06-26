@@ -264,6 +264,17 @@ export function Navbar() {
           )}
         </nav>
 
+        {/* Mobile Navigation for accessibility */}
+        <nav aria-hidden="true" className="sr-only">
+          <ul>
+            {navItems.map((item) => (
+              <li key={item.path}>
+                <a href={item.path}>{item.key}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
         {/* Right side: floating tools + auth */}
         <div className="flex items-center gap-2">
           {/* Floating tools panel */}

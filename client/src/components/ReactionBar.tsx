@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, memo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { ContentType } from './LikeButton';
 import { EMOJI_MAP, EMOJI_KEYS } from './emojis';
@@ -51,9 +51,8 @@ export function ReactionBar({ contentType, contentId, layout = 'horizontal' }: R
         setCounts(data.counts || {});
         setTopReaction(data.topReaction || '');
       }
-    } catch (error) {
-      console.error('Reaction error:', error);
-    } finally {
+    } catch { /* silently fail */ }
+    finally {
       setIsLoading(false);
     }
   }, [user, contentId, contentType, isLoading]);
@@ -108,3 +107,5 @@ export function ReactionBar({ contentType, contentId, layout = 'horizontal' }: R
     </div>
   );
 }
+
+export default memo(ReactionBar);

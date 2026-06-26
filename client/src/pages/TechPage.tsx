@@ -26,10 +26,41 @@ export function TechPage() {
   const { locale } = useLocale();
   const { user } = useAuth();
   const [articles, setArticles] = useState<TechArticle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    axios.get('/api/tech').then((res) => setArticles(res.data.articles));
-  }, []);
+    setLoading(true);
+    axios.get('/api/tech')
+      .then((res) => setArticles(res.data.articles || []))
+      .catch(() => setError(locale === 'ar' ? 'فشل تحميل المقالات' : 'Failed to load articles'))
+      .finally(() => setLoading(false));
+  }, [locale]);
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-7xl space-y-6 p-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-32 rounded-3xl bg-sura-line/50" />
+          <div className="grid gap-6 md:grid-cols-2">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-40 rounded-3xl bg-sura-line/50" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-7xl space-y-6 p-8">
+        <div className="rounded-3xl border border-red-500/50 bg-red-500/10 p-8 text-center">
+          <p className="text-red-400">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -49,8 +80,13 @@ export function TechPage() {
           )}
         </div>
       </header>
+      {!articles?.length ? (
+        <div className="rounded-3xl border border-sura-line bg-sura-canvas p-8 text-center">
+          <p className="text-sura-navy/60">{locale === 'ar' ? 'لا توجد مقالات تقنية' : 'No tech articles available'}</p>
+        </div>
+      ) : (
       <div className="space-y-6">
-        {(Array.isArray(articles) ? articles : []).map((item) => (
+        {articles.map((item) => (
           <article key={item.id} className="rounded-3xl border border-sura-line bg-sura-canvas p-6">
 
             <div className="mb-4 flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.3em] text-sura-teal">
@@ -106,6 +142,7 @@ export function TechPage() {
           </article>
         ))}
       </div>
+      )}
     </div>
   );
 }

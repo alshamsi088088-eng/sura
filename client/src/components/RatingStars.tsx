@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, memo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
 import { trackEvent } from '../lib/analytics';
@@ -144,3 +144,5 @@ export function RatingStars({
     </div>
   );
 }
+
+export default memo(RatingStars);

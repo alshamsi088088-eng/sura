@@ -55,18 +55,24 @@ export function StorePage() {
   const [couponMessage, setCouponMessage] = useState('');
   const [activeBook, setActiveBook] = useState<BookItem | null>(null);
   const [activeBookAccess, setActiveBookAccess] = useState<{ allowed: boolean; fileUrl?: string; previewUrl?: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [downloadLoadingId, setDownloadLoadingId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
 
   useEffect(() => {
-    axios.get('/api/store').then((res) => {
-      const loadedBooks = res.data.books || [];
-      setBooks(loadedBooks);
-      setActiveBook(loadedBooks[0] || null);
-    });
-  }, []);
+    setLoading(true);
+    axios.get('/api/store')
+      .then((res) => {
+        const loadedBooks = res.data.books || [];
+        setBooks(loadedBooks);
+        setActiveBook(loadedBooks[0] || null);
+      })
+      .catch(() => setError(locale === 'ar' ? 'فشل تحميل المكتبة' : 'Failed to load store'))
+      .finally(() => setLoading(false));
+  }, [locale]);
 
   useEffect(() => {
     setActiveBookAccess(null);
@@ -129,10 +135,11 @@ export function StorePage() {
           : `Discount applied: $${Number(response.data.discountAmount || 0).toFixed(2)}`
       );
       trackEvent('coupon_applied', { code: couponCode.toUpperCase(), discount: response.data.discountAmount || 0 });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
       setDiscountAmount(0);
       setCouponMessage(
-        error?.response?.data?.message ||
+        err.response?.data?.message ||
           (locale === 'ar' ? 'فشل التحقق من القسيمة' : 'Coupon validation failed')
       );
       trackEvent('coupon_failed', { code: couponCode.toUpperCase() });
@@ -161,8 +168,9 @@ export function StorePage() {
         setDownloadError(locale === 'ar' ? 'لا يوجد صلاحية للتنزيل' : 'No permission to download');
         trackEvent('download_book', { book_id: bookId, allowed: false });
       }
-    } catch (error: any) {
-      setDownloadError(error?.response?.data?.message || (locale === 'ar' ? 'فشل التحقق من الصلاحية' : 'Failed to verify access'));
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      setDownloadError(err.response?.data?.message || (locale === 'ar' ? 'فشل التحقق من الصلاحية' : 'Failed to verify access'));
       trackEvent('download_book', { book_id: bookId, allowed: false });
     } finally {
       setDownloadLoadingId(null);

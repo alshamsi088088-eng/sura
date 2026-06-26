@@ -76,9 +76,9 @@ export function AdminMenu({ entityType, entityId, onEdit, onDeleteSuccess, child
         // Default: reload or navigate away
         window.location.reload();
       }
-    } catch (e: any) {
-      console.error('Delete failed:', e);
-      setError(e.response?.data?.message || e.message || 'Delete failed');
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } }; message?: string };
+      setError(err.response?.data?.message || err.message || 'Delete failed');
     } finally {
       setDeleting(false);
     }

@@ -107,8 +107,9 @@ export function CreateTechPage() {
       if (insertError) throw insertError;
 
       navigate('/tech');
-    } catch (err: any) {
-      setError(err?.message ? err.message : (locale === 'ar' ? 'فشل الحفظ.' : 'Failed to save.'));
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      setError(error?.message ? error.message : (locale === 'ar' ? 'فشل الحفظ.' : 'Failed to save.'));
     } finally {
       setSubmitting(false);
     }

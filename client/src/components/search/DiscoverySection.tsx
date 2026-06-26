@@ -163,9 +163,8 @@ export function DiscoverySection({ type, limit = 5 }: DiscoverySectionProps) {
             break;
         }
 
-        setItems(data);
-      } catch (err) {
-        console.error('Discovery fetch error:', err);
+        setItems(data as DiscoveryItem[]);
+      } catch {
       } finally {
         setLoading(false);
       }

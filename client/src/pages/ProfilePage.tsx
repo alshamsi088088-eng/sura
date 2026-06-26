@@ -144,13 +144,14 @@ export function ProfilePage() {
           }
         }));
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
       setDownloadStatusByBookId((prev) => ({
         ...prev,
         [bookId]: {
           loading: false,
           allowed: false,
-          error: error?.response?.data?.message || (locale === 'ar' ? 'فشل التنزيل' : 'Failed to download')
+          error: err.response?.data?.message || (locale === 'ar' ? 'فشل التنزيل' : 'Failed to download')
         }
       }));
     }

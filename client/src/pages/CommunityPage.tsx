@@ -88,8 +88,9 @@ export function CommunityPage() {
     setThreads(threads.filter((t) => t.id !== id));
   };
 
-  const handleSuccess = (thread: Thread) => {
-    setThreads([thread, ...threads]);
+  const handleSuccess = (thread: unknown) => {
+    const t = thread as Thread;
+    if (t?.id) setThreads([t, ...threads]);
     setShowEditor(false);
   };
 

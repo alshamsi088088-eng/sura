@@ -16,10 +16,21 @@ interface ModerationComment {
   createdAt?: { seconds?: number };
 }
 
+interface OverviewData {
+  totalUsers?: number;
+  totalArticles?: number;
+  totalNovels?: number;
+  users?: number;
+  revenue?: number;
+  recentActivity?: unknown[];
+}
+
 export function AdminPage() {
   const { locale } = useLocale();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [overview, setOverview] = useState<any>(null);
+  const [overview, setOverview] = useState<OverviewData | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(true);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
   const [comments, setComments] = useState<ModerationComment[]>([]);
   const activeTab = searchParams.get('tab') || 'overview';
 
@@ -35,8 +46,12 @@ export function AdminPage() {
   };
 
   useEffect(() => {
-    axios.get('/api/admin/overview').then((res) => setOverview(res.data));
-  }, []);
+    setOverviewLoading(true);
+    axios.get('/api/admin/overview')
+      .then((res) => setOverview(res.data as OverviewData))
+      .catch(() => setOverviewError(locale === 'ar' ? 'فشل تحميل البيانات' : 'Failed to load data'))
+      .finally(() => setOverviewLoading(false));
+  }, [locale]);
 
   const [loadingComments, setLoadingComments] = useState(false);
   const [commentsError, setCommentsError] = useState<string | null>(null);

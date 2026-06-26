@@ -17,6 +17,7 @@ export type SeoTagsInput = {
     cardType?: string;
     image?: SeoOgTwitterImage;
   };
+  jsonLd?: Record<string, unknown>;
 };
 
 function ensureMetaTag(selector: string, create: () => HTMLMetaElement) {
@@ -170,6 +171,17 @@ export function useSeoTags(input: SeoTagsInput) {
       twImage.setAttribute('content', twImageUrl);
     }
 
+    // JSON-LD Structured Data
+    if (input.jsonLd) {
+      const jsonLdEl = document.head.querySelector('script[type="application/ld+json"]') as HTMLScriptElement | null;
+      const script = jsonLdEl || document.createElement('script');
+      script.type = 'application/ld+json';
+      script.textContent = JSON.stringify(input.jsonLd);
+      if (!jsonLdEl) {
+        document.head.appendChild(script);
+      }
+    }
+
   }, [
     input.title,
 
@@ -180,6 +192,7 @@ export function useSeoTags(input: SeoTagsInput) {
     input.openGraph?.image?.alt,
     input.twitter?.cardType,
     input.twitter?.image?.url,
+    input.jsonLd,
   ]);
 }
 

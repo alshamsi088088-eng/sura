@@ -22,10 +22,11 @@ export function RegisterPage() {
     try {
       await register(name, email, password);
       navigate('/dashboard');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { message?: string };
       const msg =
-        typeof err?.message === 'string'
-          ? err.message
+        typeof error?.message === 'string'
+          ? error.message
           : locale === 'ar'
             ? 'حدث خطأ أثناء التسجيل.'
             : 'Registration failed.';

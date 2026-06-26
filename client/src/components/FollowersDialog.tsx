@@ -39,7 +39,8 @@ export function FollowersDialog({ userId, type, isOpen, onClose }: FollowersDial
             .eq('followingId', userId)
             .limit(50);
 
-          const userIds = (data || []).map((d: any) => d.followerId);
+          const typedData = data as unknown as { followerId: string }[];
+          const userIds = (typedData || []).map((d) => d.followerId);
           if (userIds.length > 0) {
             const { data: profiles } = await client
               .from('User')
@@ -56,7 +57,8 @@ export function FollowersDialog({ userId, type, isOpen, onClose }: FollowersDial
             .eq('followerId', userId)
             .limit(50);
 
-          const userIds = (data || []).map((d: any) => d.followingId);
+          const typedData = data as unknown as { followingId: string }[];
+          const userIds = (typedData || []).map((d) => d.followingId);
           if (userIds.length > 0) {
             const { data: profiles } = await client
               .from('User')

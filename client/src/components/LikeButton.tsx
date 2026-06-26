@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, memo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
 import { trackEvent } from '../lib/analytics';
@@ -163,3 +163,5 @@ export function LikeButton({
     </div>
   );
 }
+
+export default memo(LikeButton);

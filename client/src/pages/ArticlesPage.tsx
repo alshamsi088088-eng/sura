@@ -136,9 +136,7 @@ export function ArticlesPage() {
         const mapped = rows.map(mapArticle).filter((a) => a.id && a.title);
 
         if (mounted) setArticles(mapped);
-      } catch (e: any) {
-        // eslint-disable-next-line no-console
-        console.error('Failed to fetch articles from Supabase', e);
+      } catch {
         if (mounted) setError(locale === 'ar' ? 'فشل تحميل المقالات.' : 'Failed to load articles.');
       } finally {
         if (mounted) setIsLoading(false);

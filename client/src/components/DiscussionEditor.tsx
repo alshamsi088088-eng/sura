@@ -5,7 +5,7 @@ interface DiscussionEditorProps {
   contentId?: string;
   contentType?: string;
   parentId?: string;
-  onSuccess?: (thread: any) => void;
+  onSuccess?: (thread: Record<string, unknown>) => void;
   onCancel?: () => void;
 }
 

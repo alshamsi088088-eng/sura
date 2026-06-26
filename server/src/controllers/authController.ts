@@ -20,10 +20,10 @@ if (process.env._SERVICE_ACCOUNT) {
       : JSON.parse(raw ? fs.readFileSync(raw, 'utf-8') : '{}');
     initAdmin(serviceAccount);
   } catch (error) {
-    console.warn('Could not initialize  Admin from _SERVICE_ACCOUNT.  token verification features may be disabled in this environment.');
+    // token verification features may be disabled
   }
 } else {
-  console.warn('_SERVICE_ACCOUNT is not set.  token verification features may be disabled in this environment.');
+  // token verification features may be disabled
 }
 
 initGoogleStrategy();
@@ -205,7 +205,6 @@ export async function AuthCallback(req: Request, res: Response) {
     if (!idToken) return res.status(400).json({ message: 'Missing idToken' });
 
     const decoded = await getAuth().verifyIdToken(idToken);
-    console.debug('Verified  ID token for uid:', decoded.uid, 'email:', decoded.email);
     const email = decoded.email;
     const name = decoded.name || req.body.name || ' Reader';
     const photo = decoded.picture || req.body.photo || null;

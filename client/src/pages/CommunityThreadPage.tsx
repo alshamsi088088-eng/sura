@@ -68,11 +68,12 @@ export function CommunityThreadPage() {
     }
   };
 
-  const handleReplySuccess = (reply: Reply) => {
-    if (thread) {
+  const handleReplySuccess = (reply: unknown) => {
+    const r = reply as Reply;
+    if (thread && r?.id) {
       setThread({
         ...thread,
-        replies: [...thread.replies, reply],
+        replies: [...thread.replies, r],
       });
       setShowReplyEditor(false);
     }

@@ -86,47 +86,18 @@ export async function signInWithEmailPassword(
   customAuth: Auth = auth
 ) {
   try {
-    console.log('[AuthDebug] signInWithEmailPassword(): start', {
-      email,
-      passwordLength: password?.length,
-      authInitialized: !!customAuth,
-      appReady: !!auth,
-    });
-
     const cred = await signInWithEmailAndPassword(customAuth, email, password);
-
-    console.log('[AuthDebug] signInWithEmailPassword(): success', {
-      uid: cred.user?.uid,
-      email: cred.user?.email,
-      displayName: cred.user?.displayName,
-    });
-
     return cred;
   } catch (err) {
-    console.error('[AuthDebug] signInWithEmailPassword(): failed', err);
     throw normalizeFirebaseError(err);
   }
 }
 
 export async function signInWithGoogle(customAuth: Auth = auth) {
   try {
-    console.log('[AuthDebug] signInWithGoogle(): start', {
-      authInitialized: !!customAuth,
-      appReady: !!auth,
-      providerId: (provider as any)?.providerId,
-    });
-
     const result = await signInWithPopup(customAuth, provider);
-
-    console.log('[AuthDebug] signInWithGoogle(): success', {
-      uid: result.user?.uid,
-      email: result.user?.email,
-      displayName: result.user?.displayName,
-    });
-
     return result;
   } catch (err) {
-    console.error('[AuthDebug] signInWithGoogle(): failed', err);
     throw normalizeFirebaseError(err);
   }
 }
