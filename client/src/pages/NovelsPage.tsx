@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useLocale } from '../context/LocaleContext';
 import { ThreadedComments } from '../components/ThreadedComments';
 import { useAuth } from '../context/AuthContext';
@@ -8,9 +9,29 @@ import { AdsenseAd } from '../components/AdsenseAd';
 import { LikeShareBar } from '../components/LikeShareBar';
 import { LikeButton } from '../components/LikeButton';
 import { RatingStars } from '../components/RatingStars';
+import { ReactionBar } from '../components/ReactionBar';
 import { BookmarkButton } from '../components/BookmarkButton';
+import { AdminMenu } from '../components/AdminMenu';
+import { ChapterPollSection } from '../components/ChapterPollSection';
 import { trackEvent } from '../lib/analytics';
 import { useSeoTags } from '../hooks/useSeoTags';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 
 
@@ -20,6 +41,15 @@ interface Chapter {
   title: string;
   content: string;
   readingTime: string;
+  partId?: string | null;
+}
+
+interface Part {
+  id: string;
+  title: string;
+  number: number;
+  novelId: string;
+  chapters: Chapter[];
 }
 
 interface Novel {
@@ -35,6 +65,7 @@ interface Novel {
   views?: number;
   likes?: number;
   chapters: Chapter[];
+  parts: Part[];
 }
 
 const fontSizes = ['text-base', 'text-lg', 'text-xl', 'text-2xl'];
@@ -66,8 +97,107 @@ export function NovelsPage() {
 
   const [activeNovel, setActiveNovel] = useState<Novel | null>(null);
   const [activeChapter, setActiveChapter] = useState<Chapter | null>(null);
+  const [expandedParts, setExpandedParts] = useState<Set<string>>(new Set());
   const [fontSize, setFontSize] = useState(1);
   const [nightMode, setNightMode] = useState(true);
+
+  // DnD sensors for chapter reordering (author only)
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Sortable Chapter component
+  function SortableChapter({
+    chapter,
+    isActive,
+  }: {
+    chapter: Chapter;
+    isActive: boolean;
+  }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+      id: chapter.id,
+    });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`rounded-xl p-3 text-left text-sm transition ${
+          isActive ? 'bg-sura-navy text-white' : 'bg-sura-canvas text-sura-navy/80 hover:bg-sura-teal/20'
+        }`}
+        {...attributes}
+        {...listeners}
+      >
+        <div className="flex items-start justify-between">
+          <button
+            onClick={() => setActiveChapter(chapter)}
+            className="flex-1 text-left font-semibold"
+          >
+            {chapter.title}
+          </button>
+          <AdminMenu
+            entityType="chapter"
+            entityId={chapter.id}
+          />
+        </div>
+        <div className="mt-1 text-xs">{chapter.readingTime}</div>
+      </div>
+    );
+  }
+
+  // Handle chapter reordering (for author)
+  const handleChapterDragEnd = async (event: DragEndEvent) => {
+    if (!user || !activeNovel?.authorId || user.id !== activeNovel.authorId) return;
+
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = activeNovel.chapters.findIndex((c) => c.id === active.id);
+    const newIndex = activeNovel.chapters.findIndex((c) => c.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Optimistic update
+    const reorderedChapters = arrayMove(activeNovel.chapters, oldIndex, newIndex);
+    setActiveNovel({ ...activeNovel, chapters: reorderedChapters });
+
+    try {
+      await axios.post(`/api/chapters/${active.id}/reorder`, {
+        newNumber: newIndex + 1,
+        partId: activeNovel.parts?.find((p) =>
+          p.chapters.some((c) => c.id === active.id)
+        )?.id,
+      });
+    } catch (err) {
+      // Reload on error
+      console.error('Failed to reorder chapter', err);
+    }
+  };
+
+  // Load saved expanded parts from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('expandedParts');
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr)) setExpandedParts(new Set(arr));
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -161,7 +291,13 @@ export function NovelsPage() {
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold truncate">{novel.title}</div>
+                  <div className="flex items-start justify-between">
+                    <div className="font-semibold truncate">{novel.title}</div>
+                    <AdminMenu
+                      entityType="novel"
+                      entityId={novel.id}
+                    />
+                  </div>
                   <div className="mt-1 text-xs text-sura-navy/70 line-clamp-2">{novel.description}</div>
                   {novel.category && (
                     <div className="mt-2 flex items-center gap-2 text-xs text-sura-teal">
@@ -217,18 +353,110 @@ export function NovelsPage() {
           </div>
           <div className={`mt-6 space-y-6 ${fontSizes[fontSize]}`}>
             <p>{activeChapter?.content || '...'}</p>
+
+            {/* Poll section for chapter */}
+            {activeChapter && (
+              <ChapterPollSection chapterId={activeChapter.id} />
+            )}
           </div>
-          <div className="mt-8 grid gap-3 rounded-3xl border border-sura-line bg-sura-canvas p-4 sm:grid-cols-3">
-            {(Array.isArray(activeNovel?.chapters) ? activeNovel?.chapters : []).map((chapter) => (
-              <button
-                key={chapter.id}
-                onClick={() => setActiveChapter(chapter)}
-                className={`rounded-2xl p-4 text-left text-sm transition ${activeChapter?.id === chapter.id ? 'bg-sura-navy text-white' : 'bg-sura-canvas text-sura-navy/80 hover:bg-sura-canvas'}`}
+          <div className="mt-8 space-y-4 rounded-3xl border border-sura-line bg-sura-canvas p-4">
+            {/* Show Parts if available, otherwise show all chapters */}
+            {activeNovel?.parts && activeNovel.parts.length > 0 ? (
+              activeNovel.parts.map((part) => {
+                const isExpanded = expandedParts.has(part.id);
+                const partChapters = part.chapters || [];
+                return (
+                  <motion.div
+                    key={part.id}
+                    className="rounded-xl border border-sura-line overflow-hidden"
+                    initial={false}
+                    animate={{ backgroundColor: isExpanded ? 'rgba(11, 15, 20, 0.5)' : 'transparent' }}
+                  >
+                    <button
+                      onClick={() => {
+                        const newExpanded = new Set(expandedParts);
+                        if (isExpanded) newExpanded.delete(part.id);
+                        else newExpanded.add(part.id);
+                        setExpandedParts(newExpanded);
+                        // Save to localStorage
+                        try {
+                          localStorage.setItem('expandedParts', JSON.stringify([...newExpanded]));
+                        } catch {
+                          // Ignore storage errors
+                        }
+                      }}
+                      className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-sura-navy"
+                    >
+                      <span>
+                        {locale === 'ar' ? 'جزء' : 'Part'} {part.number}: {part.title}
+                      </span>
+                      <motion.span
+                        animate={{ rotate: isExpanded ? 0 : -90 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        ▼
+                      </motion.span>
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="border-t border-sura-line"
+                        >
+                          <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleChapterDragEnd}
+                          >
+                            <SortableContext
+                              items={partChapters.map((c) => c.id)}
+                              strategy={verticalListSortingStrategy}
+                            >
+                              <div className="grid gap-2 p-2 sm:grid-cols-3">
+                                {partChapters.map((chapter) => (
+                                  <SortableChapter
+                                    key={chapter.id}
+                                    chapter={chapter}
+                                    isActive={activeChapter?.id === chapter.id}
+                                  />
+                                ))}
+                              </div>
+                            </SortableContext>
+                          </DndContext>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                );
+              })
+            ) : (
+              /* Fallback: show all chapters without parts */
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleChapterDragEnd}
               >
-                <div className="font-semibold">{chapter.title}</div>
-                <div className="mt-1 text-xs">{chapter.readingTime}</div>
-              </button>
-            ))}
+                <SortableContext
+                  items={activeNovel?.chapters.map((c) => c.id) ?? []}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {(Array.isArray(activeNovel?.chapters) ? activeNovel?.chapters : []).map(
+                      (chapter) => (
+                        <SortableChapter
+                          key={chapter.id}
+                          chapter={chapter}
+                          isActive={activeChapter?.id === chapter.id}
+                        />
+                      )
+                    )}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
           </div>
         </article>
       </div>
@@ -247,6 +475,11 @@ export function NovelsPage() {
               <LikeButton itemId={activeChapter.id} initialCount={activeNovel.likes ?? 0} />
               <BookmarkButton entityId={activeChapter.id} entityType="book" />
               <RatingStars entityId={activeChapter.id} entityType="book" />
+            </div>
+
+            {/* Reaction bar */}
+            <div className="mt-3">
+              <ReactionBar contentType="chapter" contentId={activeChapter.id} />
             </div>
           </div>
         </div>

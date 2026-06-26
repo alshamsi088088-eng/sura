@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { useLocale } from '../context/LocaleContext';
 import { trackEvent } from '../lib/analytics';
+import { TipTapEditor } from '../components/TipTapEditor';
 
 function slugify(input: string) {
   return input
@@ -113,7 +114,6 @@ export function CreatePostPage() {
   const [title, setTitle] = useState('');
   const [excerpt, setExcerpt] = useState('');
 
-  // ✅ Modified: content editor is textarea with markdown preview
   const [content, setContent] = useState('');
 
   const [category, setCategory] = useState('Literature');
@@ -301,46 +301,15 @@ export function CreatePostPage() {
             />
           </div>
 
-          {/* ✅ Modified: Content editor + markdown preview */}
+          {/* Content editor with TipTap */}
           <div>
             <label className={themeClasses.label}>{locale === 'ar' ? 'المحتوى' : 'Content'}</label>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-4">
-              <div>
-                <textarea
-                  className={themeClasses.textarea}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder={
-                    locale === 'ar'
-                      ? 'اكتب محتوى المقالة... (يدعم Markdown بسيط للمعاينة)'
-                      : 'Write your article... (supports simple Markdown preview)'
-                  }
-                  required
-                />
+            <TipTapEditor theme="post" content={content} onChange={setContent} />
 
-                <p className="text-xs text-slate-400 mt-2">
-                  {wordCount} {locale === 'ar' ? 'كلمة' : 'words'} {' | '} ~{readingTime} {locale === 'ar' ? 'دقيقة قراءة' : 'min read'}
-                </p>
-
-                <div className="mt-3 text-xs text-slate-400">
-                  {locale === 'ar'
-                    ? 'مثال: # عنوان، **غامق**، *مائل*، `code`، روابط [text](url)، قوائم - item'
-                    : 'Example: # heading, **bold**, *italic*, `code`, links [text](url), lists - item'}
-                </div>
-              </div>
-
-              {/* Preview */}
-              <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-4 overflow-auto max-h-[420px]">
-                <div className="text-xs font-semibold text-slate-300 mb-3">
-                  {locale === 'ar' ? 'معاينة Markdown' : 'Markdown Preview'}
-                </div>
-                <div className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: markdownHtml }} />
-                {!content.trim() ? (
-                  <div className="text-xs text-slate-500 mt-4">{locale === 'ar' ? 'ابدأ بالكتابة لرؤية المعاينة.' : 'Start typing to see preview.'}</div>
-                ) : null}
-              </div>
-            </div>
+            <p className="text-xs text-slate-400 mt-2">
+              {wordCount} {locale === 'ar' ? 'كلمة' : 'words'} {' | '} ~{readingTime} {locale === 'ar' ? 'دقيقة قراءة' : 'min read'}
+            </p>
           </div>
 
           {/* Category & Language */}

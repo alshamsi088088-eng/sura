@@ -13,7 +13,12 @@ export async function getArticles(_req: Request, res: Response) {
 }
 
 export async function getNovels(_req: Request, res: Response) {
-  const novels = await prisma.novel.findMany({ include: { chapters: { orderBy: { number: 'asc' } } } });
+  const novels = await prisma.novel.findMany({
+    include: {
+      chapters: { orderBy: { number: 'asc' } }
+    }
+  });
+  // Parts will be fetched separately - backend returns chapters with partId for grouping
   res.json({ novels });
 }
 

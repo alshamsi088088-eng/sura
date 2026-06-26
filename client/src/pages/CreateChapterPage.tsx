@@ -2,6 +2,8 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
+import { useLocale } from '../context/LocaleContext';
+import { TipTapEditor } from '../components/TipTapEditor';
 
 type NovelRow = {
   id: string;
@@ -9,17 +11,27 @@ type NovelRow = {
   slug: string;
 };
 
+type PartRow = {
+  id: string;
+  title: string;
+  number: number;
+};
+
 export function CreateChapterPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { locale } = useLocale();
   const [searchParams] = useSearchParams();
 
   const queryNovelId = searchParams.get('novelId') || '';
 
   const [novels, setNovels] = useState<NovelRow[]>([]);
   const [loadingNovels, setLoadingNovels] = useState(true);
+  const [parts, setParts] = useState<PartRow[]>([]);
+  const [loadingParts, setLoadingParts] = useState(false);
 
   const [novelId, setNovelId] = useState('');
+  const [partId, setPartId] = useState<string>('');
   const [title, setTitle] = useState('');
   const [number, setNumber] = useState<number>(1);
   const [content, setContent] = useState('');
@@ -89,6 +101,44 @@ export function CreateChapterPage() {
     };
   }, []);
 
+  // Load parts when novelId changes
+  useEffect(() => {
+    if (!novelId || !supabase) {
+      setParts([]);
+      return;
+    }
+
+    let mounted = true;
+    setLoadingParts(true);
+
+    async function loadParts() {
+      const client = supabase;
+      if (!client) return;
+
+      try {
+        const { data, error: fetchError } = await client
+          .from('Part')
+          .select('id,title,number')
+          .eq('novelId', novelId)
+          .order('number', { ascending: true });
+
+        if (fetchError) throw fetchError;
+        if (!mounted) return;
+        setParts((data ?? []) as PartRow[]);
+      } catch (e) {
+        // Silent fail - parts are optional
+        if (mounted) setParts([]);
+      } finally {
+        if (mounted) setLoadingParts(false);
+      }
+    }
+
+    loadParts();
+    return () => {
+      mounted = false;
+    };
+  }, [novelId]);
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -126,14 +176,19 @@ export function CreateChapterPage() {
 
     setSubmitting(true);
     try {
-      const { error: insertError } = await supabase.from('Chapter').insert({
+      const chapterData = {
         novelId,
         title: title.trim(),
         number,
         content: content.trim(),
         readingTime: readingTime.trim(),
-        // NOTE: schema does not include authorId; if later you add it, we can set it from user.id.
-      });
+      } as { novelId: string; title: string; number: number; content: string; readingTime: string; partId?: string };
+
+      if (partId) {
+        chapterData.partId = partId;
+      }
+
+      const { error: insertError } = await supabase.from('Chapter').insert(chapterData);
 
       if (insertError) throw insertError;
 
@@ -195,6 +250,23 @@ export function CreateChapterPage() {
         </div>
 
         <div>
+          <label className={themeClasses.label}>Part / Volume (optional)</label>
+          <select
+            className={themeClasses.input}
+            value={partId}
+            onChange={(e) => setPartId(e.target.value)}
+            disabled={loadingParts}
+          >
+            <option value="">No Part (Root level)</option>
+            {parts.map((p) => (
+              <option key={p.id} value={p.id}>
+                {locale === 'ar' ? 'جزء' : 'Part'} {p.number}: {p.title}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
           <label className={themeClasses.label}>Reading time</label>
           <input
             className={themeClasses.input}
@@ -207,13 +279,7 @@ export function CreateChapterPage() {
 
         <div>
           <label className={themeClasses.label}>Content</label>
-          <textarea
-            className={themeClasses.textarea}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Write the chapter content..."
-            required
-          />
+          <TipTapEditor theme="chapter" content={content} onChange={setContent} />
         </div>
 
         <button type="submit" disabled={submitting} className={themeClasses.primary}>

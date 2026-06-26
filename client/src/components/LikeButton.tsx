@@ -1,121 +1,165 @@
-import { useEffect, useMemo, useState } from 'react';
-import { doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLocale } from '../context/LocaleContext';
 import { trackEvent } from '../lib/analytics';
 
+export type ContentType = 'article' | 'novel' | 'chapter' | 'book';
+
 export type LikeButtonProps = {
-  itemId: string;
+  // New props
+  contentType?: ContentType;
+  contentId?: string;
+  // Legacy props (for backward compatibility)
+  itemId?: string;
+  entityType?: string;
   initialLiked?: boolean;
   initialCount?: number;
+  showCount?: boolean;
+  size?: 'sm' | 'md' | 'lg';
   onChange?: (liked: boolean, count: number) => void;
 };
 
-type EngagementDoc = {
-  likes?: number;
-  users?: string[];
-};
-
-export function LikeButton({ itemId, initialLiked = false, initialCount = 0, onChange }: LikeButtonProps) {
+export function LikeButton({
+  contentType: propContentType,
+  contentId: propContentId,
+  itemId,
+  entityType,
+  initialLiked = false,
+  initialCount = 0,
+  showCount = true,
+  size = 'md',
+  onChange
+}: LikeButtonProps) {
+  // Support both new and legacy prop names
+  const contentType = propContentType || (entityType as ContentType) || 'article';
+  const contentId = propContentId || itemId || '';
   const { user } = useAuth();
-  const [liked, setLiked] = useState<boolean>(initialLiked);
-  const [count, setCount] = useState<number>(initialCount);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const { locale } = useLocale();
+  const [liked, setLiked] = useState(initialLiked);
+  const [count, setCount] = useState(initialCount);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const docId = useMemo(() => `like_${itemId}`, [itemId]);
+  const isArabic = locale === 'ar';
 
+  // Sync with props
   useEffect(() => {
     setLiked(initialLiked);
     setCount(initialCount);
-  }, [itemId, initialLiked, initialCount]);
+  }, [contentId, initialLiked, initialCount]);
 
+  // Fetch current status on mount or when content changes
   useEffect(() => {
-    const unsubscribe = onSnapshot(doc(db, 'likes', docId), (snapshot) => {
-      const data = (snapshot.data() || {}) as EngagementDoc;
-      const likesCount = typeof data.likes === 'number' ? data.likes : 0;
-      const users = Array.isArray(data.users) ? data.users : [];
-      const nextLiked = user ? users.includes(user.id) : false;
-      setLiked(nextLiked);
-      setCount(likesCount);
-    });
+    if (!contentId) return;
 
-    return () => unsubscribe();
-  }, [docId, user?.id]);
+    fetch(`/api/engagement/like?type=${contentType}&id=${contentId}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data) {
+          setLiked(data.liked);
+          setCount(data.count);
+        }
+      })
+      .catch(() => {
+        // Keep initial values on error
+      });
+  }, [contentId, contentType]);
 
-  const applyOptimistic = (nextLiked: boolean) => {
-    const delta = nextLiked ? 1 : -1;
-    setLiked(nextLiked);
-    setCount((c) => Math.max(0, c + delta));
-    if (onChange) {
-      const nextCount = Math.max(0, count + delta);
-      onChange(nextLiked, nextCount);
+  const handleToggle = useCallback(async () => {
+    if (!user) {
+      // Could redirect to login or show modal
+      return;
     }
-  };
-
-  const toggleLike = async () => {
-    if (!user) return;
-    if (isSyncing) return;
+    if (isLoading) return;
 
     const prevLiked = liked;
+    const prevCount = count;
     const nextLiked = !prevLiked;
 
-    applyOptimistic(nextLiked);
-    setIsSyncing(true);
+    // Optimistic update
+    setLiked(nextLiked);
+    setCount(nextLiked ? count + 1 : Math.max(0, count - 1));
+    onChange?.(nextLiked, nextLiked ? count + 1 : Math.max(0, count - 1));
+
+    setIsLoading(true);
 
     try {
-      const ref = doc(db, 'likes', docId);
-      const update: Partial<EngagementDoc> & Record<string, unknown> = {
-        likes: nextLiked ? count + 1 : Math.max(0, count - 1),
-      };
-
-      // Keep users array for correctness; fallback to simple overwrite if missing.
-      if (nextLiked) {
-        update.users = []; // will be merged with below
-      } else {
-        update.users = [];
-      }
-
-      const snapshot = await onSnapshot(ref, () => undefined);
-      // Note: we can't await onSnapshot; instead we use set/update with merge based on current assumption.
-      // This component relies on Firestore listener to correct final state.
-
-      if (nextLiked) {
-        await setDoc(
-          ref,
-          { likes: count + 1, users: [user.id] },
-          { merge: true }
-        );
-      } else {
-        await updateDoc(ref, { likes: Math.max(0, count - 1) });
-        await setDoc(ref, { users: [] }, { merge: true });
-      }
-
-      trackEvent('like_toggle', {
-        item_id: itemId,
-        liked: nextLiked,
+      const res = await fetch('/api/engagement/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ type: contentType, id: contentId })
       });
-    } catch (e) {
-      // Rollback optimistic UI; listener will also correct.
-      applyOptimistic(prevLiked);
-      // eslint-disable-next-line no-console
-      console.error('Like toggle failed', e);
+
+      if (!res.ok) throw new Error('Failed');
+
+      const data = await res.json();
+
+      // Sync with server
+      setLiked(data.liked);
+      setCount(data.count);
+      onChange?.(data.liked, data.count);
+
+      trackEvent(nextLiked ? 'like_added' : 'like_removed', {
+        content_type: contentType,
+        content_id: contentId
+      });
+    } catch {
+      // Revert on error
+      setLiked(prevLiked);
+      setCount(prevCount);
+      onChange?.(prevLiked, prevCount);
     } finally {
-      setIsSyncing(false);
+      setIsLoading(false);
     }
+  }, [user, contentType, contentId, liked, count, isLoading, onChange]);
+
+  const sizeClasses = {
+    sm: 'h-8 w-8 text-sm',
+    md: 'h-10 w-10 text-base',
+    lg: 'h-12 w-12 text-lg'
+  };
+
+  const iconSizes = {
+    sm: 'w-4 h-4',
+    md: 'w-5 h-5',
+    lg: 'w-6 h-6'
   };
 
   return (
-    <button
-      type="button"
-      onClick={toggleLike}
-      disabled={!user || isSyncing}
-      className={`rounded-full border px-3 py-2 text-sm font-semibold transition ${
-        liked ? 'border-sura-gold bg-sura-gold/20 text-sura-gold' : 'border-sura-sky/20 bg-white/80 text-sura-navy/80 hover:border-sura-gold/60'
-      } disabled:opacity-60`}
-      aria-pressed={liked}
-    >
-      {liked ? '❤️' : '🤍'} {count}
-    </button>
+    <div className="flex items-center gap-2">
+      <button
+        onClick={handleToggle}
+        disabled={!user || isLoading}
+        className={`relative flex items-center justify-center rounded-full transition-all ${
+          liked
+            ? 'bg-pink-500/20 text-pink-500 hover:bg-pink-500/30'
+            : 'bg-sura-ivory/10 text-sura-ivory/60 hover:bg-sura-ivory/20 hover:text-sura-ivory'
+        } ${sizeClasses[size]} ${
+          !user ? 'cursor-not-allowed opacity-50' : ''
+        }`}
+        aria-label={liked ? 'Unlike' : 'Like'}
+        title={liked ? (isArabic ? 'إلغاء الإعجاب' : 'Unlike') : (isArabic ? 'إعجاب' : 'Like')}
+      >
+        <svg
+          className={iconSizes[size]}
+          fill={liked ? 'currentColor' : 'none'}
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={liked ? 0 : 2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.668 3.5 3.5 5.667 3.5 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
+          />
+        </svg>
+      </button>
+
+      {showCount && count > 0 && (
+        <span className="text-sm font-medium text-sura-ivory/80">
+          {count}
+        </span>
+      )}
+    </div>
   );
 }
-

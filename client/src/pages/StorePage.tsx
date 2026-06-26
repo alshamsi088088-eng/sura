@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { ThreadedComments } from '../components/ThreadedComments';
 import { trackPurchaseIntent, trackEvent } from '../lib/analytics';
 import { RatingStars } from '../components/RatingStars';
+import { AdminMenu } from '../components/AdminMenu';
 import { useSeoTags } from '../hooks/useSeoTags';
 
 import { LikeButton } from '../components/LikeButton';
@@ -203,7 +204,13 @@ export function StorePage() {
                 <img src={book.coverImage} alt={book.title} className="h-full w-full object-cover" />
               </div>
               <div className="mt-4">
-                <h2 className="text-xl font-semibold">{book.title}</h2>
+                <div className="flex items-start justify-between">
+                  <h2 className="text-xl font-semibold">{book.title}</h2>
+                  <AdminMenu
+                    entityType="book"
+                    entityId={book.id}
+                  />
+                </div>
                 <p className="mt-2 text-sm text-sura-navy/70">
                   {book.author} · {book.format}
                 </p>

@@ -32,13 +32,18 @@ function mapSupabaseUserToProfile(supabaseUser: any): UserProfile {
     metadata?.display_name ??
     '';
 
+  // Extract role from metadata, defaulting to 'member'
+  const roleFromMeta = metadata?.role ?? 'member';
+  const validRoles: UserProfile['role'][] = ['guest', 'member', 'writer', 'admin'];
+  const role: UserProfile['role'] = validRoles.includes(roleFromMeta) ? roleFromMeta : 'member';
+
   return {
     id: supabaseUser?.id ?? '',
     email: supabaseUser?.email ?? '',
     name: profileName ?? '',
     avatar: metadata?.avatar ?? undefined,
 
-    role: 'member',
+    role,
     locale: 'en',
     theme: 'light',
   } as UserProfile;

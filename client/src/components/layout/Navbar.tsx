@@ -3,6 +3,7 @@ import { useLocale } from '../../context/LocaleContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useEffect, useRef, useState } from 'react';
+import { Avatar } from '../AvatarUpload';
 
 const navItems = [
   { path: '/', key: 'home' },
@@ -219,6 +220,17 @@ export function Navbar() {
               >
                 {strings.dashboard}
               </NavLink>
+
+              <NavLink
+                to="/library"
+                className={({ isActive }) =>
+                  `rounded-full px-4 py-2 text-[13.5px] font-medium transition-all ${
+                    isActive ? 'glass text-sura-ink' : 'text-sura-ink/55 hover:text-sura-ink'
+                  }`
+                }
+              >
+                {strings.library}
+              </NavLink>
             </>
           )}
 
@@ -352,13 +364,7 @@ export function Navbar() {
             <div className="relative" ref={userMenuRef}>
               <button onClick={() => setUserMenuOpen((v) => !v)} className="glass flex items-center gap-2 rounded-full p-1 pl-3">
                 <span className="hidden sm:inline text-[13px] font-medium text-sura-ink">{user.name?.split(' ')[0]}</span>
-                {user.avatar ? (
-                  <img src={user.avatar} alt={user.name} className="h-8 w-8 rounded-full object-cover" />
-                ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sura-sky/20 text-[13px] font-bold text-sura-ink">
-                    {user.name?.charAt(0)}
-                  </div>
-                )}
+                <Avatar url={user.avatar} name={user.name} size="sm" />
               </button>
 
               {userMenuOpen && (
@@ -379,6 +385,13 @@ export function Navbar() {
                     className="block rounded-lg px-3 py-2 text-sm text-sura-ink/80 transition hover:bg-white/5 hover:text-sura-ink"
                   >
                     {locale === 'ar' ? 'الملف الشخصي' : 'Profile'}
+                  </Link>
+                  <Link
+                    to="/library"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="block rounded-lg px-3 py-2 text-sm text-sura-ink/80 transition hover:bg-white/5 hover:text-sura-ink"
+                  >
+                    {locale === 'ar' ? 'مكتبتي' : 'Library'}
                   </Link>
                   <div className="my-1 h-px bg-white/10" />
                   <button
@@ -493,6 +506,18 @@ export function Navbar() {
                   }
                 >
                   {strings.dashboard}
+                </NavLink>
+
+                <NavLink
+                  to="/library"
+                  onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) =>
+                    `rounded-lg px-4 py-2.5 text-sm font-medium transition ${
+                      isActive ? 'glass text-sura-ink' : 'text-sura-ink/60 hover:text-sura-ink'
+                    }`
+                  }
+                >
+                  {strings.library}
                 </NavLink>
               </>
             )}

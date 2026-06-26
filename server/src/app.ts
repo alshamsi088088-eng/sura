@@ -12,6 +12,8 @@ import { seoRouter } from './routes/seoRoutes.js';
 import { adminRoutes } from './routes/adminRoutes.js';
 import { webhookRoutes } from './routes/webhookRoutes.js';
 import { contactRoutes } from './routes/contactRoutes.js';
+import { partRoutes } from './routes/partRoutes.js';
+import { engagementRoutes } from './routes/engagementRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { CLIENT_URL } from './services/config.js';
 
@@ -58,6 +60,8 @@ app.get('/api/csrf-token', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api', contentRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api', partRoutes);
+app.use('/api/engagement', engagementRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/webhooks', webhookRoutes);

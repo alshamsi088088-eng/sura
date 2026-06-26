@@ -1,10 +1,10 @@
 
-import { useEffect, useState, useMemo, lazy, Suspense } from 'react';
+import { useEffect, useState, useMemo, Component, ReactNode } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
 import { useLocale } from '../context/LocaleContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
+import { AdminMenu } from '../components/AdminMenu';
 
 interface GalleryItem {
   id: string;
@@ -21,6 +21,75 @@ interface Album {
   coverImage?: string;
 }
 
+// Error Boundary component
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class GalleryErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): ErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Gallery error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || (
+        <div className="flex h-72 w-full items-center justify-center rounded-3xl border border-sura-line bg-sura-canvas">
+          <p className="text-sura-navy/50">{this.props.children ? 'Image failed to load' : 'Content not available'}</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// Image with fallback
+function GalleryImage({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  if (error) {
+    return (
+      <div className={`flex items-center justify-center bg-sura-navy/10 ${className || ''}`}>
+        <span className="text-4xl">🖼️</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      className={`${className || ''} ${loaded ? '' : 'hidden'}`}
+      onLoad={() => setLoaded(true)}
+      onError={() => setError(true)}
+    />
+  );
+}
+
 export function GalleryPage() {
   const { locale } = useLocale();
   const { user } = useAuth();
@@ -29,6 +98,7 @@ export function GalleryPage() {
   const [active, setActive] = useState<GalleryItem | null>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [isLoading, setIsLoading] = useState(true);
 
   // Upload state
   const [uploading, setUploading] = useState(false);
@@ -37,7 +107,12 @@ export function GalleryPage() {
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
 
   useEffect(() => {
-    axios.get('/api/gallery').then((res) => setItems(res.data.items));
+    setIsLoading(true);
+    axios.get('/api/gallery').then((res) => {
+      setItems(res.data?.items ?? []);
+    }).catch(() => {
+      setItems([]);
+    }).finally(() => setIsLoading(false));
     // Load albums from Supabase
     if (supabase) {
       supabase!.from('Album').select('*').order('name').then(({ data }) => {
@@ -170,25 +245,52 @@ export function GalleryPage() {
       )}
 
       {/* Gallery Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredItems.map((item) => (
-          <button key={item.id} onClick={() => setActive(item)} className="group overflow-hidden rounded-3xl border border-sura-line bg-sura-canvas transition hover:-translate-y-1">
-            <img src={item.image} alt={item.title} loading="lazy" className="h-72 w-full object-cover transition duration-500 group-hover:scale-105" />
-            <div className="p-4 text-left">
-              <div className="text-xs uppercase tracking-[0.2em] text-sura-teal">{item.category}</div>
-              <h2 className="mt-2 text-xl font-semibold">{item.title}</h2>
-              {item.description && <p className="mt-1 text-sm text-sura-navy/70 line-clamp-2">{item.description}</p>}
-            </div>
-          </button>
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="h-72 animate-pulse rounded-3xl bg-sura-navy/20" />
+          ))}
+        </div>
+      ) : filteredItems.length === 0 ? (
+        <div className="flex h-72 items-center justify-center rounded-3xl border border-sura-line bg-sura-canvas">
+          <p className="text-sura-navy/50">{locale === 'ar' ? 'لا توجد صور بعد.' : 'No images yet.'}</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredItems.map((item) => (
+            <GalleryErrorBoundary key={item.id}>
+              <div className="group relative overflow-hidden rounded-3xl border border-sura-line bg-sura-canvas transition hover:-translate-y-1">
+                <button onClick={() => setActive(item)} className="w-full text-left">
+                  <GalleryImage src={item.image} alt={item.title} className="h-72 w-full object-cover transition duration-500 group-hover:scale-105" />
+                </button>
+                <div className="p-4 text-left">
+                  <div className="flex items-start justify-between">
+                    <div className="text-xs uppercase tracking-[0.2em] text-sura-teal">{item.category}</div>
+                    <AdminMenu
+                      entityType="gallery"
+                      entityId={item.id}
+                      onDeleteSuccess={() => {
+                        setItems((prev) => prev.filter((i) => i.id !== item.id));
+                      }}
+                    />
+                  </div>
+                  <h2 className="mt-2 text-xl font-semibold">{item.title}</h2>
+                  {item.description && <p className="mt-1 text-sm text-sura-navy/70 line-clamp-2">{item.description}</p>}
+                </div>
+              </div>
+            </GalleryErrorBoundary>
+          ))}
+        </div>
+      )}
 
       {/* Lightbox */}
       {active && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6">
-          <div className="relative max-w-4xl overflow-hidden rounded-3xl bg-sura-beige p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6" onClick={() => setActive(null)}>
+          <div className="relative max-w-4xl overflow-hidden rounded-3xl bg-sura-beige p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setActive(null)} className="absolute right-4 top-4 rounded-full border border-sura-line px-3 py-2 text-sm">Close</button>
-            <img src={active.image} alt={active.title} className="h-[520px] w-full object-cover" />
+            <GalleryErrorBoundary>
+              <GalleryImage src={active.image} alt={active.title} className="h-[520px] w-full object-cover" />
+            </GalleryErrorBoundary>
             <div className="mt-4 text-center">
               <h3 className="text-2xl font-semibold">{active.title}</h3>
               {active.description && <p className="mt-2 text-sm text-sura-navy/70">{active.description}</p>}

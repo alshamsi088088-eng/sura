@@ -37,6 +37,8 @@ const CreatePostPage = lazy(async () => ({ default: (await import('./pages/Creat
 const CreateChapterPage = lazy(async () => ({ default: (await import('./pages/CreateChapterPage')).CreateChapterPage }));
 const CreateNovelPage = lazy(async () => ({ default: (await import('./pages/CreateNovelPage')).CreateNovelPage }));
 const CreateTechPage = lazy(async () => ({ default: (await import('./pages/CreateTechPage')).CreateTechPage }));
+const EditPartsPage = lazy(async () => ({ default: (await import('./pages/EditPartsPage')).EditPartsPage }));
+const LibraryPage = lazy(async () => ({ default: (await import('./pages/LibraryPage')).LibraryPage }));
 
 
 function AppInner() {
@@ -66,11 +68,13 @@ function AppInner() {
                 <Route path="/terms-of-service" element={<TermsOfServicePage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+                <Route path="/library" element={<ProtectedRoute><LibraryPage /></ProtectedRoute>} />
                 <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
                 <Route path="/create-post" element={<ProtectedRoute><CreatePostPage /></ProtectedRoute>} />
                 <Route path="/create-chapter" element={<ProtectedRoute><CreateChapterPage /></ProtectedRoute>} />
                 <Route path="/create-novel" element={<ProtectedRoute><CreateNovelPage /></ProtectedRoute>} />
                 <Route path="/create-tech" element={<ProtectedRoute><CreateTechPage /></ProtectedRoute>} />
+                <Route path="/edit-parts" element={<ProtectedRoute><EditPartsPage /></ProtectedRoute>} />
                 <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>

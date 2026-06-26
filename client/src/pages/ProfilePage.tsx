@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
 import { trackEvent } from '../lib/analytics';
+import { AvatarUpload } from '../components/AvatarUpload';
 
 interface PurchasedOrderItem {
   id: string;
@@ -213,10 +214,13 @@ export function ProfilePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 py-8 px-4">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">{lang.myProfile}</h1>
-          <p className="text-slate-400">Welcome, {user?.name || 'User'}</p>
+        {/* Header with Avatar */}
+        <div className="mb-8 flex items-center gap-6">
+          <AvatarUpload size="xl" onAvatarChange={() => {}} />
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">{lang.myProfile}</h1>
+            <p className="text-slate-400">Welcome, {user?.name || 'User'}</p>
+          </div>
         </div>
 
         {/* ✅ My Purchases Section */}

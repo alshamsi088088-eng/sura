@@ -10,6 +10,8 @@ import { trackEvent } from '../lib/analytics';
 import { LikeButton } from '../components/LikeButton';
 import { BookmarkButton } from '../components/BookmarkButton';
 import { RatingStars } from '../components/RatingStars';
+import { AdminMenu } from '../components/AdminMenu';
+import { Avatar } from '../components/AvatarUpload';
 import { useSeoTags } from '../hooks/useSeoTags';
 
 
@@ -242,15 +244,24 @@ export function ArticlesPage() {
                   {item.title}
                 </Link>
 
-                <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{item.category}</div>
+                <div className="flex items-start justify-between">
+                  <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{item.category}</div>
+                  <AdminMenu
+                    entityType="article"
+                    entityId={item.id}
+                  />
+                </div>
                 <h2 className="mt-4 text-xl font-semibold">{item.title}</h2>
                 <p className="mt-3 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
-                <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-sura-navy/70">
-                  <span>{item.author}</span>
-                  <span>•</span>
-                  <span>{item.readingTime}</span>
-                  <span>•</span>
-                  <span>{item.views} views</span>
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <Avatar name={item.author} size="xs" />
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-sura-navy/70">
+                    <span className="font-medium">{item.author}</span>
+                    <span>•</span>
+                    <span>{item.readingTime}</span>
+                    <span>•</span>
+                    <span>{item.views} views</span>
+                  </div>
                 </div>
                 <button
                   className={`mt-4 rounded-full border px-3 py-1 text-xs ${activeArticleId === item.id ? 'border-sura-gold text-sura-teal' : 'border-sura-line text-sura-navy/80'}`}
@@ -285,15 +296,24 @@ export function ArticlesPage() {
                     <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{item.category}</div>
                     <h2 className="mt-2 text-2xl font-semibold">{item.title}</h2>
                   </div>
-                  <div className="text-sm text-sura-navy/70">{item.readingTime}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm text-sura-navy/70">{item.readingTime}</div>
+                    <AdminMenu
+                      entityType="article"
+                      entityId={item.id}
+                    />
+                  </div>
                 </div>
                 <p className="mt-4 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
-                <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-sura-navy/70">
-                  <span>{item.author}</span>
-                  <span>•</span>
-                  <span>{item.views} views</span>
-                  <span>•</span>
-                  <span>{item.claps} claps</span>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <Avatar name={item.author} size="xs" />
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-sura-navy/70">
+                    <span className="font-medium">{item.author}</span>
+                    <span>•</span>
+                    <span>{item.views} views</span>
+                    <span>•</span>
+                    <span>{item.claps} claps</span>
+                  </div>
                 </div>
                 <button
                   className={`mt-4 rounded-full border px-3 py-1 text-xs ${activeArticleId === item.id ? 'border-sura-gold text-sura-teal' : 'border-sura-line text-sura-navy/80'}`}

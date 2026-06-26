@@ -4,7 +4,16 @@
       "Bash(npm run build --workspace=server)",
       "Bash(npm run build --workspace=client -- --legacy-peer-deps)",
       "Bash(npx tsc --noEmit)",
-      "Bash(npm run build)"
+      "Bash(npm run build)",
+      "Bash(npm install @tiptap/react @tiptap/starter-kit @tiptap/extension-link @tiptap/extension-image @tiptap/extension-text-align @tiptap/extension-underline --save)",
+      "Bash(npx prisma generate)",
+      "Bash(npx prisma generate --schema=./schema.prisma)",
+      "Bash(npm run build:all)",
+      "Bash(npm run build:client)",
+      "Bash(npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities)",
+      "Bash(npm run build --prefix client)",
+      "Bash(npx tsc --noEmit -p server/tsconfig.json)",
+      "Bash(npx tsc --noEmit -p client/tsconfig.json)"
     ]
   }
 }

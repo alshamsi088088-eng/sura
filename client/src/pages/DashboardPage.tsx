@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
 import { supabase } from '../lib/supabaseClient';
+import { AvatarUpload } from '../components/AvatarUpload';
 
 interface WeeklyData {
   articles: number;
@@ -274,9 +275,7 @@ export function DashboardPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#7F77DD]/20 text-2xl font-bold text-[#7F77DD]">
-              {user?.name?.charAt(0) || 'U'}
-            </div>
+            <AvatarUpload size="lg" onAvatarChange={() => {}} />
             <div>
               <div className="text-xl font-semibold text-sura-ivory">{user?.name}</div>
               <div className="text-sm text-sura-ivory/60">{user?.role}</div>

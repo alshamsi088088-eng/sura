@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
 import { useLocale } from '../context/LocaleContext';
+import { useAuth } from '../context/AuthContext';
+import { AdminMenu } from '../components/AdminMenu';
+import { Avatar } from '../components/AvatarUpload';
+import { ReactionBar } from '../components/ReactionBar';
 import { useSeoTags } from '../hooks/useSeoTags';
 
 interface Article {
@@ -16,6 +20,7 @@ interface Article {
 
 export function ArticleDetailsPage() {
   const { locale } = useLocale();
+  const { user } = useAuth();
   const { slug } = useParams<{ slug: string }>();
 
   const [article, setArticle] = useState<Article | null>(null);
@@ -122,7 +127,13 @@ export function ArticleDetailsPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <article className="rounded-3xl border border-sura-line bg-sura-canvas p-8">
         <header className="space-y-4">
-          <h1 className="text-4xl font-semibold">{article.title}</h1>
+          <div className="flex items-start justify-between">
+            <h1 className="text-4xl font-semibold">{article.title}</h1>
+            <AdminMenu
+              entityType="article"
+              entityId={article.id}
+            />
+          </div>
           {article.coverImage ? (
             <img
               src={article.coverImage}
@@ -131,9 +142,12 @@ export function ArticleDetailsPage() {
             />
           ) : null}
           <p className="text-sm leading-7 text-sura-navy/80">{article.excerpt}</p>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-sura-navy/70">
-            <span>{article.authorName}</span>
-            {article.publishedAt ? <span>• {new Date(article.publishedAt).toLocaleDateString()}</span> : null}
+          <div className="flex flex-wrap items-center gap-3">
+            <Avatar name={article.authorName} size="sm" />
+            <div className="flex flex-wrap items-center gap-2 text-xs text-sura-navy/70">
+              <span className="font-medium">{article.authorName}</span>
+              {article.publishedAt ? <span>• {new Date(article.publishedAt).toLocaleDateString()}</span> : null}
+            </div>
           </div>
         </header>
 
@@ -142,6 +156,8 @@ export function ArticleDetailsPage() {
             {article.content}
           </div>
         </section>
+
+        <ReactionBar contentType="article" contentId={article.id} />
       </article>
     </div>
   );
