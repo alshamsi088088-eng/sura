@@ -13,7 +13,7 @@ export const JWT_REFRESH_SECRET = assertEnv('JWT_REFRESH_SECRET', 'dev_jwt_refre
 export const DATABASE_URL = assertEnv('DATABASE_URL');
 
 export const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
-export const SERVER_URL = process.env.SERVER_URL || 'http://localhost:5000';
+export const SERVER_URL = process.env.SERVER_URL || 'http://sura-codex.com';
 
 export function validateEnvironment() {
   return {

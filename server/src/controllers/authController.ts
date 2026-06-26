@@ -252,7 +252,7 @@ export function appleAuthRedirect(req: Request, res: Response) {
   if (!clientId) {
     return res.status(501).json({ message: 'Apple Sign In is not configured' });
   }
-  const redirectUri = `${process.env.SERVER_URL || 'http://localhost:5000'}/api/auth/apple/callback`;
+  const redirectUri = `${process.env.SERVER_URL || 'http://sura-codex.com'}/api/auth/apple/callback`;
   const url = `https://appleid.apple.com/auth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=name%20email&response_mode=form_post`;
   res.redirect(url);
 }

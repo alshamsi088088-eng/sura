@@ -11,7 +11,7 @@ export function initGoogleStrategy() {
   passport.use(new GoogleStrategy({
     clientID: clientId,
     clientSecret,
-    callbackURL: `${process.env.SERVER_URL || 'http://localhost:5000'}/api/auth/google/callback`
+    callbackURL: `${process.env.SERVER_URL || 'http://sura-codex.com'}/api/auth/google/callback`
   }, async (_accessToken, _refreshToken, profile, done) => {
     const email = profile.emails?.[0]?.value;
     if (!email) return done(new Error('No email')); 

@@ -214,7 +214,7 @@ npm --workspace=server run dev
 ## Local Launch
 
 - Client: http://localhost:5173
-- Server: http://localhost:5000
+- Server: http://sura-codex.com
 
 ## Pre-seeded accounts
 
