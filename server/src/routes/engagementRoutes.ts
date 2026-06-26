@@ -20,7 +20,10 @@ import {
   votePoll,
   changeVote,
   deletePoll,
-  getPollResults
+  getPollResults,
+  saveQuote,
+  getQuotes,
+  deleteQuote
 } from '../controllers/engagementController.js';
 
 // JWT auth helper
@@ -59,3 +62,8 @@ engagementRoutes.post('/vote', authenticate, votePoll);
 engagementRoutes.put('/vote', authenticate, changeVote);
 engagementRoutes.delete('/poll', authenticate, deletePoll);
 engagementRoutes.get('/results', getPollResults);
+
+// Quotes
+engagementRoutes.post('/quote', authenticate, saveQuote);
+engagementRoutes.get('/quotes', authenticate, getQuotes);
+engagementRoutes.delete('/quote', authenticate, deleteQuote);

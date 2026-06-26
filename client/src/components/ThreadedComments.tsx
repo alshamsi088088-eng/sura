@@ -14,7 +14,7 @@ import { auth, db } from '../firebaseConfig';
 import { useAuth } from '../context/AuthContext';
 import { trackEvent } from '../lib/analytics';
 
-type EntityType = 'article' | 'book' | 'novel';
+type EntityType = 'article' | 'book' | 'novel' | 'community';
 
 interface ThreadedCommentsProps {
   entityId: string;

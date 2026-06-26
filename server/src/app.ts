@@ -14,6 +14,8 @@ import { webhookRoutes } from './routes/webhookRoutes.js';
 import { contactRoutes } from './routes/contactRoutes.js';
 import { partRoutes } from './routes/partRoutes.js';
 import { engagementRoutes } from './routes/engagementRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
+import { communityRoutes } from './routes/communityRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { CLIENT_URL } from './services/config.js';
 
@@ -62,6 +64,8 @@ app.use('/api', contentRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api', partRoutes);
 app.use('/api/engagement', engagementRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/community', communityRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/webhooks', webhookRoutes);

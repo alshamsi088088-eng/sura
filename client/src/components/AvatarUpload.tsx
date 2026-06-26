@@ -367,21 +367,23 @@ export function AvatarUpload({ size = 'md', showEditButton = true, onAvatarChang
 interface AvatarProps {
   url?: string;
   name?: string;
-  size?: 'xs' | 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 }
 
 const avatarSizes = {
   xs: 'h-6 w-6 text-xs',
   sm: 'h-8 w-8 text-sm',
   md: 'h-10 w-10 text-base',
-  lg: 'h-14 w-14 text-xl'
+  lg: 'h-14 w-14 text-xl',
+  xl: 'h-20 w-20 text-2xl'
 };
 
 export function Avatar({ url, name, size = 'md' }: AvatarProps) {
+  const sizeClass = avatarSizes[size] || avatarSizes.md;
   const initials = name?.charAt(0) || '?';
 
   return (
-    <div className={`shrink-0 overflow-hidden rounded-full bg-sura-sky/20 ${avatarSizes[size]}`}>
+    <div className={`shrink-0 overflow-hidden rounded-full bg-sura-sky/20 ${sizeClass}`}>
       {url ? (
         <img
           src={url}

@@ -15,6 +15,23 @@ interface BookmarkItem {
   updatedAt?: string;
 }
 
+interface DiscussionItem {
+  id: string;
+  title: string;
+  category: string;
+  createdAt: string;
+  authorName?: string;
+}
+
+interface ReadingItem {
+  id: string;
+  contentType: string;
+  contentId: string;
+  title: string | null;
+  progress: number;
+  updatedAt: string;
+}
+
 interface BookmarksData {
   articles: BookmarkItem[];
   novels: BookmarkItem[];
@@ -31,13 +48,15 @@ export function LibraryPage() {
     chapters: [],
     books: []
   });
-  const [activeTab, setActiveTab] = useState<'articles' | 'novels' | 'chapters' | 'books'>('articles');
+  const [discussions, setDiscussions] = useState<DiscussionItem[]>([]);
+  const [readingHistory, setReadingHistory] = useState<ReadingItem[]>([]);
+  const [activeTab, setActiveTab] = useState<'articles' | 'novels' | 'chapters' | 'books' | 'discussions' | 'history'>('articles');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const isArabic = locale === 'ar';
 
-  // Fetch bookmarks
+  // Fetch bookmarks and saved content
   const fetchBookmarks = useCallback(async () => {
     if (!user || !supabase) return;
 
@@ -45,7 +64,7 @@ export function LibraryPage() {
     setError(null);
 
     try {
-      const { data, error: fetchError } = await supabase!
+      const { data, error: fetchError } = await supabase
         .from('Bookmark')
         .select('*, article:Article(id, title, slug, excerpt, authorName), novel:Novel(id, title, slug, authorName), chapter:Chapter(id, title, number, novelId), book:Book(id, title, author, coverImage)')
         .eq('userId', user.id)
@@ -53,7 +72,6 @@ export function LibraryPage() {
 
       if (fetchError) throw fetchError;
 
-      // Group by content type
       const grouped: BookmarksData = {
         articles: [],
         novels: [],
@@ -62,18 +80,44 @@ export function LibraryPage() {
       };
 
       data?.forEach((bookmark) => {
-        if (bookmark.article) {
-          grouped.articles.push(bookmark.article);
-        } else if (bookmark.novel) {
-          grouped.novels.push(bookmark.novel);
-        } else if (bookmark.chapter) {
-          grouped.chapters.push(bookmark.chapter);
-        } else if (bookmark.book) {
-          grouped.books.push(bookmark.book);
-        }
+        if (bookmark.article) grouped.articles.push(bookmark.article);
+        else if (bookmark.novel) grouped.novels.push(bookmark.novel);
+        else if (bookmark.chapter) grouped.chapters.push(bookmark.chapter);
+        else if (bookmark.book) grouped.books.push(bookmark.book);
       });
 
       setBookmarks(grouped);
+
+      // Fetch saved discussions
+      const { data: communityBookmarks } = await supabase
+        .from('CommunityBookmark')
+        .select('id, threadId, thread:CommunityThread(id, title, category, createdAt, author:authorId)')
+        .eq('userId', user.id)
+        .order('createdAt', { ascending: false })
+        .limit(20);
+
+      if (communityBookmarks) {
+        setDiscussions(
+          communityBookmarks.map((cb: any) => ({
+            id: cb.thread?.id || cb.threadId,
+            title: cb.thread?.title || '',
+            category: cb.thread?.category || '',
+            createdAt: cb.createdAt
+          }))
+        );
+      }
+
+      // Fetch reading history
+      const { data: history } = await supabase
+        .from('ReadingHistory')
+        .select('*')
+        .eq('userId', user.id)
+        .order('updatedAt', { ascending: false })
+        .limit(20);
+
+      if (history) {
+        setReadingHistory(history);
+      }
     } catch (err) {
       console.error('Bookmarks fetch error:', err);
       setError(isArabic ? 'فشل تحميل المفضلات' : 'Failed to load bookmarks');
@@ -90,10 +134,19 @@ export function LibraryPage() {
     if (!supabase) return;
     try {
       await supabase.from('Bookmark').delete().eq('id', bookmarkId);
-      // Refetch after removal
       fetchBookmarks();
     } catch (err) {
       console.error('Remove bookmark error:', err);
+    }
+  };
+
+  const handleRemoveDiscussion = async (threadId: string) => {
+    if (!supabase || !user) return;
+    try {
+      await supabase.from('CommunityBookmark').delete().eq('threadId', threadId).eq('userId', user.id);
+      setDiscussions((prev) => prev.filter((d) => d.id !== threadId));
+    } catch (err) {
+      console.error('Remove discussion error:', err);
     }
   };
 
@@ -101,12 +154,12 @@ export function LibraryPage() {
     { key: 'articles' as const, label: isArabic ? 'المقالات' : 'Articles', count: bookmarks.articles.length },
     { key: 'novels' as const, label: isArabic ? 'الروايات' : 'Novels', count: bookmarks.novels.length },
     { key: 'chapters' as const, label: isArabic ? 'الفصول' : 'Chapters', count: bookmarks.chapters.length },
-    { key: 'books' as const, label: isArabic ? 'الكتب' : 'Books', count: bookmarks.books.length }
+    { key: 'books' as const, label: isArabic ? 'الكتب' : 'Books', count: bookmarks.books.length },
+    { key: 'discussions' as const, label: isArabic ? 'النقاشات' : 'Discussions', count: discussions.length },
+    { key: 'history' as const, label: isArabic ? 'السجل' : 'History', count: readingHistory.length }
   ];
 
   const renderItems = () => {
-    const items = bookmarks[activeTab];
-
     if (loading) {
       return (
         <div className="flex items-center justify-center py-12">
@@ -116,11 +169,86 @@ export function LibraryPage() {
     }
 
     if (error) {
+      return <div className="py-8 text-center text-red-400">{error}</div>;
+    }
+
+    if (activeTab === 'discussions') {
+      if (discussions.length === 0) {
+        return (
+          <div className="py-12 text-center text-sura-ivory/50">
+            {isArabic ? 'لا توجد نقاشات محفوظة بعد.' : 'No saved discussions yet.'}
+          </div>
+        );
+      }
       return (
-        <div className="py-8 text-center text-red-400">{error}</div>
+        <div className="space-y-4">
+          {discussions.map((item) => (
+            <div
+              key={item.id}
+              className="group flex items-center justify-between rounded-xl border border-sura-ivory/10 bg-sura-dark/50 p-4 transition hover:border-sura-ivory/30"
+            >
+              <Link
+                to={`/community/thread/${item.id}`}
+                className="flex-1 min-w-0"
+              >
+                <p className="truncate text-lg font-medium text-sura-ivory hover:text-sura-teal">
+                  {item.title}
+                </p>
+                <p className="text-sm text-sura-ivory/50">
+                  {new Date(item.createdAt).toLocaleDateString(locale === 'ar' ? 'ar-SA' : 'en-US')}
+                </p>
+              </Link>
+              <button
+                onClick={() => handleRemoveDiscussion(item.id)}
+                className="shrink-0 rounded-lg bg-red-500/10 px-3 py-1.5 text-sm text-red-400 opacity-0 transition hover:bg-red-500/20 group-hover:opacity-100"
+              >
+                {isArabic ? 'إزالة' : 'Remove'}
+              </button>
+            </div>
+          ))}
+        </div>
       );
     }
 
+    if (activeTab === 'history') {
+      if (readingHistory.length === 0) {
+        return (
+          <div className="py-12 text-center text-sura-ivory/50">
+            {isArabic ? 'لا يوجد سجل قراءة بعد.' : 'No reading history yet.'}
+          </div>
+        );
+      }
+      return (
+        <div className="space-y-4">
+          {readingHistory.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center gap-4 rounded-xl border border-sura-ivory/10 bg-sura-dark/50 p-4"
+            >
+              <div className="flex-1 min-w-0">
+                <Link
+                  to={`/${item.contentType}/${item.contentId}`}
+                  className="block truncate text-lg font-medium text-sura-ivory hover:text-sura-teal"
+                >
+                  {item.title || item.contentType}
+                </Link>
+                <div className="mt-1 h-1 w-full rounded-full bg-sura-ivory/20">
+                  <div
+                    className="h-1 rounded-full bg-sura-teal"
+                    style={{ width: `${item.progress}%` }}
+                  />
+                </div>
+                <p className="text-sm text-sura-ivory/50">
+                  {item.progress}% {isArabic ? 'مكتمل' : 'complete'}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    const items = bookmarks[activeTab];
     if (items.length === 0) {
       return (
         <div className="py-12 text-center text-sura-ivory/50">
@@ -137,11 +265,7 @@ export function LibraryPage() {
             className="group flex items-center gap-4 rounded-xl border border-sura-ivory/10 bg-sura-dark/50 p-4 transition hover:border-sura-ivory/30"
           >
             {item.coverImage && (
-              <img
-                src={item.coverImage}
-                alt={item.title}
-                className="h-16 w-12 shrink-0 rounded object-cover"
-              />
+              <img src={item.coverImage} alt={item.title} className="h-16 w-12 shrink-0 rounded object-cover" />
             )}
             <div className="flex-1 min-w-0">
               <Link
@@ -150,9 +274,7 @@ export function LibraryPage() {
               >
                 {item.title}
               </Link>
-              {item.authorName && (
-                <div className="text-sm text-sura-ivory/50">{item.authorName}</div>
-              )}
+              {item.authorName && <div className="text-sm text-sura-ivory/50">{item.authorName}</div>}
             </div>
             <button
               onClick={() => handleRemove(item.id)}
@@ -179,12 +301,11 @@ export function LibraryPage() {
         </p>
       </header>
 
-      {/* Tabs */}
       <div className="flex gap-2 overflow-x-auto border-b border-sura-ivory/10 pb-px">
         {tabs.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => setActiveTab(tab.key as any)}
             className={`shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition ${
               activeTab === tab.key
                 ? 'border-sura-teal text-sura-teal'
@@ -192,17 +313,12 @@ export function LibraryPage() {
             }`}
           >
             {tab.label}
-            <span className="ml-2 rounded-full bg-sura-ivory/10 px-2 py-0.5 text-xs">
-              {tab.count}
-            </span>
+            <span className="ml-2 rounded-full bg-sura-ivory/10 px-2 py-0.5 text-xs">{tab.count}</span>
           </button>
         ))}
       </div>
 
-      {/* Content */}
-      <div className="rounded-2xl border border-sura-ivory/10 bg-sura-dark/50 p-6">
-        {renderItems()}
-      </div>
+      <div className="rounded-2xl border border-sura-ivory/10 bg-sura-dark/50 p-6">{renderItems()}</div>
     </div>
   );
 }

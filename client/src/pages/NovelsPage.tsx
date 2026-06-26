@@ -13,6 +13,9 @@ import { ReactionBar } from '../components/ReactionBar';
 import { BookmarkButton } from '../components/BookmarkButton';
 import { AdminMenu } from '../components/AdminMenu';
 import { ChapterPollSection } from '../components/ChapterPollSection';
+import { ReadingProgress } from '../components/ReadingProgress';
+import { ReadingSettings, useReadingSettings } from '../components/ReadingSettings';
+import { ContinueReading } from '../components/ContinueReading';
 import { trackEvent } from '../lib/analytics';
 import { useSeoTags } from '../hooks/useSeoTags';
 import {
@@ -100,6 +103,10 @@ export function NovelsPage() {
   const [expandedParts, setExpandedParts] = useState<Set<string>>(new Set());
   const [fontSize, setFontSize] = useState(1);
   const [nightMode, setNightMode] = useState(true);
+  const [showReadingSettings, setShowReadingSettings] = useState(false);
+
+  // Load reading settings
+  const { settings: readingSettings, getContentClass } = useReadingSettings();
 
   // DnD sensors for chapter reordering (author only)
   const sensors = useSensors(
@@ -322,6 +329,16 @@ export function NovelsPage() {
           ))}
         </aside>
 
+        {/* Reading Progress Bar */}
+        {activeChapter && activeNovel && (
+          <ReadingProgress
+            contentType="chapter"
+            contentId={activeChapter.id}
+            title={activeChapter.title}
+            content={activeChapter.content}
+          />
+        )}
+
         <article className={`rounded-3xl border border-sura-line p-8 ${nightMode ? 'bg-sura-canvas' : 'bg-sura-cream text-sura-brown'}`}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -341,6 +358,16 @@ export function NovelsPage() {
               <button onClick={() => setNightMode((value) => !value)} className="rounded-full border border-sura-line px-4 py-2 text-sm">
                 {nightMode ? 'Day reader' : 'Night reader'}
               </button>
+              <button
+                onClick={() => setShowReadingSettings(true)}
+                className="rounded-full border border-sura-line px-4 py-2 text-sm"
+                title={locale === 'ar' ? 'إعدادات القراءة' : 'Reading Settings'}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
               <select value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="rounded-full border border-sura-line bg-transparent px-4 py-2 text-sm">
                 {(Array.isArray(fontSizes) ? fontSizes : []).map((size, index) => (
                   <option key={size} value={index}>{`Font ${index + 1}`}</option>
@@ -351,6 +378,18 @@ export function NovelsPage() {
           <div className="mt-6 rounded-3xl bg-sura-canvas px-4 py-3 text-sm text-sura-navy/80">
             {locale === 'ar' ? 'تقدم القراءة' : 'Reading progress'}: {progress}%
           </div>
+
+          {activeNovel && (
+            <div className="mt-4 rounded-2xl border border-sura-line p-3 text-center">
+              <Link
+                to={`/community/novel/${activeNovel.id}`}
+                className="text-sm text-blue-400 hover:text-blue-300"
+              >
+                {locale === 'ar' ? 'انضم للنقاش' : 'Join the Discussion'}
+              </Link>
+            </div>
+          )}
+
           <div className={`mt-6 space-y-6 ${fontSizes[fontSize]}`}>
             <p>{activeChapter?.content || '...'}</p>
 
@@ -488,6 +527,13 @@ export function NovelsPage() {
       {/* Comments under the selected novel */}
       {activeNovel ? <ThreadedComments entityId={activeNovel.id} entityType="novel" /> : null}
 
+      {/* Reading Settings Modal */}
+      <ReadingSettings isOpen={showReadingSettings} onClose={() => setShowReadingSettings(false)} />
+
+      {/* Continue Reading Section */}
+      <div className="mt-8 rounded-3xl border border-sura-line bg-sura-canvas p-6">
+        <ContinueReading limit={3} showTitle={true} />
+      </div>
 
     </div>
   );

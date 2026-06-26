@@ -30,6 +30,7 @@ import { useTheme } from './context/ThemeContext';
 
 const ArticleDetailsPage = lazy(async () => ({ default: (await import('./pages/ArticleDetailsPage')).ArticleDetailsPage }));
 const DashboardPage = lazy(async () => ({ default: (await import('./pages/DashboardPage')).DashboardPage }));
+const AnalyticsPage = lazy(async () => ({ default: (await import('./pages/AnalyticsPage')).AnalyticsPage }));
 const ProfilePage = lazy(async () => ({ default: (await import('./pages/ProfilePage')).ProfilePage }));
 const AdminPage = lazy(async () => ({ default: (await import('./pages/AdminPage')).AdminPage }));
 
@@ -39,6 +40,10 @@ const CreateNovelPage = lazy(async () => ({ default: (await import('./pages/Crea
 const CreateTechPage = lazy(async () => ({ default: (await import('./pages/CreateTechPage')).CreateTechPage }));
 const EditPartsPage = lazy(async () => ({ default: (await import('./pages/EditPartsPage')).EditPartsPage }));
 const LibraryPage = lazy(async () => ({ default: (await import('./pages/LibraryPage')).LibraryPage }));
+const CommunityPage = lazy(async () => ({ default: (await import('./pages/CommunityPage')).CommunityPage }));
+const CommunityThreadPage = lazy(async () => ({ default: (await import('./pages/CommunityThreadPage')).CommunityThreadPage }));
+const PublicProfilePage = lazy(async () => ({ default: (await import('./pages/PublicProfilePage')).PublicProfilePage }));
+const QuoteLibraryPage = lazy(async () => ({ default: (await import('./pages/QuoteLibraryPage')).QuoteLibraryPage }));
 
 
 function AppInner() {
@@ -68,14 +73,20 @@ function AppInner() {
                 <Route path="/terms-of-service" element={<TermsOfServicePage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+                <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
                 <Route path="/library" element={<ProtectedRoute><LibraryPage /></ProtectedRoute>} />
+                <Route path="/quotes" element={<ProtectedRoute><QuoteLibraryPage /></ProtectedRoute>} />
                 <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+                <Route path="/profile/:id" element={<PublicProfilePage />} />
                 <Route path="/create-post" element={<ProtectedRoute><CreatePostPage /></ProtectedRoute>} />
                 <Route path="/create-chapter" element={<ProtectedRoute><CreateChapterPage /></ProtectedRoute>} />
                 <Route path="/create-novel" element={<ProtectedRoute><CreateNovelPage /></ProtectedRoute>} />
                 <Route path="/create-tech" element={<ProtectedRoute><CreateTechPage /></ProtectedRoute>} />
                 <Route path="/edit-parts" element={<ProtectedRoute><EditPartsPage /></ProtectedRoute>} />
                 <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+                <Route path="/community" element={<CommunityPage />} />
+                <Route path="/community/thread/:id" element={<CommunityThreadPage />} />
+                <Route path="/community/:contentType/:contentId" element={<CommunityPage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </Suspense>

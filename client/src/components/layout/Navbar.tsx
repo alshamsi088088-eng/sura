@@ -4,6 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useEffect, useRef, useState } from 'react';
 import { Avatar } from '../AvatarUpload';
+import { NotificationCenter } from '../NotificationCenter';
 
 const navItems = [
   { path: '/', key: 'home' },
@@ -144,13 +145,17 @@ export function Navbar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const toolsRef = useRef<HTMLDivElement | null>(null);
+  const notifRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!userMenuRef.current?.contains(e.target as Node)) setUserMenuOpen(false);
       if (!toolsRef.current?.contains(e.target as Node)) setToolsOpen(false);
+      if (!notifRef.current?.contains(e.target as Node)) setNotificationsOpen(false);
     }
     document.addEventListener('click', onDocClick);
     return () => document.removeEventListener('click', onDocClick);
@@ -230,6 +235,17 @@ export function Navbar() {
                 }
               >
                 {strings.library}
+              </NavLink>
+
+              <NavLink
+                to="/analytics"
+                className={({ isActive }) =>
+                  `rounded-full px-4 py-2 text-[13.5px] font-medium transition-all ${
+                    isActive ? 'glass text-sura-ink' : 'text-sura-ink/55 hover:text-sura-ink'
+                  }`
+                }
+              >
+                {locale === 'ar' ? 'تحليلات' : 'Analytics'}
               </NavLink>
             </>
           )}
@@ -353,6 +369,34 @@ export function Navbar() {
               </div>
             )}
           </div>
+
+          {/* Notifications */}
+          {user && (
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setNotificationsOpen((v) => !v)}
+                className="relative glass flex h-10 w-10 items-center justify-center rounded-full text-sura-ink/75 transition hover:text-sura-ink"
+                aria-label="Notifications"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                {unreadCount > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-pink-500 text-[10px] font-bold text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+              {notificationsOpen && (
+                <NotificationCenter
+                  isOpen={notificationsOpen}
+                  onClose={() => setNotificationsOpen(false)}
+                  onUnreadChange={setUnreadCount}
+                />
+              )}
+            </div>
+          )}
 
           {!user && (
             <button onClick={goToLogin} className="btn-primary !px-5 !py-2 !text-[13px]">
@@ -518,6 +562,18 @@ export function Navbar() {
                   }
                 >
                   {strings.library}
+                </NavLink>
+
+                <NavLink
+                  to="/analytics"
+                  onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) =>
+                    `rounded-lg px-4 py-2.5 text-sm font-medium transition ${
+                      isActive ? 'glass text-sura-ink' : 'text-sura-ink/60 hover:text-sura-ink'
+                    }`
+                  }
+                >
+                  {locale === 'ar' ? 'تحليلات' : 'Analytics'}
                 </NavLink>
               </>
             )}

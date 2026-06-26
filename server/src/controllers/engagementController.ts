@@ -873,3 +873,146 @@ export async function getPollResults(req: Request, res: Response) {
     res.status(500).json({ error: 'Failed to get poll results' });
   }
 }
+
+// Quote functions - reuse existing engagement pattern
+export async function saveQuote(req: Request, res: Response) {
+  const userId = (req.user as { id: string })?.id;
+  const { contentId, contentType, selectedText, startOffset, endOffset } = req.body as {
+    contentId: string;
+    contentType: string;
+    selectedText: string;
+    startOffset?: number;
+    endOffset?: number;
+  };
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!contentId || !contentType || !selectedText) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    const quote = await prisma.quote.create({
+      data: {
+        userId,
+        contentId,
+        contentType,
+        selectedText,
+        startOffset: startOffset ?? null,
+        endOffset: endOffset ?? null
+      }
+    });
+
+    res.json(quote);
+  } catch (error: unknown) {
+    console.error('Save quote error:', error);
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      return res.status(409).json({ error: 'Quote already saved' });
+    }
+    res.status(500).json({ error: 'Failed to save quote' });
+  }
+}
+
+export async function getQuotes(req: Request, res: Response) {
+  const userId = (req.user as { id: string })?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const quotes = await prisma.quote.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { name: true } }
+      }
+    });
+
+    // Get content titles for each quote
+    const quotesWithContent = await Promise.all(
+      quotes.map(async (quote) => {
+        let contentTitle = 'Unknown';
+        let contentSlug = '';
+        let authorName = '';
+
+        if (quote.contentType === 'article') {
+          const article = await prisma.article.findUnique({
+            where: { id: quote.contentId },
+            select: { title: true, slug: true, authorName: true }
+          });
+          if (article) {
+            contentTitle = article.title;
+            contentSlug = article.slug;
+            authorName = article.authorName || '';
+          }
+        } else if (quote.contentType === 'novel') {
+          const novel = await prisma.novel.findUnique({
+            where: { id: quote.contentId },
+            select: { title: true, slug: true, authorName: true }
+          });
+          if (novel) {
+            contentTitle = novel.title;
+            contentSlug = novel.slug;
+            authorName = novel.authorName || '';
+          }
+        } else if (quote.contentType === 'chapter') {
+          const chapter = await prisma.chapter.findUnique({
+            where: { id: quote.contentId },
+            select: { title: true, number: true, novelId: true }
+          });
+          if (chapter) {
+            contentTitle = `Chapter ${chapter.number}: ${chapter.title}`;
+            contentSlug = chapter.novelId;
+          }
+        }
+
+        return {
+          id: quote.id,
+          contentId: quote.contentId,
+          contentType: quote.contentType,
+          selectedText: quote.selectedText,
+          startOffset: quote.startOffset,
+          endOffset: quote.endOffset,
+          contentTitle,
+          authorName,
+          createdAt: quote.createdAt
+        };
+      })
+    );
+
+    res.json({ quotes: quotesWithContent });
+  } catch (error) {
+    console.error('Get quotes error:', error);
+    res.status(500).json({ error: 'Failed to get quotes' });
+  }
+}
+
+export async function deleteQuote(req: Request, res: Response) {
+  const userId = (req.user as { id: string })?.id;
+  const { quoteId } = req.body as { quoteId: string };
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!quoteId) {
+    return res.status(400).json({ error: 'Missing quoteId' });
+  }
+
+  try {
+    await prisma.quote.delete({
+      where: {
+        id: quoteId,
+        userId
+      }
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete quote error:', error);
+    res.status(500).json({ error: 'Failed to delete quote' });
+  }
+}

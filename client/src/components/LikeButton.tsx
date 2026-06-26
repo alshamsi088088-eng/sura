@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
 import { trackEvent } from '../lib/analytics';
 
-export type ContentType = 'article' | 'novel' | 'chapter' | 'book';
+export type ContentType = 'article' | 'novel' | 'chapter' | 'book' | 'community';
 
 export type LikeButtonProps = {
   // New props
