@@ -9,6 +9,8 @@
   "scripts": {
     "dev": "concurrently \"npm --workspace=server run dev\" \"npm --workspace=client run dev\"",
     "build": "npm --workspace=server run build && npm --workspace=client run build",
+    "build:server": "npm --workspace=server run build",
+    "start:server": "npm --workspace=server run start",
     "db:migrate": "npm --workspace=server run db:migrate",
     "db:seed": "npm --workspace=server run db:seed"
   },
