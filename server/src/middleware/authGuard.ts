@@ -5,15 +5,44 @@ import { prisma } from '../services/prisma.js';
 import { JWT_SECRET } from '../services/config.js';
 
 export async function authGuard(req: Request, res: Response, next: NextFunction) {
-  const token = req.cookies.token;
-  if (!token) return res.status(401).json({ message: 'Unauthorized' });
-  try {
-    const payload: any = jwt.verify(token, JWT_SECRET);
-    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
-    if (!user) return res.status(401).json({ message: 'Unauthorized' });
-    req.user = user;
-    next();
-  } catch (error) {
-    res.status(401).json({ message: 'Unauthorized' });
+  let user = null;
+
+  // Try cookie token first (server JWT from server login)
+  const cookieToken = req.cookies.token;
+  if (cookieToken) {
+    try {
+      const payload: any = jwt.verify(cookieToken, JWT_SECRET);
+      user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    } catch {
+      // Cookie token invalid or expired
+    }
   }
+
+  // If no valid cookie, check Authorization header for Supabase access token
+  if (!user) {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const accessToken = authHeader.substring(7);
+      try {
+        // Dynamic import Supabase client
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const supabaseKey = process.env.SUPABASE_ANON_KEY;
+        if (supabaseUrl && supabaseKey) {
+          const supabase = createClient(supabaseUrl, supabaseKey);
+          const { data: { user: supabaseUser } } = await supabase.auth.getUser(accessToken);
+          if (supabaseUser?.id) {
+            // Fetch user from our database to get the correct role
+            user = await prisma.user.findUnique({ where: { id: supabaseUser.id } });
+          }
+        }
+      } catch {
+        // Supabase verification failed
+      }
+    }
+  }
+
+  if (!user) return res.status(401).json({ message: 'Unauthorized' });
+  req.user = user;
+  next();
 }

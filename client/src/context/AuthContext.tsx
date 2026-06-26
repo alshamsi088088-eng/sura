@@ -77,11 +77,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { data } = await supabase.auth.getSession();
       const currentUser = data?.session?.user ?? null;
+      const accessToken = data?.session?.access_token ?? null;
 
       if (!isMounted) return;
 
-      if (currentUser) setUser(mapSupabaseUserToProfile(currentUser));
-      else setUser(null);
+      if (currentUser && accessToken) {
+        // Fetch user profile from server to get correct role from database
+        try {
+          const res = await fetch('/api/auth/me', {
+            credentials: 'include',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+          if (res.ok) {
+            const responseData = await res.json();
+            if (responseData?.user) {
+              const { role, ...rest } = responseData.user;
+              setUser({
+                ...rest,
+                role: role || 'member',
+              } as UserProfile);
+            } else {
+              setUser(mapSupabaseUserToProfile(currentUser));
+            }
+          } else {
+            setUser(mapSupabaseUserToProfile(currentUser));
+          }
+        } catch {
+          // Fallback to Supabase metadata if server call fails
+          setUser(mapSupabaseUserToProfile(currentUser));
+        }
+      } else {
+        setUser(null);
+      }
 
       setLoading(false);
     };
@@ -90,9 +119,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!supabase) return;
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const nextUser = session?.user ?? null;
-      setUser(nextUser ? mapSupabaseUserToProfile(nextUser) : null);
+      const accessToken = session?.access_token ?? null;
+      if (nextUser && accessToken) {
+        // Fetch user profile from server to get correct role from database
+        try {
+          const res = await fetch('/api/auth/me', {
+            credentials: 'include',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+          if (res.ok) {
+            const responseData = await res.json();
+            if (responseData?.user) {
+              const { role, ...rest } = responseData.user;
+              setUser({
+                ...rest,
+                role: role || 'member',
+              } as UserProfile);
+            } else {
+              setUser(mapSupabaseUserToProfile(nextUser));
+            }
+          } else {
+            setUser(mapSupabaseUserToProfile(nextUser));
+          }
+        } catch {
+          // Fallback to Supabase metadata if server call fails
+          setUser(mapSupabaseUserToProfile(nextUser));
+        }
+      } else {
+        setUser(null);
+      }
       setLoading(false);
     });
 
@@ -111,7 +170,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         'Supabase client is not initialized. Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.'
       );
     }
-    await supabase.auth.signInWithPassword({ email, password });
+    const { data: sessionData } = await supabase.auth.signInWithPassword({ email, password });
+    const accessToken = sessionData?.session?.access_token ?? null;
+
+    if (accessToken) {
+      // Fetch user profile from server to get the correct role from database
+      try {
+        const res = await fetch('/api/auth/me', {
+          credentials: 'include',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.user) {
+            const { role, ...rest } = data.user;
+            setUser({
+              ...rest,
+              role: role || 'member',
+            } as UserProfile);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch user profile from server:', err);
+      }
+    }
   };
 
   const logout: AuthState['logout'] = async () => {
