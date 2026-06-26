@@ -83,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (currentUser && accessToken) {
         // Fetch user profile from server to get correct role from database
+        let fetchedUser = null;
         try {
           const res = await fetch('/api/auth/me', {
             credentials: 'include',
@@ -93,19 +94,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (res.ok) {
             const responseData = await res.json();
             if (responseData?.user) {
-              const { role, ...rest } = responseData.user;
-              setUser({
-                ...rest,
-                role: role || 'member',
-              } as UserProfile);
-            } else {
-              setUser(mapSupabaseUserToProfile(currentUser));
+              fetchedUser = responseData.user;
             }
-          } else {
-            setUser(mapSupabaseUserToProfile(currentUser));
           }
         } catch {
           // Fallback to Supabase metadata if server call fails
+        }
+        if (fetchedUser) {
+          const { role, ...rest } = fetchedUser;
+          setUser({
+            ...rest,
+            role: role || 'member',
+          } as UserProfile);
+        } else {
           setUser(mapSupabaseUserToProfile(currentUser));
         }
       } else {
@@ -124,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const accessToken = session?.access_token ?? null;
       if (nextUser && accessToken) {
         // Fetch user profile from server to get correct role from database
+        let fetchedUser = null;
         try {
           const res = await fetch('/api/auth/me', {
             credentials: 'include',
@@ -134,19 +136,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (res.ok) {
             const responseData = await res.json();
             if (responseData?.user) {
-              const { role, ...rest } = responseData.user;
-              setUser({
-                ...rest,
-                role: role || 'member',
-              } as UserProfile);
-            } else {
-              setUser(mapSupabaseUserToProfile(nextUser));
+              fetchedUser = responseData.user;
             }
-          } else {
-            setUser(mapSupabaseUserToProfile(nextUser));
           }
         } catch {
           // Fallback to Supabase metadata if server call fails
+        }
+        if (fetchedUser) {
+          const { role, ...rest } = fetchedUser;
+          setUser({
+            ...rest,
+            role: role || 'member',
+          } as UserProfile);
+        } else {
           setUser(mapSupabaseUserToProfile(nextUser));
         }
       } else {
@@ -175,6 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (accessToken) {
       // Fetch user profile from server to get the correct role from database
+      let userFetched = false;
       try {
         const res = await fetch('/api/auth/me', {
           credentials: 'include',
@@ -190,10 +193,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               ...rest,
               role: role || 'member',
             } as UserProfile);
+            userFetched = true;
           }
         }
       } catch (err) {
         console.error('Failed to fetch user profile from server:', err);
+      }
+      // Fallback: derive user from Supabase session if server API didn't return user
+      if (!userFetched) {
+        const { data: { user: supabaseUser } } = await supabase.auth.getUser(accessToken);
+        if (supabaseUser) {
+          setUser(mapSupabaseUserToProfile(supabaseUser));
+        }
       }
     }
   };

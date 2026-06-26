@@ -15,7 +15,8 @@
       "Bash(npx tsc --noEmit -p server/tsconfig.json)",
       "Bash(npx tsc --noEmit -p client/tsconfig.json)",
       "Bash(npx prisma migrate dev --name community_threads --skip-seed)",
-      "Bash(npx prisma migrate dev --name add_community_likes_relation)"
+      "Bash(npx prisma migrate dev --name add_community_likes_relation)",
+      "Bash(npm install)"
     ]
   }
 }

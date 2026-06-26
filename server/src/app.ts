@@ -34,7 +34,7 @@ app.use(
       }
     },
     credentials: true,
-    allowedHeaders: ['Content-Type', 'X-CSRF-Token']
+    allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'Authorization']
   })
 );
 app.use(passport.initialize());
