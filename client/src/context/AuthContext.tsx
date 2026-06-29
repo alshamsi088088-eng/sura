@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
-import type { UserProfile } from '../types';
+import type { UserProfile, UserRole } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
 // قراءة رابط السيرفر من Vercel، أو استخدام مسار فارغ للعمل محلياً
@@ -37,11 +37,15 @@ function mapSupabaseUserToProfile(supabaseUser: any, dbRole?: string): UserProfi
   const roleFromMeta = (metadata?.role as any) ?? 'member';
   const validRoles: UserRole[] = ['guest', 'member', 'writer', 'editor', 'admin'];
 
-  let finalRole: UserProfile['role'] = 'member';
-  if (dbRole && validRoles.includes(dbRole)) {
-    finalRole = dbRole as UserProfile['role'];
-  } else if (validRoles.includes(roleFromMeta as string)) {
-    finalRole = roleFromMeta as UserProfile['role'];
+  function isValidRole(role: string): role is UserRole {
+    return validRoles.includes(role as UserRole);
+  }
+
+  let finalRole: UserRole = 'member';
+  if (dbRole && isValidRole(dbRole)) {
+    finalRole = dbRole;
+  } else if (isValidRole(roleFromMeta)) {
+    finalRole = roleFromMeta;
   }
 
   return {
