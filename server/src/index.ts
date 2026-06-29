@@ -37,7 +37,8 @@ const port = Number(process.env.PORT || 5000);
 server.listen(port, '0.0.0.0', async () => {
   console.log(`Server is running successfully on port ${port}`);
 
-  if (process.env.NODE_ENV !== 'development') {
+  try {
     await initializeSeed();
+  } catch (e) {
+    console.log('Seed skipped');
   }
-});
