@@ -10,8 +10,7 @@ function assertEnv(name: string, fallbackWhenDev?: string) {
 
 export const JWT_SECRET = assertEnv('JWT_SECRET', 'dev_jwt_secret');
 export const JWT_REFRESH_SECRET = assertEnv('JWT_REFRESH_SECRET', 'dev_jwt_refresh_secret');
-export const DATABASE_URL = assertEnv('DATABASE_URL');
-
+export const DATABASE_URL = assertEnv('SUPABASE_DB_URL');
 // Use HTTPS in production to avoid Mixed Content - ONLY www domain
 export const CLIENT_URL = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://www.sura-codex.com' : 'http://localhost:5173');
 export const SERVER_URL = process.env.SERVER_URL || (process.env.NODE_ENV === 'production' ? 'https://www.sura-codex.com' : 'http://localhost:5000');

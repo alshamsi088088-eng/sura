@@ -25,8 +25,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(false);
   const [unread, setUnread] = useState(0);
 
-  // Use HTTPS for production to avoid Mixed Content errors
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || 'https://sura-codex.com';
+  // Use Railway server URL in production to avoid 308 redirect from non-www domain
+  const socketUrl = import.meta.env.VITE_SOCKET_URL || 'https://sura-codex-server-production-64f7.up.railway.app';
   const socket = useMemo(() => io(socketUrl, { autoConnect: false, withCredentials: true }), [socketUrl]);
 
   useEffect(() => {
