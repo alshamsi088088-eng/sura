@@ -2,7 +2,7 @@
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import jwt from 'jsonwebtoken';
+import jwt, { TokenExpiredError, JsonWebTokenError } from 'jsonwebtoken';
 import passport from 'passport';
 import { prisma } from '../services/prisma.js';
 import { createTokenPair, sendAuthCookies } from '../services/tokenService.js';
@@ -72,8 +72,17 @@ export async function refreshToken(req: Request, res: Response) {
     const tokens = createTokenPair(user.id);
     sendAuthCookies(res, tokens);
     res.json({ user: sanitize(user) });
-  } catch (error) {
-    res.status(401).json({ message: 'Invalid refresh token' });
+  } catch (error: any) {
+    // Return proper error codes based on error type
+    if (error instanceof TokenExpiredError) {
+      res.status(401).json({ message: 'Refresh token expired' });
+    } else if (error instanceof JsonWebTokenError || error.name === 'JsonWebTokenError') {
+      res.status(400).json({ message: 'Invalid refresh token format' });
+    } else {
+      // Log the actual error for debugging
+      console.error('Refresh token error:', error.message);
+      res.status(401).json({ message: 'Invalid refresh token' });
+    }
   }
 }
 

@@ -3,8 +3,37 @@ import { Request, Response } from 'express';
 import { prisma } from '../services/prisma.js';
 
 export async function homeContent(_req: Request, res: Response) {
-  const featured = await prisma.article.findMany({ where: { featured: true }, take: 4, orderBy: { publishedAt: 'desc' } });
-  res.json({ featured: featured.map((item: any) => ({ title: item.title, description: item.excerpt })) });
+  let client = null;
+  try {
+    // Get client from Prisma's connection pool
+    client = prisma;
+    // Use a timeout wrapper for the query with explicit error handling
+    const featured = await Promise.race([
+      client.article.findMany({
+        where: { featured: true },
+        take: 4,
+        orderBy: { publishedAt: 'desc' },
+        // Explicitly select fields to avoid undefined field errors
+        select: {
+          title: true,
+          excerpt: true,
+          publishedAt: true
+        }
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Query timeout')), 10000)
+      )
+    ]);
+    res.json({ featured: featured.map((item: any) => ({ title: item.title, description: item.excerpt })) });
+  } catch (error: any) {
+    console.error('homeContent error:', error.message);
+    // Return 503 if it's a database connection issue
+    if (error.message?.includes('timeout') || error.message?.includes('prisma')) {
+      res.status(503).json({ message: 'Service temporarily unavailable', error: error.message });
+    } else {
+      res.status(500).json({ message: 'Failed to fetch home content', error: error.message });
+    }
+  }
 }
 
 export async function getArticles(_req: Request, res: Response) {

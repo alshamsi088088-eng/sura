@@ -30,6 +30,11 @@ app.set('trust proxy', 1);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+// CORS configuration for Railway HTTPS proxy - supports both www and non-www, and sameSite: none for cross-origin
+// Also handle Railway's proxy URLs automatically
+const RAILWAY_BACKEND_URL = process.env.RAILWAY_BACKEND_URL || '';
+const RAILWAY_PUBLIC_DOMAIN = process.env.RAILWAY_PUBLIC_DOMAIN || '';
+
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -43,6 +48,10 @@ app.use(
       // Check exact match or wildcard
       if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin) || normalizedOrigin === CLIENT_URL) {
         callback(null, true);
+      } else if (RAILWAY_BACKEND_URL && normalizedOrigin === RAILWAY_BACKEND_URL.replace(/\/$/, '')) {
+        callback(null, true);
+      } else if (RAILWAY_PUBLIC_DOMAIN && normalizedOrigin === RAILWAY_PUBLIC_DOMAIN.replace(/\/$/, '')) {
+        callback(null, true);
       } else {
         // Log for debugging but still allow
         console.log(`CORS: Allowing origin ${origin}`);
@@ -50,9 +59,13 @@ app.use(
       }
     },
     credentials: true,
-    allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'Authorization', 'Accept', 'Origin'],
+    allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    exposedHeaders: ['Content-Length', 'X-CSRF-Token']
+    exposedHeaders: ['Content-Length', 'X-CSRF-Token', 'X-Frame-Options'],
+    // Railway proxy compatible settings
+    maxAge: 86400,
+    preflightContinue: false,
+    optionsSuccessStatus: 204
   })
 );
 app.use(passport.initialize());
