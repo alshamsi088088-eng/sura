@@ -1,7 +1,9 @@
-
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import type { UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
+
+// قراءة رابط السيرفر من Vercel، أو استخدام مسار فارغ للعمل محلياً
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface AuthState {
   user: UserProfile | null;
@@ -32,17 +34,15 @@ function mapSupabaseUserToProfile(supabaseUser: any, dbRole?: string): UserProfi
     metadata?.display_name ??
     '';
 
-  // PRIORITY: Use role from database (from /api/auth/me response) if available
-  // Otherwise fall back to Supabase metadata
   const roleFromMeta = metadata?.role ?? 'member';
-  const validRoles: UserProfile['role'][] = ['guest', 'member', 'writer', 'admin'];
+  // تعريف كـ string[] لمنع تعارض TypeScript في Vercel
+  const validRoles: string[] = ['guest', 'member', 'writer', 'admin'];
 
-  // Database role takes precedence over metadata role
   let finalRole: UserProfile['role'] = 'member';
   if (dbRole && validRoles.includes(dbRole)) {
-    finalRole = dbRole;
+    finalRole = dbRole as UserProfile['role'];
   } else if (validRoles.includes(roleFromMeta)) {
-    finalRole = roleFromMeta;
+    finalRole = roleFromMeta as UserProfile['role'];
   }
 
   return {
@@ -50,7 +50,6 @@ function mapSupabaseUserToProfile(supabaseUser: any, dbRole?: string): UserProfi
     email: supabaseUser?.email ?? '',
     name: profileName ?? '',
     avatar: metadata?.avatar ?? undefined,
-
     role: finalRole,
     locale: 'en',
     theme: 'light',
@@ -73,7 +72,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let isMounted = true;
 
     const init = async () => {
-      // Avoid crashing the whole app when env vars are missing
       if (!supabase) {
         if (!isMounted) return;
         setUser(null);
@@ -90,10 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isMounted) return;
 
       if (currentUser && accessToken) {
-        // Fetch user profile from server to get correct role from database
         let fetchedUser = null;
         try {
-          const res = await fetch('/api/auth/me', {
+          // إضافة API_URL للتواصل مع Railway
+          const res = await fetch(`${API_URL}/api/auth/me`, {
             credentials: 'include',
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -112,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { role, ...rest } = fetchedUser;
           setUser({
             ...rest,
-            role: role || 'member',
+            role: (role as UserProfile['role']) || 'member',
           } as UserProfile);
         } else {
           setUser(mapSupabaseUserToProfile(currentUser));
@@ -132,10 +130,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nextUser = session?.user ?? null;
       const accessToken = session?.access_token ?? null;
       if (nextUser && accessToken) {
-        // Fetch user profile from server to get correct role from database
         let fetchedUser = null;
         try {
-          const res = await fetch('/api/auth/me', {
+          // إضافة API_URL للتواصل مع Railway
+          const res = await fetch(`${API_URL}/api/auth/me`, {
             credentials: 'include',
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -148,13 +146,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           }
         } catch {
-          // Fallback to Supabase metadata if server call fails
+          // Fallback
         }
         if (fetchedUser) {
           const { role, ...rest } = fetchedUser;
           setUser({
             ...rest,
-            role: role || 'member',
+            role: (role as UserProfile['role']) || 'member',
           } as UserProfile);
         } else {
           setUser(mapSupabaseUserToProfile(nextUser));
@@ -167,7 +165,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       isMounted = false;
-
       const maybeInner = (subscription as any)?.subscription;
       if (maybeInner?.unsubscribe) maybeInner.unsubscribe();
       else if ((subscription as any)?.unsubscribe) (subscription as any).unsubscribe();
@@ -184,10 +181,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const accessToken = sessionData?.session?.access_token ?? null;
 
     if (accessToken) {
-      // Fetch user profile from server to get the correct role from database
       let userFetched = false;
       try {
-        const res = await fetch('/api/auth/me', {
+        // إضافة API_URL للتواصل مع Railway
+        const res = await fetch(`${API_URL}/api/auth/me`, {
           credentials: 'include',
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -199,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const { role, ...rest } = data.user;
             setUser({
               ...rest,
-              role: role || 'member',
+              role: (role as UserProfile['role']) || 'member',
             } as UserProfile);
             userFetched = true;
           }
@@ -207,7 +204,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error('Failed to fetch user profile from server:', err);
       }
-      // Fallback: derive user from Supabase session if server API didn't return user
       if (!userFetched) {
         const { data: { user: supabaseUser } } = await supabase.auth.getUser(accessToken);
         if (supabaseUser) {
@@ -244,7 +240,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: {
           name,
         },
-        // ensure user returns to app after verification email / oauth flow
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
@@ -263,7 +258,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
     }
 
-    // Supabase OAuth usually redirects.
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
