@@ -42,3 +42,4 @@ server.listen(port, '0.0.0.0', async () => {
   } catch (e) {
     console.log('Seed skipped');
   }
+});
