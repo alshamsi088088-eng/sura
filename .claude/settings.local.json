@@ -19,7 +19,8 @@
       "Bash(npm install)",
       "Bash(git add src/context/AuthContext.tsx)",
       "Bash(git commit -m \"fix: TypeScript role validation in AuthContext\")",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(git add client/src/context/AuthContext.tsx)"
     ]
   }
 }
