@@ -34,14 +34,14 @@ function mapSupabaseUserToProfile(supabaseUser: any, dbRole?: string): UserProfi
     metadata?.display_name ??
     '';
 
-  const roleFromMeta = metadata?.role ?? 'member';
-  const validRoles: string[] = ['guest', 'member', 'writer', 'admin'];
+  const roleFromMeta = (metadata?.role as UserProfile['role']) ?? 'member';
+  const validRoles: UserProfile['role'][] = ['guest', 'member', 'writer', 'admin'];
 
   let finalRole: UserProfile['role'] = 'member';
-  if (dbRole && validRoles.includes(dbRole)) {
+  if (dbRole && validRoles.includes(dbRole as UserProfile['role'])) {
     finalRole = dbRole as UserProfile['role'];
   } else if (validRoles.includes(roleFromMeta)) {
-    finalRole = roleFromMeta as UserProfile['role'];
+    finalRole = roleFromMeta;
   }
 
   return {
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { role, ...rest } = fetchedUser;
           setUser({
             ...rest,
-            role: (role as any) || 'member',
+            role: (role as UserProfile['role']) || 'member',
           } as UserProfile);
         } else {
           setUser(mapSupabaseUserToProfile(currentUser));
@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { role, ...rest } = fetchedUser;
           setUser({
             ...rest,
-            role: (role as any) || 'member',
+            role: (role as UserProfile['role']) || 'member',
           } as UserProfile);
         } else {
           setUser(mapSupabaseUserToProfile(nextUser));
@@ -188,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const { role, ...rest } = data.user;
             setUser({
               ...rest,
-              role: (role as any) || 'member',
+              role: (role as UserProfile['role']) || 'member',
             } as UserProfile);
             userFetched = true;
           }
