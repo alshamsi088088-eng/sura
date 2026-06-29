@@ -16,7 +16,7 @@ export function registerSocketServer(server: http.Server) {
           return;
         }
         // Allow all origins in the list
-        if (allowedOrigins.includes(origin) {
+        if (allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
           // Still allow but log
