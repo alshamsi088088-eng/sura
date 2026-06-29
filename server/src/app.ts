@@ -20,6 +20,12 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { CLIENT_URL } from './services/config.js';
 
 export const app = express();
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy' });
+});
+// --------------------------
+
+app.set('trust proxy', 1);
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
