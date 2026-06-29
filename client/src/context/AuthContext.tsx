@@ -24,7 +24,7 @@ const AuthContext = createContext<AuthState>({
   googleLogin: async () => {},
 });
 
-function mapSupabaseUserToProfile(supabaseUser: any): UserProfile {
+function mapSupabaseUserToProfile(supabaseUser: any, dbRole?: string): UserProfile {
   const metadata = supabaseUser?.user_metadata ?? {};
   const profileName =
     metadata?.name ??
@@ -32,10 +32,18 @@ function mapSupabaseUserToProfile(supabaseUser: any): UserProfile {
     metadata?.display_name ??
     '';
 
-  // Extract role from metadata, defaulting to 'member'
+  // PRIORITY: Use role from database (from /api/auth/me response) if available
+  // Otherwise fall back to Supabase metadata
   const roleFromMeta = metadata?.role ?? 'member';
   const validRoles: UserProfile['role'][] = ['guest', 'member', 'writer', 'admin'];
-  const role: UserProfile['role'] = validRoles.includes(roleFromMeta) ? roleFromMeta : 'member';
+
+  // Database role takes precedence over metadata role
+  let finalRole: UserProfile['role'] = 'member';
+  if (dbRole && validRoles.includes(dbRole)) {
+    finalRole = dbRole;
+  } else if (validRoles.includes(roleFromMeta)) {
+    finalRole = roleFromMeta;
+  }
 
   return {
     id: supabaseUser?.id ?? '',
@@ -43,7 +51,7 @@ function mapSupabaseUserToProfile(supabaseUser: any): UserProfile {
     name: profileName ?? '',
     avatar: metadata?.avatar ?? undefined,
 
-    role,
+    role: finalRole,
     locale: 'en',
     theme: 'light',
   } as UserProfile;

@@ -23,7 +23,19 @@ import {
   getPollResults,
   saveQuote,
   getQuotes,
-  deleteQuote
+  deleteQuote,
+  toggleFollow,
+  getFollowStatus,
+  getFollowers,
+  getFollowing,
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  getNotificationSettings,
+  updateNotificationSettings,
+  toggleCommunityBookmark,
+  getCommunityBookmarkStatus,
+  getUserCommunityBookmarks
 } from '../controllers/engagementController.js';
 
 // JWT auth helper
@@ -67,3 +79,21 @@ engagementRoutes.get('/results', getPollResults);
 engagementRoutes.post('/quote', authenticate, saveQuote);
 engagementRoutes.get('/quotes', authenticate, getQuotes);
 engagementRoutes.delete('/quote', authenticate, deleteQuote);
+
+// Follow
+engagementRoutes.post('/follow', authenticate, toggleFollow);
+engagementRoutes.get('/follow', getFollowStatus);
+engagementRoutes.get('/followers', getFollowers);
+engagementRoutes.get('/following', authenticate, getFollowing);
+
+// Notifications
+engagementRoutes.get('/notifications', authenticate, getNotifications);
+engagementRoutes.post('/notification/read', authenticate, markNotificationRead);
+engagementRoutes.post('/notifications/read-all', authenticate, markAllNotificationsRead);
+engagementRoutes.get('/notification/settings', authenticate, getNotificationSettings);
+engagementRoutes.put('/notification/settings', authenticate, updateNotificationSettings);
+
+// Community Bookmarks
+engagementRoutes.post('/community-bookmark', authenticate, toggleCommunityBookmark);
+engagementRoutes.get('/community-bookmark', getCommunityBookmarkStatus);
+engagementRoutes.get('/community-bookmarks', authenticate, getUserCommunityBookmarks);

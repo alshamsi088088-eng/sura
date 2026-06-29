@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
-import { supabase } from '../lib/supabaseClient';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface Notification {
   id: string;
@@ -31,22 +32,19 @@ export function NotificationCenter({ isOpen, onClose, onUnreadChange }: Notifica
   const isArabic = locale === 'ar';
 
   const fetchNotifications = async () => {
-    if (!user || !supabase) return;
+    if (!user) return;
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('Notification')
-        .select('*')
-        .eq('userId', user.id)
-        .order('createdAt', { ascending: false })
-        .limit(20);
-
-      if (error) throw error;
-      setNotifications(data || []);
-
-      const unread = (data || []).filter((n: Notification) => !n.isRead).length;
-      onUnreadChange?.(unread);
+      const res = await fetch(`${API_URL}/api/engagement/notifications`, {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications || []);
+        const unread = (data.notifications || []).filter((n: Notification) => !n.isRead).length;
+        onUnreadChange?.(unread);
+      }
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
     } finally {
@@ -61,9 +59,11 @@ export function NotificationCenter({ isOpen, onClose, onUnreadChange }: Notifica
   }, [isOpen, user]);
 
   const markAsRead = async (id: string) => {
-    if (!supabase) return;
     try {
-      await supabase.from('Notification').update({ isRead: true }).eq('id', id);
+      await fetch(`${API_URL}/api/engagement/notifications/${id}/read`, {
+        method: 'POST',
+        credentials: 'include'
+      });
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
       );
@@ -75,13 +75,12 @@ export function NotificationCenter({ isOpen, onClose, onUnreadChange }: Notifica
   };
 
   const markAllAsRead = async () => {
-    if (!supabase || !user) return;
+    if (!user) return;
     try {
-      await supabase
-        .from('Notification')
-        .update({ isRead: true })
-        .eq('userId', user.id)
-        .eq('isRead', false);
+      await fetch(`${API_URL}/api/engagement/notifications/read-all`, {
+        method: 'POST',
+        credentials: 'include'
+      });
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       onUnreadChange?.(0);
     } catch (err) {
@@ -293,35 +292,37 @@ function NotificationSettingsForm({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     const fetchSettings = async () => {
-      if (!user || !supabase) return;
-      const { data } = await supabase
-        .from('NotificationSettings')
-        .select('*')
-        .eq('userId', user.id)
-        .single();
-      if (data) {
-        setSettings({
-          likes: data.likes,
-          comments: data.comments,
-          replies: data.replies,
-          reactions: data.reactions,
-          pollVotes: data.pollVotes,
-          newChapter: data.newChapter,
-          newArticle: data.newArticle
-        });
+      if (!user) return;
+      const res = await fetch(`${API_URL}/api/engagement/notifications/settings`, {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.settings) {
+          setSettings({
+            likes: data.settings.likes,
+            comments: data.settings.comments,
+            replies: data.settings.replies,
+            reactions: data.settings.reactions,
+            pollVotes: data.settings.pollVotes,
+            newChapter: data.settings.newChapter,
+            newArticle: data.settings.newArticle
+          });
+        }
       }
     };
     fetchSettings();
   }, [user]);
 
   const saveSettings = async () => {
-    if (!user || !supabase) return;
+    if (!user) return;
     setLoading(true);
     try {
-      await supabase.from('NotificationSettings').upsert({
-        userId: user.id,
-        ...settings,
-        updatedAt: new Date().toISOString()
+      await fetch(`${API_URL}/api/engagement/notifications/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(settings)
       });
       onClose();
     } catch (err) {

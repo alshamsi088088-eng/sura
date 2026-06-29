@@ -7,7 +7,12 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://sura-codex.com'
+      // Development only - in production, Vercel handles API routing via vercel.json
+      // Keep the full path including /api prefix
+      '/api': {
+        target: process.env.VITE_API_URL || 'http://localhost:5000',
+        changeOrigin: true
+      }
     }
   },
   build: {

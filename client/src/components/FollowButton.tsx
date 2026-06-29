@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
-import { supabase } from '../lib/supabaseClient';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface FollowButtonProps {
   targetUserId: string;
@@ -18,23 +19,16 @@ export function FollowButton({ targetUserId, size = 'md', showCount = true }: Fo
   const isArabic = locale === 'ar';
 
   const fetchStatus = useCallback(async () => {
-    if (!user || !supabase) return;
+    if (!user) return;
 
     try {
-      const { count } = await supabase
-        .from('Follow')
-        .select('*', { count: 'exact', head: true })
-        .eq('followingId', targetUserId);
-      setFollowerCount(count || 0);
-
-      if (user.id !== targetUserId) {
-        const { data } = await supabase
-          .from('Follow')
-          .select('id')
-          .eq('followerId', user.id)
-          .eq('followingId', targetUserId)
-          .single();
-        setFollowing(!!data);
+      const res = await fetch(`${API_URL}/api/engagement/follow?userId=${targetUserId}`, {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFollowing(data.following || false);
+        setFollowerCount(data.followerCount || 0);
       }
     } catch (err) {
       console.error('Failed to fetch follow status:', err);
@@ -46,17 +40,19 @@ export function FollowButton({ targetUserId, size = 'md', showCount = true }: Fo
   }, [fetchStatus]);
 
   const handleFollow = async () => {
-    if (!user || !supabase || user.id === targetUserId) return;
+    if (!user || user.id === targetUserId) return;
     setLoading(true);
     try {
-      if (following) {
-        await supabase.from('Follow').delete().eq('followerId', user.id).eq('followingId', targetUserId);
-        setFollowing(false);
-        setFollowerCount((c) => Math.max(0, c - 1));
-      } else {
-        await supabase.from('Follow').insert({ followerId: user.id, followingId: targetUserId });
-        setFollowing(true);
-        setFollowerCount((c) => c + 1);
+      const res = await fetch(`${API_URL}/api/engagement/follow`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ followingId: targetUserId })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFollowing(data.following || false);
+        setFollowerCount(data.followerCount || 0);
       }
     } catch (err) {
       console.error('Follow error:', err);

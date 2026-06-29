@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
-import { supabase } from '../lib/supabaseClient';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface BookmarkItem {
   id: string;
@@ -58,19 +59,16 @@ export function LibraryPage() {
 
   // Fetch bookmarks and saved content
   const fetchBookmarks = useCallback(async () => {
-    if (!user || !supabase) return;
+    if (!user) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from('Bookmark')
-        .select('*, article:Article(id, title, slug, excerpt, authorName), novel:Novel(id, title, slug, authorName), chapter:Chapter(id, title, number, novelId), book:Book(id, title, author, coverImage)')
-        .eq('userId', user.id)
-        .order('createdAt', { ascending: false });
-
-      if (fetchError) throw fetchError;
+      const res = await fetch(`${API_URL}/api/engagement/bookmarks`, {
+        credentials: 'include'
+      });
+      const data = await res.json();
 
       const grouped: BookmarksData = {
         articles: [],
@@ -79,44 +77,32 @@ export function LibraryPage() {
         books: []
       };
 
-      data?.forEach((bookmark) => {
-        if (bookmark.article) grouped.articles.push(bookmark.article);
-        else if (bookmark.novel) grouped.novels.push(bookmark.novel);
-        else if (bookmark.chapter) grouped.chapters.push(bookmark.chapter);
-        else if (bookmark.book) grouped.books.push(bookmark.book);
-      });
+      if (data?.bookmarks) {
+        data.bookmarks.forEach((bookmark: any) => {
+          if (bookmark.article) grouped.articles.push(bookmark.article);
+          else if (bookmark.novel) grouped.novels.push(bookmark.novel);
+          else if (bookmark.chapter) grouped.chapters.push(bookmark.chapter);
+          else if (bookmark.book) grouped.books.push(bookmark.book);
+        });
+      }
 
       setBookmarks(grouped);
 
       // Fetch saved discussions
-      const { data: communityBookmarks } = await supabase
-        .from('CommunityBookmark')
-        .select('id, threadId, thread:CommunityThread(id, title, category, createdAt, author:authorId)')
-        .eq('userId', user.id)
-        .order('createdAt', { ascending: false })
-        .limit(20);
+      const res2 = await fetch(`${API_URL}/api/engagement/community-bookmarks`, {
+        credentials: 'include'
+      });
+      const communityData = await res2.json();
 
-      if (communityBookmarks) {
+      if (communityData?.bookmarks) {
         setDiscussions(
-          communityBookmarks.map((cb: any) => ({
+          communityData.bookmarks.map((cb: any) => ({
             id: cb.thread?.id || cb.threadId,
             title: cb.thread?.title || '',
             category: cb.thread?.category || '',
             createdAt: cb.createdAt
           }))
         );
-      }
-
-      // Fetch reading history
-      const { data: history } = await supabase
-        .from('ReadingHistory')
-        .select('*')
-        .eq('userId', user.id)
-        .order('updatedAt', { ascending: false })
-        .limit(20);
-
-      if (history) {
-        setReadingHistory(history);
       }
     } catch (err) {
       console.error('Bookmarks fetch error:', err);
@@ -131,9 +117,13 @@ export function LibraryPage() {
   }, [fetchBookmarks]);
 
   const handleRemove = async (bookmarkId: string) => {
-    if (!supabase) return;
     try {
-      await supabase.from('Bookmark').delete().eq('id', bookmarkId);
+      await fetch(`${API_URL}/api/engagement/bookmark`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ bookmarkId })
+      });
       fetchBookmarks();
     } catch (err) {
       console.error('Remove bookmark error:', err);
@@ -141,9 +131,13 @@ export function LibraryPage() {
   };
 
   const handleRemoveDiscussion = async (threadId: string) => {
-    if (!supabase || !user) return;
     try {
-      await supabase.from('CommunityBookmark').delete().eq('threadId', threadId).eq('userId', user.id);
+      await fetch(`${API_URL}/api/engagement/community-bookmark`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ threadId })
+      });
       setDiscussions((prev) => prev.filter((d) => d.id !== threadId));
     } catch (err) {
       console.error('Remove discussion error:', err);

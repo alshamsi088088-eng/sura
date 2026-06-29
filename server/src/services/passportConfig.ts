@@ -8,13 +8,16 @@ export function initGoogleStrategy() {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
   if (!clientId || !clientSecret) return;
 
+  // Use HTTPS in production
+  const serverUrl = process.env.SERVER_URL || (process.env.NODE_ENV === 'production' ? 'https://sura-codex.com' : 'http://localhost:5000');
+
   passport.use(new GoogleStrategy({
     clientID: clientId,
     clientSecret,
-    callbackURL: `${process.env.SERVER_URL || 'http://sura-codex.com'}/api/auth/google/callback`
+    callbackURL: `${serverUrl}/api/auth/google/callback`
   }, async (_accessToken, _refreshToken, profile, done) => {
     const email = profile.emails?.[0]?.value;
-    if (!email) return done(new Error('No email')); 
+    if (!email) return done(new Error('No email'));
     const name = profile.displayName || 'Google Reader';
     let user = await prisma.user.findUnique({ where: { email } });
     if (!user) {

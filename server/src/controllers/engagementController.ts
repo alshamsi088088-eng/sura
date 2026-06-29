@@ -1016,3 +1016,362 @@ export async function deleteQuote(req: Request, res: Response) {
     res.status(500).json({ error: 'Failed to delete quote' });
   }
 }
+
+// ============================================
+// FOLLOW OPERATIONS
+// ============================================
+
+export async function toggleFollow(req: Request, res: Response) {
+  const user = req.user as { id?: string } | null;
+  const userId = user?.id;
+  const { followingId } = req.body as { followingId: string };
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!followingId) {
+    return res.status(400).json({ error: 'Missing followingId' });
+  }
+
+  if (userId === followingId) {
+    return res.status(400).json({ error: 'Cannot follow yourself' });
+  }
+
+  try {
+    const existing = await prisma.follow.findFirst({
+      where: { followerId: userId, followingId }
+    });
+
+    let following = false;
+
+    if (existing) {
+      await prisma.follow.delete({ where: { id: existing.id } });
+      following = false;
+    } else {
+      await prisma.follow.create({
+        data: { followerId: userId, followingId }
+      });
+      following = true;
+    }
+
+    const followerCount = await prisma.follow.count({
+      where: { followingId }
+    });
+
+    res.json({ following, followerCount });
+  } catch (error) {
+    console.error('Toggle follow error:', error);
+    res.status(500).json({ error: 'Failed to toggle follow' });
+  }
+}
+
+export async function getFollowStatus(req: Request, res: Response) {
+  const user = req.user as { id?: string } | null;
+  const userId = user?.id;
+  const { userId: targetUserId } = req.query as { userId: string };
+
+  if (!targetUserId) {
+    return res.status(400).json({ error: 'Missing userId' });
+  }
+
+  try {
+    const following = !!userId ? await prisma.follow.findFirst({
+      where: { followerId: userId, followingId: targetUserId }
+    }) : false;
+
+    const followerCount = await prisma.follow.count({
+      where: { followingId: targetUserId }
+    });
+
+    const followingCount = !!userId ? await prisma.follow.count({
+      where: { followerId: targetUserId }
+    }) : 0;
+
+    res.json({ following, followerCount, followingCount });
+  } catch (error) {
+    console.error('Get follow status error:', error);
+    res.status(500).json({ error: 'Failed to get follow status' });
+  }
+}
+
+export async function getFollowers(req: Request, res: Response) {
+  const { userId } = req.query as { userId: string };
+
+  if (!userId) {
+    return res.status(400).json({ error: 'Missing userId' });
+  }
+
+  try {
+    const followers = await prisma.follow.findMany({
+      where: { followingId: userId },
+      include: {
+        user: { select: { id: true, name: true, avatar: true } }
+      }
+    });
+
+    res.json({ followers: followers.map(f => f.user) });
+  } catch (error) {
+    console.error('Get followers error:', error);
+    res.status(500).json({ error: 'Failed to get followers' });
+  }
+}
+
+export async function getFollowing(req: Request, res: Response) {
+  const user = req.user as { id?: string } | null;
+  const userId = user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const following = await prisma.follow.findMany({
+      where: { followerId: userId },
+      include: {
+        following: { select: { id: true, name: true, avatar: true } }
+      }
+    });
+
+    res.json({ following: following.map(f => f.following) });
+  } catch (error) {
+    console.error('Get following error:', error);
+    res.status(500).json({ error: 'Failed to get following' });
+  }
+}
+
+// ============================================
+// NOTIFICATION OPERATIONS
+// ============================================
+
+export async function getNotifications(req: Request, res: Response) {
+  const user = req.user as { id?: string } | null;
+  const userId = user?.id;
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 20;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const [notifications, total, unreadCount] = await Promise.all([
+      prisma.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit
+      }),
+      prisma.notification.count({ where: { userId } }),
+      prisma.notification.count({
+        where: { userId, isRead: false }
+      })
+    ]);
+
+    res.json({
+      notifications,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      unreadCount
+    });
+  } catch (error) {
+    console.error('Get notifications error:', error);
+    res.status(500).json({ error: 'Failed to get notifications' });
+  }
+}
+
+export async function markNotificationRead(req: Request, res: Response) {
+  const user = req.user as { id?: string } | null;
+  const userId = user?.id;
+  const { id } = req.body as { id: string };
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!id) {
+    return res.status(400).json({ error: 'Missing id' });
+  }
+
+  try {
+    await prisma.notification.update({
+      where: { id, userId },
+      data: { isRead: true }
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Mark notification read error:', error);
+    res.status(500).json({ error: 'Failed to mark notification read' });
+  }
+}
+
+export async function markAllNotificationsRead(req: Request, res: Response) {
+  const user = req.user as { id?: string } | null;
+  const userId = user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    await prisma.notification.updateMany({
+      where: { userId, isRead: false },
+      data: { isRead: true }
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Mark all notifications read error:', error);
+    res.status(500).json({ error: 'Failed to mark all notifications read' });
+  }
+}
+
+export async function getNotificationSettings(req: Request, res: Response) {
+  const user = req.user as { id?: string } | null;
+  const userId = user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    let settings = await prisma.notificationSettings.findUnique({
+      where: { userId }
+    });
+
+    if (!settings) {
+      settings = await prisma.notificationSettings.create({
+        data: { userId }
+      });
+    }
+
+    res.json(settings);
+  } catch (error) {
+    console.error('Get notification settings error:', error);
+    res.status(500).json({ error: 'Failed to get notification settings' });
+  }
+}
+
+export async function updateNotificationSettings(req: Request, res: Response) {
+  const user = req.user as { id?: string } | null;
+  const userId = user?.id;
+  const updates = req.body as {
+    likes?: boolean;
+    comments?: boolean;
+    replies?: boolean;
+    reactions?: boolean;
+    pollVotes?: boolean;
+    newChapter?: boolean;
+  };
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const settings = await prisma.notificationSettings.upsert({
+      where: { userId },
+      update: updates,
+      create: { userId, ...updates }
+    });
+
+    res.json(settings);
+  } catch (error) {
+    console.error('Update notification settings error:', error);
+    res.status(500).json({ error: 'Failed to update notification settings' });
+  }
+}
+
+// ============================================
+// COMMUNITY BOOKMARK OPERATIONS
+// ============================================
+
+export async function toggleCommunityBookmark(req: Request, res: Response) {
+  const user = req.user as { id?: string } | null;
+  const userId = user?.id;
+  const { threadId } = req.body as { threadId: string };
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!threadId) {
+    return res.status(400).json({ error: 'Missing threadId' });
+  }
+
+  try {
+    const existing = await prisma.communityBookmark.findFirst({
+      where: { userId, threadId }
+    });
+
+    let bookmarked = false;
+
+    if (existing) {
+      await prisma.communityBookmark.delete({ where: { id: existing.id } });
+      bookmarked = false;
+    } else {
+      await prisma.communityBookmark.create({
+        data: { userId, threadId }
+      });
+      bookmarked = true;
+    }
+
+    const count = await prisma.communityBookmark.count({
+      where: { threadId }
+    });
+
+    res.json({ bookmarked, count });
+  } catch (error) {
+    console.error('Toggle community bookmark error:', error);
+    res.status(500).json({ error: 'Failed to toggle community bookmark' });
+  }
+}
+
+export async function getCommunityBookmarkStatus(req: Request, res: Response) {
+  const user = req.user as { id?: string } | null;
+  const userId = user?.id;
+  const { threadId } = req.query as { threadId: string };
+
+  if (!threadId) {
+    return res.status(400).json({ error: 'Missing threadId' });
+  }
+
+  try {
+    const bookmarked = !!userId ? await prisma.communityBookmark.findFirst({
+      where: { userId, threadId }
+    }) : false;
+
+    const count = await prisma.communityBookmark.count({
+      where: { threadId }
+    });
+
+    res.json({ bookmarked, count });
+  } catch (error) {
+    console.error('Get community bookmark status error:', error);
+    res.status(500).json({ error: 'Failed to get bookmark status' });
+  }
+}
+
+export async function getUserCommunityBookmarks(req: Request, res: Response) {
+  const user = req.user as { id?: string } | null;
+  const userId = user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const bookmarks = await prisma.communityBookmark.findMany({
+      where: { userId },
+      include: {
+        thread: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ bookmarks: bookmarks.map(b => b.thread) });
+  } catch (error) {
+    console.error('Get user community bookmarks error:', error);
+    res.status(500).json({ error: 'Failed to get community bookmarks' });
+  }
+}

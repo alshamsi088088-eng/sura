@@ -171,7 +171,8 @@ export function googleAuthCallback(req: Request, res: Response, next: NextFuncti
     }
     const tokens = createTokenPair(user.id);
     sendAuthCookies(res, tokens);
-    res.redirect(process.env.CLIENT_URL || 'http://localhost:5173');
+    const clientUrl = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://sura-codex.com' : 'http://localhost:5173');
+    res.redirect(clientUrl);
   })(req, res, next);
 }
 
@@ -196,7 +197,8 @@ export async function appleAuthCallback(req: Request, res: Response) {
   }
   const tokens = createTokenPair(user.id);
   sendAuthCookies(res, tokens);
-  res.redirect(process.env.CLIENT_URL || 'http://localhost:5173');
+  const clientUrl = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://sura-codex.com' : 'http://localhost:5173');
+  res.redirect(clientUrl);
 }
 
 export async function AuthCallback(req: Request, res: Response) {
@@ -252,7 +254,9 @@ export function appleAuthRedirect(req: Request, res: Response) {
   if (!clientId) {
     return res.status(501).json({ message: 'Apple Sign In is not configured' });
   }
-  const redirectUri = `${process.env.SERVER_URL || 'http://sura-codex.com'}/api/auth/apple/callback`;
+  // Use HTTPS in production
+  const serverUrl = process.env.SERVER_URL || (process.env.NODE_ENV === 'production' ? 'https://sura-codex.com' : 'http://localhost:5000');
+  const redirectUri = `${serverUrl}/api/auth/apple/callback`;
   const url = `https://appleid.apple.com/auth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=name%20email&response_mode=form_post`;
   res.redirect(url);
 }

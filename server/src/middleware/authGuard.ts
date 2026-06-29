@@ -32,8 +32,12 @@ export async function authGuard(req: Request, res: Response, next: NextFunction)
           const supabase = createClient(supabaseUrl, supabaseKey);
           const { data: { user: supabaseUser } } = await supabase.auth.getUser(accessToken);
           if (supabaseUser?.id) {
-            // Fetch user from our database to get the correct role
+            // Fetch user from database
+            // Try ID first (works for server-created users), fallback to email (for Supabase-created users)
             user = await prisma.user.findUnique({ where: { id: supabaseUser.id } });
+            if (!user && supabaseUser.email) {
+              user = await prisma.user.findUnique({ where: { email: supabaseUser.email } });
+            }
           }
         }
       } catch {
