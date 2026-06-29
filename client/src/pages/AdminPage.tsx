@@ -2,9 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useLocale } from '../context/LocaleContext';
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { collection, onSnapshot, orderBy, query, updateDoc, doc, where, limit } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface ModerationComment {
   id: string;
@@ -13,7 +12,7 @@ interface ModerationComment {
   author: string;
   message: string;
   status?: 'visible' | 'hidden';
-  createdAt?: { seconds?: number };
+  createdAt?: string;
 }
 
 interface OverviewData {
@@ -47,7 +46,7 @@ export function AdminPage() {
 
   useEffect(() => {
     setOverviewLoading(true);
-    axios.get('/api/admin/overview')
+    axios.get(`${API_URL}/api/admin/overview`)
       .then((res) => setOverview(res.data as OverviewData))
       .catch(() => setOverviewError(locale === 'ar' ? 'فشل تحميل البيانات' : 'Failed to load data'))
       .finally(() => setOverviewLoading(false));
@@ -56,66 +55,25 @@ export function AdminPage() {
   const [loadingComments, setLoadingComments] = useState(false);
   const [commentsError, setCommentsError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-
+  const fetchComments = async () => {
     setLoadingComments(true);
     setCommentsError(null);
-
-    const hiddenQuery = query(
-      collection(db, 'comments'),
-      where('status', '==', 'hidden'),
-      orderBy('createdAt', 'desc')
-    );
-
-    // Firestore does not provide a direct, universal way to query for missing fields.
-    // We approximate "missing status" by fetching the newest docs and filtering client-side.
-    const recentQuery = query(collection(db, 'comments'), orderBy('createdAt', 'desc'), limit(150));
-
-    let unsubHidden: (() => void) | undefined;
-    let unsubRecent: (() => void) | undefined;
     try {
-      unsubHidden = onSnapshot(hiddenQuery, (snapshot) => {
-        if (!isMounted) return;
-        const hidden = snapshot.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as Omit<ModerationComment, 'id'>)
-        }));
-        setComments((prev) => {
-          const map = new Map<string, ModerationComment>(prev.map((c) => [c.id, c]));
-          for (const c of hidden) map.set(c.id, c);
-          return Array.from(map.values()).slice(0, 25);
-        });
-      });
-
-
-      unsubRecent = onSnapshot(recentQuery, (snapshot) => {
-        if (!isMounted) return;
-        const maybeNoStatus = snapshot.docs
-          .map((d) => ({ id: d.id, ...(d.data() as Omit<ModerationComment, 'id'>) }))
-          .filter((c) => !c.status);
-
-        setComments((prev) => {
-          const map = new Map<string, ModerationComment>(prev.map((c) => [c.id, c]));
-          for (const c of maybeNoStatus) map.set(c.id, c);
-          return Array.from(map.values()).slice(0, 25);
-        });
-        setLoadingComments(false);
-      });
-
+      const res = await fetch(`${API_URL}/api/admin/comments?limit=150`);
+      if (res.ok) {
+        const data = await res.json();
+        setComments(data.comments || []);
+      }
     } catch (e) {
       setCommentsError(e instanceof Error ? e.message : 'Failed to load comments');
+    } finally {
       setLoadingComments(false);
     }
+  };
 
-    return () => {
-      isMounted = false;
-      if (unsubHidden) unsubHidden();
-      if (unsubRecent) unsubRecent();
-    };
-
+  useEffect(() => {
+    fetchComments();
   }, []);
-
 
   const visibleCount = useMemo(
     () => comments.filter((comment) => (comment.status || 'visible') === 'visible').length,
@@ -128,10 +86,16 @@ export function AdminPage() {
   );
 
   const moderate = async (commentId: string, status: 'visible' | 'hidden') => {
-    await updateDoc(doc(db, 'comments', commentId), {
-      status,
-      moderatedAt: new Date().toISOString()
-    });
+    try {
+      await fetch(`${API_URL}/api/admin/comments/${commentId}/moderate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      fetchComments();
+    } catch (err) {
+      console.error('Failed to moderate comment:', err);
+    }
   };
 
   return (
@@ -140,7 +104,7 @@ export function AdminPage() {
         <h1 className="text-4xl font-semibold">{locale === 'ar' ? 'لوحة الإدارة' : 'Admin Dashboard'}</h1>
         <p className="mt-3 text-sm leading-7 text-sura-navy/80">
           {locale === 'ar'
-            ? 'إحصائيات سريعة حول المستخدمين والمحتوى والإيرادات.'
+            ? 'إحصائيات سريعة حو�� المستخدمين والمحتوى والإيرادات.'
             : 'Quick insight into users, content, revenue, and reader activity.'}
         </p>
       </header>
@@ -240,7 +204,7 @@ export function AdminPage() {
                   <p className="mt-2 text-sm text-sura-navy/85">{comment.message}</p>
                   <div className="mt-2 text-xs text-sura-navy/60">
                     {effectiveStatus.toUpperCase()} •{' '}
-                    {new Date((comment.createdAt?.seconds || 0) * 1000).toLocaleString()}
+                    {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ''}
                   </div>
                 </article>
               );

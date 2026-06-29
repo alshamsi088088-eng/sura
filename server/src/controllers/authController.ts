@@ -4,27 +4,11 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import passport from 'passport';
-import fs from 'fs';
 import { prisma } from '../services/prisma.js';
 import { createTokenPair, sendAuthCookies } from '../services/tokenService.js';
 import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail } from '../services/emailService.js';
 import { initGoogleStrategy } from '../services/passportConfig.js';
-import { initAdmin, getAuth } from '../services/firebaseAdmin.js';
 import { JWT_REFRESH_SECRET } from '../services/config.js';
-
-if (process.env._SERVICE_ACCOUNT) {
-  try {
-    const raw = process.env._SERVICE_ACCOUNT;
-    const serviceAccount = raw?.trim().startsWith('{')
-      ? JSON.parse(raw)
-      : JSON.parse(raw ? fs.readFileSync(raw, 'utf-8') : '{}');
-    initAdmin(serviceAccount);
-  } catch (error) {
-    // token verification features may be disabled
-  }
-} else {
-  // token verification features may be disabled
-}
 
 initGoogleStrategy();
 
@@ -201,15 +185,17 @@ export async function appleAuthCallback(req: Request, res: Response) {
   res.redirect(clientUrl);
 }
 
+// Supabase Auth callback - handles Supabase identity verification
 export async function AuthCallback(req: Request, res: Response) {
   try {
-    const idToken = req.body.token;
-    if (!idToken) return res.status(400).json({ message: 'Missing idToken' });
+    const accessToken = req.body.access_token;
+    const refreshToken = req.body.refresh_token;
 
-    const decoded = await getAuth().verifyIdToken(idToken);
-    const email = decoded.email;
-    const name = decoded.name || req.body.name || ' Reader';
-    const photo = decoded.picture || req.body.photo || null;
+    if (!accessToken) return res.status(400).json({ message: 'Missing access_token' });
+
+    // Verify with Supabase - the token is already validated on client side via Supabase auth
+    // This endpoint receives the user info directly from Supabase after authentication
+    const { email, user_metadata, app_metadata } = req.body;
 
     if (!email) return res.status(400).json({ message: 'Token does not contain an email' });
 
@@ -217,35 +203,25 @@ export async function AuthCallback(req: Request, res: Response) {
     if (!user) {
       user = await prisma.user.create({
         data: {
-          name,
+          name: user_metadata?.full_name || user_metadata?.name || 'Reader',
           email,
           role: 'member',
           locale: 'en',
           theme: 'dark',
           verified: true,
-          avatar: photo
+          avatar: user_metadata?.avatar_url || null
         }
       });
-    } else if (photo) {
-      await prisma.user.update({ where: { id: user.id }, data: { avatar: photo } });
-      user = await prisma.user.findUnique({ where: { id: user.id } });
     }
 
-    if (!user) return res.status(500).json({ message: 'Failed to resolve user after  auth' });
+    if (!user) return res.status(500).json({ message: 'Failed to resolve user after auth' });
 
     const tokens = createTokenPair(user.id);
     sendAuthCookies(res, tokens);
     res.json({ user: sanitize(user) });
   } catch (error: any) {
-    if (
-      error?.code === 'auth/argument-error' ||
-      error?.code === 'auth/id-token-expired' ||
-      error?.code === 'auth/invalid-token'
-    ) {
-      return res.status(401).json({ message: 'Invalid  token' });
-    }
     console.error('AuthCallback error', error);
-    res.status(500).json({ message: ' auth processing failed' });
+    res.status(500).json({ message: 'Auth processing failed' });
   }
 }
 

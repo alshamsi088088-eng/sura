@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { auth, db } from '../firebaseConfig';
-import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '../context/AuthContext';
 import { trackReadingProgress } from '../lib/analytics';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
+const LOCALSTORAGE_KEY = 'sura_reading_progress';
+const WEEKLY_READING_KEY = 'sura_weekly_reading';
 
 interface ReadingProgressTrackerProps {
   entityId: string;
@@ -10,9 +13,6 @@ interface ReadingProgressTrackerProps {
   currentStep: number;
   totalSteps: number;
 }
-
-const LOCALSTORAGE_KEY = 'sura_reading_progress';
-const WEEKLY_READING_KEY = 'sura_weekly_reading';
 
 function loadFromLocalStorage(entityId: string): number {
   try {
@@ -53,7 +53,7 @@ function updateWeeklyReading(completeCount: number, entityType: string) {
   }
 }
 
-function getWeeklyReading(): { articles: number; chapters: number; date: string } {
+export function getWeeklyReading(): { articles: number; chapters: number; date: string } {
   try {
     const key = `${WEEKLY_READING_KEY}_${new Date().toISOString().slice(0, 7)}`;
     const data = localStorage.getItem(key);
@@ -64,31 +64,38 @@ function getWeeklyReading(): { articles: number; chapters: number; date: string 
 }
 
 export function ReadingProgressTracker({ entityId, entityType, contentId, currentStep, totalSteps }: ReadingProgressTrackerProps) {
+  const { user } = useAuth();
   const [progress, setProgress] = useState(0);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasCompletedRef = useRef(false);
 
-  // Load initial progress from localStorage or Firestore
+  // Load initial progress from localStorage or API
   useEffect(() => {
-    // First load from localStorage
     const savedProgress = loadFromLocalStorage(entityId);
     if (savedProgress > 0) {
       setProgress(savedProgress);
     }
 
-    // Also try to load from Firestore if logged in
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
-    const progressRef = doc(db, 'readingProgress', `${currentUser.uid}_${entityId}`);
-    const unsubscribe = onSnapshot(progressRef, (snapshot) => {
-      const value = snapshot.exists() ? (snapshot.data() as any).progress : 0;
-      if (value > 0) {
-        setProgress(value);
-        saveToLocalStorage(entityId, value, entityType);
+    // Also try to load from API if logged in
+    if (!user) return;
+
+    const fetchProgress = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/progress/${entityId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.progress > 0) {
+            setProgress(data.progress);
+            saveToLocalStorage(entityId, data.progress, entityType);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch reading progress:', err);
       }
-    });
-    return () => unsubscribe();
-  }, [entityId, entityType]);
+    };
+
+    fetchProgress();
+  }, [entityId, entityType, user]);
 
   // Save progress when it changes
   useEffect(() => {
@@ -96,7 +103,6 @@ export function ReadingProgressTracker({ entityId, entityType, contentId, curren
     const percentage = Math.min(100, Math.round((currentStep / totalSteps) * 100));
     setProgress(percentage);
 
-    // Mark as completed only once
     if (percentage >= 100 && !hasCompletedRef.current) {
       hasCompletedRef.current = true;
       updateWeeklyReading(1, entityType);
@@ -104,36 +110,31 @@ export function ReadingProgressTracker({ entityId, entityType, contentId, curren
 
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
     saveTimeout.current = setTimeout(async () => {
-      // Always save to localStorage first (offline support)
       saveToLocalStorage(entityId, percentage, entityType);
+      trackReadingProgress(entityId, entityType, percentage);
 
-      // Try to save to Firestore if logged in
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        trackReadingProgress(entityId, entityType, percentage);
-        return;
-      }
+      // Try to save to API if logged in
+      if (!user) return;
       try {
-        const ref = doc(db, 'readingProgress', `${currentUser.uid}_${entityId}`);
-        await setDoc(ref, {
-          uid: currentUser.uid,
-          entityId,
-          entityType,
-          currentStep,
-          totalSteps,
-          progress: percentage,
-          updatedAt: serverTimestamp()
+        await fetch(`${API_URL}/api/progress/${entityId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            entityType,
+            currentStep,
+            totalSteps,
+            progress: percentage
+          })
         });
-        trackReadingProgress(entityId, entityType, percentage);
       } catch (error) {
-        console.error('Failed to save reading progress to Firestore', error);
-        // Already saved to localStorage, so not a critical error
+        console.error('Failed to save reading progress to API', error);
       }
     }, 400);
+
     return () => {
       if (saveTimeout.current) clearTimeout(saveTimeout.current);
     };
-  }, [currentStep, entityId, entityType, totalSteps, entityType]);
+  }, [currentStep, entityId, entityType, totalSteps, user]);
 
   // Track scroll-based progress
   useEffect(() => {

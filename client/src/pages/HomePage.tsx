@@ -3,16 +3,15 @@ import { useLocale } from '../context/LocaleContext';
 import { useAuth } from '../context/AuthContext';
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { auth, db } from '../firebaseConfig';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { WeeklyTargetBanner } from '../components/WeeklyTargetBanner';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useSeoTags } from '../hooks/useSeoTags';
+import { getWeeklyReading } from '../components/ReadingProgressTracker';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface FeatureCard { title: string; description: string; }
-interface ReadingProgressItem { uid: string; progress: number; }
 interface TrendingItem { id: string; title: string; type: string; views: number; slug?: string; }
 
 export function HomePage() {
@@ -47,7 +46,7 @@ export function HomePage() {
 
     setFeaturedLoading(true);
     axios
-      .get('/api/content/home')
+      .get(`${API_URL}/api/content/home`)
       .then((res) => {
         const next = Array.isArray(res.data?.featured) ? res.data.featured : [];
         if (mounted) setFeatured(next);
@@ -65,8 +64,8 @@ export function HomePage() {
   useEffect(() => {
     if (!supabase) return;
     const loadTrending = async () => {
-      const { data: articles } = await supabase!.from('Article').select('id, title, views, slug').order('createdAt', { ascending: false }).limit(5);
-      const { data: novels } = await supabase!.from('Novel').select('id, title, views').order('createdAt', { ascending: false }).limit(5);
+      const { data: articles } = await supabase.from('Article').select('id, title, views, slug').order('createdAt', { ascending: false }).limit(5);
+      const { data: novels } = await supabase.from('Novel').select('id, title, views').order('createdAt', { ascending: false }).limit(5);
       const articleItems: TrendingItem[] = (articles || []).map(a => ({ id: a.id, title: a.title, type: 'article', views: a.views || 0, slug: a.slug }));
       const novelItems: TrendingItem[] = (novels || []).map(n => ({ id: n.id, title: n.title, type: 'novel', views: n.views || 0 }));
       const allItems: TrendingItem[] = [...articleItems, ...novelItems].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 6);
@@ -76,16 +75,28 @@ export function HomePage() {
   }, []);
 
   useEffect(() => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
-    const q = query(collection(db, 'readingProgress'), where('uid', '==', currentUser.uid));
-    const unsub = onSnapshot(q, (snap) => {
-      const items = snap.docs.map((d) => d.data() as ReadingProgressItem);
-      if (!items.length) { setWeeklyProgressCount(0); setWeeklyAverage(0); return; }
-      setWeeklyProgressCount(items.filter((i) => Number(i.progress || 0) >= 70).length);
-      setWeeklyAverage(Math.round(items.reduce((s, i) => s + Number(i.progress || 0), 0) / items.length));
-    });
-    return () => unsub();
+    if (!user) {
+      // Load from localStorage when not logged in
+      const weeklyData = getWeeklyReading();
+      setWeeklyProgressCount(weeklyData.articles + weeklyData.chapters);
+      return;
+    }
+
+    // Fetch from API when logged in
+    const fetchProgress = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/weekly-progress`);
+        if (res.ok) {
+          const data = await res.json();
+          setWeeklyProgressCount(data.completed || 0);
+          setWeeklyAverage(data.average || 0);
+        }
+      } catch (err) {
+        console.error('Failed to fetch weekly progress:', err);
+      }
+    };
+
+    fetchProgress();
   }, [user?.id]);
 
   const encouragement = useMemo(() => {

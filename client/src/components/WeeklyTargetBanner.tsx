@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { auth, db } from '../firebaseConfig';
-import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
 const WEEKLY_TARGET_KEY = 'sura_weekly_target';
 const WEEKLY_READING_KEY = 'sura_weekly_reading';
 
@@ -47,35 +46,39 @@ export function WeeklyTargetBanner() {
   const [weeklyData, setWeeklyData] = useState<WeeklyData>({ articles: 0, chapters: 0, date: '' });
   const [loading, setLoading] = useState(false);
 
-  // Load data from both localStorage and Firestore
   useEffect(() => {
-    // Load from localStorage first (offline support)
     const savedTarget = loadTargetFromLocalStorage();
     setTarget(savedTarget);
 
     const savedWeekly = loadWeeklyReadingFromLocalStorage();
     setWeeklyData(savedWeekly);
 
-    // Also try to sync from Firestore if logged in
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
+    if (!user) return;
 
-    const targetRef = doc(db, 'weeklyTargets', currentUser.uid);
-    const unsubscribe = onSnapshot(targetRef, (snapshot) => {
-      const data = snapshot.exists() ? (snapshot.data() as any) : null;
-      if (data?.target) {
-        setTarget(data.target);
-        saveTargetToLocalStorage(data.target);
+    // Sync from API if logged in
+    const fetchTarget = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/weekly-target`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.target) {
+            setTarget(data.target);
+            saveTargetToLocalStorage(data.target);
+          }
+          if (typeof data.articles === 'number' || typeof data.chapters === 'number') {
+            setWeeklyData({
+              articles: data.articles || 0,
+              chapters: data.chapters || 0,
+              date: data.date || new Date().toISOString()
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch weekly target:', err);
       }
-      if (typeof data?.articles === 'number' || typeof data?.chapters === 'number') {
-        setWeeklyData({
-          articles: data.articles || 0,
-          chapters: data.chapters || 0,
-          date: data.date || new Date().toISOString()
-        });
-      }
-    });
-    return () => unsubscribe();
+    };
+
+    fetchTarget();
   }, [user?.id]);
 
   const progress = weeklyData.articles + weeklyData.chapters;
@@ -87,15 +90,16 @@ export function WeeklyTargetBanner() {
     setTarget(value);
     saveTargetToLocalStorage(value);
 
-    const currentUser = auth.currentUser;
-    if (currentUser) {
+    if (user) {
       try {
-        await setDoc(doc(db, 'weeklyTargets', currentUser.uid), {
-          uid: currentUser.uid,
-          target: value,
-          articles: weeklyData.articles,
-          chapters: weeklyData.chapters,
-          updatedAt: serverTimestamp()
+        await fetch(`${API_URL}/api/weekly-target`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            target: value,
+            articles: weeklyData.articles,
+            chapters: weeklyData.chapters
+          })
         });
       } catch (error) {
         console.error('Failed to update weekly target', error);

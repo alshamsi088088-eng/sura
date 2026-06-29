@@ -1,6 +1,3 @@
-import { analytics } from '../firebaseConfig';
-import { logEvent } from 'firebase/analytics';
-
 declare global {
   interface Window {
     gtag?: (...args: unknown[]) => void;
@@ -13,9 +10,6 @@ export function trackEvent(eventName: string, params: AnalyticsParams = {}) {
   try {
     if (typeof window !== 'undefined' && window.gtag) {
       window.gtag('event', eventName, params);
-    }
-    if (analytics) {
-      logEvent(analytics, eventName, params);
     }
   } catch (error) {
     console.warn(`Analytics event "${eventName}" failed`, error);
@@ -30,7 +24,7 @@ export function trackPageView(pagePath: string) {
   });
 }
 
-export function trackLogin(userId: string, role: string, method = 'Firebase') {
+export function trackLogin(userId: string, role: string, method = 'Supabase') {
   trackEvent('login', {
     method,
     user_id: userId,

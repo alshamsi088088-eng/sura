@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { doc, onSnapshot, setDoc, increment, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface LikeShareBarProps {
   entityId: string;
@@ -29,16 +29,26 @@ export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps)
 
   const docId = `${entityType}_${entityId}`;
 
-  useEffect(() => {
-    const docRef = doc(db, 'engagement', docId);
-    const unsubscribe = onSnapshot(docRef, (snapshot) => {
-      const d = snapshot.data() as EngagementData | undefined;
-      setData(d || { likes: 0, shares: 0, bookmarks: [], ratings: {}, emojis: {} });
-      if (user) {
-        setUserRating(d?.ratings?.[user.id] || 0);
+  const fetchEngagement = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/engagement/${docId}`);
+      if (res.ok) {
+        const d = await res.json();
+        setData(d || { likes: 0, shares: 0, bookmarks: [], ratings: {}, emojis: {} });
+        if (user) {
+          setUserRating(d?.ratings?.[user.id] || 0);
+        }
       }
-    });
-    return () => unsubscribe();
+    } catch (err) {
+      console.error('Failed to fetch engagement:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchEngagement();
+    // Poll every 10 seconds for real-time updates (alternative to Firestore listeners)
+    const interval = setInterval(fetchEngagement, 10000);
+    return () => clearInterval(interval);
   }, [docId, user]);
 
   const isBookmarked = user && data.bookmarks?.includes(user.id);
@@ -50,40 +60,79 @@ export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps)
   }, [data.ratings]);
 
   const handleLike = async () => {
-    const docRef = doc(db, 'engagement', docId);
-    await setDoc(docRef, { likes: increment(1) }, { merge: true });
+    try {
+      await fetch(`${API_URL}/api/engagement/${docId}/like`, { method: 'POST' });
+      setData(prev => ({ ...prev, likes: prev.likes + 1 }));
+    } catch (err) {
+      console.error('Failed to like:', err);
+    }
   };
 
   const handleShare = async () => {
-    const docRef = doc(db, 'engagement', docId);
-    await setDoc(docRef, { shares: increment(1) }, { merge: true });
-    // Copy to clipboard
-    const url = window.location.href;
-    await navigator.clipboard.writeText(url);
-    alert(locale === 'ar' ? 'تم نسخ الرابط!' : 'Link copied!');
+    try {
+      await fetch(`${API_URL}/api/engagement/${docId}/share`, { method: 'POST' });
+      setData(prev => ({ ...prev, shares: prev.shares + 1 }));
+      // Copy to clipboard
+      const url = window.location.href;
+      await navigator.clipboard.writeText(url);
+      alert(locale === 'ar' ? 'تم نسخ الرابط!' : 'Link copied!');
+    } catch (err) {
+      console.error('Failed to share:', err);
+    }
   };
 
   const handleBookmark = async () => {
     if (!user) return;
-    const docRef = doc(db, 'engagement', docId);
-    if (isBookmarked) {
-      await updateDoc(docRef, { bookmarks: arrayRemove(user.id) });
-    } else {
-      await updateDoc(docRef, { bookmarks: arrayUnion(user.id) });
+    try {
+      const action = isBookmarked ? 'remove' : 'add';
+      await fetch(`${API_URL}/api/engagement/${docId}/bookmark`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      });
+      setData(prev => ({
+        ...prev,
+        bookmarks: isBookmarked
+          ? prev.bookmarks.filter(id => id !== user.id)
+          : [...prev.bookmarks, user.id]
+      }));
+    } catch (err) {
+      console.error('Failed to bookmark:', err);
     }
   };
 
   const handleEmoji = async (emoji: string) => {
-    const docRef = doc(db, 'engagement', docId);
-    const current = data.emojis?.[emoji] || 0;
-    await setDoc(docRef, { emojis: { ...data.emojis, [emoji]: current + 1 } }, { merge: true });
+    try {
+      await fetch(`${API_URL}/api/engagement/${docId}/emoji`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji })
+      });
+      setData(prev => ({
+        ...prev,
+        emojis: { ...prev.emojis, [emoji]: (prev.emojis?.[emoji] || 0) + 1 }
+      }));
+    } catch (err) {
+      console.error('Failed to react:', err);
+    }
   };
 
   const handleRating = async (rating: number) => {
     if (!user) return;
     setUserRating(rating);
-    const docRef = doc(db, 'engagement', docId);
-    await setDoc(docRef, { ratings: { ...data.ratings, [user.id]: rating } }, { merge: true });
+    try {
+      await fetch(`${API_URL}/api/engagement/${docId}/rate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating })
+      });
+      setData(prev => ({
+        ...prev,
+        ratings: { ...prev.ratings, [user.id]: rating }
+      }));
+    } catch (err) {
+      console.error('Failed to rate:', err);
+    }
   };
 
   const shareToSocial = (platform: string) => {

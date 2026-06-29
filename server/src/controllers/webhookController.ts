@@ -2,7 +2,6 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { prisma } from '../services/prisma.js';
-import { initAdmin } from '../services/firebaseAdmin.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2022-11-15' });
 
@@ -75,24 +74,25 @@ export async function stripeWebhook(req: Request, res: Response) {
       });
     }
 
+    // Write purchase history to Supabase database (instead of Firestore)
     try {
-      const adminAny = initAdmin() as any;
-      const firestore = adminAny.firestore();
-      await firestore.collection('purchaseHistory').add({
-        stripeSessionId,
-        userId,
-        email,
-        subtotal,
-        total,
-        discountCode,
-        discountAmount,
-        currency,
-        status: 'paid',
-        items,
-        createdAt: new Date().toISOString()
+      await prisma.purchaseHistory.create({
+        data: {
+          stripeSessionId,
+          userId: userId || undefined,
+          email,
+          subtotal,
+          total,
+          discountCode,
+          discountAmount,
+          currency,
+          status: 'paid',
+          items: JSON.stringify(items),
+          createdAt: new Date()
+        }
       });
     } catch (Error) {
-      console.warn('Failed to write purchase history to ', Error);
+      console.warn('Failed to write purchase history to database', Error);
     }
   }
 
