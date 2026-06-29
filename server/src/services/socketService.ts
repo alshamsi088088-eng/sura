@@ -1,73 +1,95 @@
 import { Server } from 'socket.io';
 import type http from 'http';
+import { ALLOWED_ORIGINS_STR } from './config.js';
 
+/**
+ * ✅ Socket.IO Service - Production Fixed
+ *
+ * Key fixes:
+ * 1. Uses ALLOWED_ORIGINS from config.ts (consistent with Express)
+ * 2. WebSocket-first (not polling) - fixes 308 redirect on Railway
+ * 3. Function-based CORS (not array) - consistent with Express
+ * 4. No duplicate domain (www only)
+ */
 export function registerSocketServer(server: http.Server) {
-  // Include Railway proxy URLs and both www/non-www domain
-  const allowedOrigins = [
-    'https://www.sura-codex.com',
-    'https://sura-codex.com',
-    'http://localhost:5173',
-    'http://localhost:3000'
-  ];
-
-  // Add Railway URLs if present
-  const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN || '';
-  if (railwayUrl) {
-    allowedOrigins.push(railwayUrl);
-    // Also add without trailing slash
-    allowedOrigins.push(railwayUrl.replace(/\/$/, ''));
-  }
-  const railwayBackendUrl = process.env.RAILWAY_BACKEND_URL || '';
-  if (railwayBackendUrl) {
-    allowedOrigins.push(railwayBackendUrl);
-    allowedOrigins.push(railwayBackendUrl.replace(/\/$/, ''));
-  }
+  const isProduction = process.env.NODE_ENV === 'production';
 
   const io = new Server(server, {
+    /**
+     * ✅ CORS -function based (consistent with Express)
+     * Allows proper callback-based validation
+     */
     cors: {
       origin: (origin, callback) => {
+        // Allow no origin (direct server connections)
         if (!origin) {
           callback(null, true);
           return;
         }
+
+        // ✅ Normalize - remove trailing slash
         const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-        // Allow all origins in the list
-        if (allowedOrigins.includes(normalizedOrigin)) {
+
+        // ✅ Production: strict www only
+        if (isProduction) {
+          if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
+            callback(null, true);
+          } else {
+            console.log(`Socket CORS REJECTED: ${normalizedOrigin}`);
+            callback(new Error('Not allowed'), false);
+          }
+          return;
+        }
+
+        // ✅ Development: allow configured origins
+        if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
           callback(null, true);
         } else {
-          // Still allow but log
-          console.log(`Socket CORS: Allowing origin ${origin}`);
+          // Dev mode: allow but log
+          console.log(`Socket CORS: Dev allowing ${origin}`);
           callback(null, true);
         }
       },
       methods: ['GET', 'POST'],
-      credentials: true,
-      // Railway-compatible: enable both transports but prioritize WebSocket
-      // Allow fallback to polling for browsers that don't support WebSocket
+      credentials: true
     },
-    // Force proper WebSocket handling to avoid Railway proxy redirect issues
-    // WebSocket-first with polling fallback (not disabled to maintain compatibility)
-    transports: ['polling', 'websocket'],
-    // Disable automatic upgrade to prevent Railway redirect loops
-    // Set to false to prevent HTTP to WebSocket upgrade confusion
-    allowUpgrades: true,
-    // Timeouts compatible with Railway's 30s idle timeout
+
+    /**
+     * ✅ WebSocket-first - fixes 308 redirect on Railway
+     *
+     * Why polling-first causes 308:
+     * - Railway proxy sees HTTP polling as regular HTTP
+     * - Gets redirected to www (non-www redirect)
+     * - Socket.IO follows redirect -> 308 error
+     *
+     * Solution: WebSocket upgrades directly, bypasses redirect
+     */
+    transports: ['websocket'],
+
+    /**
+     * ✅ Minimal configuration for Railway
+     */
     pingTimeout: 20000,
-    pingInterval: 20000,
-    // Prevent redirect issues by using shorter timeouts
-    // and ensuring proper transport handling
-    initialPackets: true,
-    // Help with Railway proxy handling
+    pingInterval: 25000,
     perMessageDeflate: false,
-    httpCompression: true
+    httpCompression: true,
+
+    /**
+     * ✅ Allow upgrades but limit to WebSocket only
+     */
+    allowUpgrades: true,
+    initialPackets: false
   });
 
   io.on('connection', (socket) => {
     socket.on('send_message', (message) => {
       socket.broadcast.emit('receive_message', { ...message, fromAdmin: false });
     });
-    socket.on('disconnect', () => {});
+
+    socket.on('disconnect', () => {
+      // Cleanup if needed
+    });
   });
 
-  console.log('Socket.io server registered with CORS');
+  console.log('Socket.io server registered (production-ready)');
 }

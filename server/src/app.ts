@@ -17,7 +17,7 @@ import { engagementRoutes } from './routes/engagementRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import { communityRoutes } from './routes/communityRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import { CLIENT_URL, ALLOWED_ORIGINS_STR } from './services/config.js';
+import { ALLOWED_ORIGINS_STR } from './services/config.js';
 
 export const app = express();
 app.get('/health', (req, res) => {
@@ -26,35 +26,50 @@ app.get('/health', (req, res) => {
 // --------------------------
 
 app.set('trust proxy', 1);
-app.set('trust proxy', 1);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-// CORS configuration for Railway HTTPS proxy - supports both www and non-www, and sameSite: none for cross-origin
-// Also handle Railway's proxy URLs automatically
-const RAILWAY_BACKEND_URL = process.env.RAILWAY_BACKEND_URL || '';
-const RAILWAY_PUBLIC_DOMAIN = process.env.RAILWAY_PUBLIC_DOMAIN || '';
+
+/**
+ * ✅ CORS Production-Fix: السماح فقط بـ www domain
+ * إصلاح مشكلة 308 redirect ومنع ازدواجية origins
+ *
+ *_rules:_
+ * - ✅_allowed Origins: www.sura-codex.com و localhost فقط
+ * - ✅_non-www domain = لا يُسمح (يسبب 308 redirect)
+ * - ✅_credentials = مفعل
+ * - ✅_preflight = مُعالج بشكل صحيح
+ */
+const isProduction = process.env.NODE_ENV === 'production';
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow no origin (e.g., mobile apps, curl)
+      // Allow no origin (server-to-server, curl, Postman)
       if (!origin) {
         callback(null, true);
         return;
       }
-      // Normalize origin by removing trailing slash
+
+      // ✅ Normalize origin - remove trailing slash
       const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-      // Check exact match or wildcard
-      if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin) || normalizedOrigin === CLIENT_URL) {
-        callback(null, true);
-      } else if (RAILWAY_BACKEND_URL && normalizedOrigin === RAILWAY_BACKEND_URL.replace(/\/$/, '')) {
-        callback(null, true);
-      } else if (RAILWAY_PUBLIC_DOMAIN && normalizedOrigin === RAILWAY_PUBLIC_DOMAIN.replace(/\/$/, '')) {
+
+      // ✅ Production: allow ONLY www.sura-codex.com
+      if (isProduction) {
+        if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
+          callback(null, true);
+        } else {
+          console.log(`CORS REJECTED in production: ${normalizedOrigin}`);
+          callback(new Error('Not allowed by CORS'), false);
+        }
+        return;
+      }
+
+      // ✅ Development: allow localhost + www
+      if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
         callback(null, true);
       } else {
-        // Log for debugging but still allow
-        console.log(`CORS: Allowing origin ${origin}`);
+        console.log(`CORS: Dev mode allowing origin ${origin}`);
         callback(null, true);
       }
     },
@@ -68,6 +83,28 @@ app.use(
     optionsSuccessStatus: 204
   })
 );
+
+/**
+ * ✅ Preflight handler -must come AFTER cors middleware
+ */
+app.options('*', cors({
+  origin: (origin, callback) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+    if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
+      callback(null, true);
+    } else if (!isProduction) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed'), false);
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
+}));
 app.use(passport.initialize());
 
 const csrfProtection = csurf({

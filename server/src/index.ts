@@ -15,15 +15,28 @@ import { validateEnvironment } from './services/config.js';
 
 validateEnvironment();
 
+/**
+ * ⚠️ CORS تم إزالته من هنا - موجود فقط في app.ts
+ * هذا يمنع ازدواجية CORS التي سببت المشاكل
+ */
+
+/**
+ * ✅ مهم جداً: preflight requests - يجب أن يكون في app.ts فقط
+ */
+
 const server = http.createServer(app);
+
+/**
+ * ✅ Socket.IO مع CORS محدد مسبقاً (سبب المشكلة الأكبر)
+ * يستخدم ALLOWED_ORIGINS من config.ts للتconsistent
+ */
 registerSocketServer(server);
 
-// يقرأ المنفذ من Railway (8080 أو أي منفذ ديناميكي آخر)
 const port = Number(process.env.PORT || 5000);
 
-// إضافة '0.0.0.0' ضرورية جداً لبيئات الإنتاج والاستضافة الخارجية
 server.listen(port, '0.0.0.0', async () => {
   console.log(`Server is running successfully on port ${port}`);
+
   if (process.env.NODE_ENV !== 'development') {
     await initializeSeed();
   }

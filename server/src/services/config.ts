@@ -12,14 +12,21 @@ export const JWT_SECRET = assertEnv('JWT_SECRET', 'dev_jwt_secret');
 export const JWT_REFRESH_SECRET = assertEnv('JWT_REFRESH_SECRET', 'dev_jwt_refresh_secret');
 export const DATABASE_URL = assertEnv('DATABASE_URL');
 
-// Use HTTPS in production to avoid Mixed Content
+// Use HTTPS in production to avoid Mixed Content - ONLY www domain
 export const CLIENT_URL = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://www.sura-codex.com' : 'http://localhost:5173');
 export const SERVER_URL = process.env.SERVER_URL || (process.env.NODE_ENV === 'production' ? 'https://www.sura-codex.com' : 'http://localhost:5000');
 
-// ALLOWED_ORIGINS for CORS - accept both with and without www
+/**
+ * ✅ CORS Origins - PRODUCTION: ONLY www.sura-codex.com
+ * This fixes 308 redirect loops by not allowing non-www domain
+ *
+ * @important - Do NOT add non-www domain (sura-codex.com) as it causes:
+ * - 308 permanent redirect loops
+ * - Duplicate CORS checks
+ * - Railway proxy confusion
+ */
 const ALLOWED_ORIGINS = [
   'https://www.sura-codex.com',
-  'https://sura-codex.com',
   'http://localhost:5173',
   'http://localhost:3000'
 ];
