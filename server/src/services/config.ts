@@ -8,9 +8,24 @@ function assertEnv(name: string, fallbackWhenDev?: string) {
   return value;
 }
 
+function getDatabaseUrl() {
+  // Try SUPABASE_DB_URL first (Railway won't override this var)
+  const supabaseDbUrl = process.env.SUPABASE_DB_URL;
+  if (supabaseDbUrl) return supabaseDbUrl;
+
+  // Fallback to DATABASE_URL (may be overridden by Railway)
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    const isDev = process.env.NODE_ENV === 'development';
+    if (isDev) return 'postgresql://postgres:postgres@localhost:5432/sura';
+    throw new Error('Missing required environment variable: SUPABASE_DB_URL or DATABASE_URL');
+  }
+  return databaseUrl;
+}
+
 export const JWT_SECRET = assertEnv('JWT_SECRET', 'dev_jwt_secret');
 export const JWT_REFRESH_SECRET = assertEnv('JWT_REFRESH_SECRET', 'dev_jwt_refresh_secret');
-export const DATABASE_URL = assertEnv('SUPABASE_DB_URL');
+export const DATABASE_URL = getDatabaseUrl();
 // Use HTTPS in production to avoid Mixed Content - ONLY www domain
 export const CLIENT_URL = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://www.sura-codex.com' : 'http://localhost:5173');
 export const SERVER_URL = process.env.SERVER_URL || (process.env.NODE_ENV === 'production' ? 'https://www.sura-codex.com' : 'http://localhost:5000');
