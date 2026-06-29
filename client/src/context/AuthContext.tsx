@@ -35,17 +35,21 @@ function mapSupabaseUserToProfile(supabaseUser: any, dbRole?: string): UserProfi
     '';
 
   const roleFromMeta = (metadata?.role as any) ?? 'member';
-  const validRoles: UserRole[] = ['guest', 'member', 'writer', 'editor', 'admin'];
+
+  const validRoles = new Set<UserRole>(['guest', 'member', 'writer', 'editor', 'admin']);
 
   function isValidRole(role: string): role is UserRole {
-    return validRoles.includes(role as UserRole);
+    return validRoles.has(role as UserRole);
   }
 
   let finalRole: UserRole = 'member';
-  if (dbRole && isValidRole(dbRole)) {
-    finalRole = dbRole;
-  } else if (isValidRole(roleFromMeta)) {
-    finalRole = roleFromMeta;
+  const normalizedDbRole = typeof dbRole === 'string' ? dbRole.toLowerCase() : null;
+  const normalizedMetaRole = typeof roleFromMeta === 'string' ? roleFromMeta.toLowerCase() : null;
+
+  if (normalizedDbRole && validRoles.has(normalizedDbRole as UserRole)) {
+    finalRole = normalizedDbRole as UserRole;
+  } else if (normalizedMetaRole && validRoles.has(normalizedMetaRole as UserRole)) {
+    finalRole = normalizedMetaRole as UserRole;
   }
 
   return {
