@@ -2,7 +2,8 @@
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import jwt, { TokenExpiredError, JsonWebTokenError } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
+const { TokenExpiredError, JsonWebTokenError } = jwt as any;
 import passport from 'passport';
 import { prisma } from '../services/prisma.js';
 import { createTokenPair, sendAuthCookies } from '../services/tokenService.js';
