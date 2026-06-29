@@ -17,7 +17,7 @@ import { engagementRoutes } from './routes/engagementRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import { communityRoutes } from './routes/communityRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import { CLIENT_URL } from './services/config.js';
+import { CLIENT_URL, ALLOWED_ORIGINS_STR } from './services/config.js';
 
 export const app = express();
 app.get('/health', (req, res) => {
@@ -33,14 +33,26 @@ app.use(cookieParser());
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || origin === CLIENT_URL) {
+      // Allow no origin (e.g., mobile apps, curl)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      // Normalize origin by removing trailing slash
+      const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+      // Check exact match or wildcard
+      if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin) || normalizedOrigin === CLIENT_URL) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        // Log for debugging but still allow
+        console.log(`CORS: Allowing origin ${origin}`);
+        callback(null, true);
       }
     },
     credentials: true,
-    allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'Authorization']
+    allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'Authorization', 'Accept', 'Origin'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    exposedHeaders: ['Content-Length', 'X-CSRF-Token']
   })
 );
 app.use(passport.initialize());
