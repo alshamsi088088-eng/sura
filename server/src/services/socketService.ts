@@ -77,8 +77,7 @@ export function registerSocketServer(server: http.Server) {
     /**
      * ✅ Allow upgrades but limit to WebSocket only
      */
-    allowUpgrades: true,
-    initialPackets: false
+    allowUpgrades: true
   });
 
   io.on('connection', (socket) => {

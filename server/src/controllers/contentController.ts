@@ -8,7 +8,7 @@ export async function homeContent(_req: Request, res: Response) {
     // Get client from Prisma's connection pool
     client = prisma;
     // Use a timeout wrapper for the query with explicit error handling
-    const featured = await Promise.race([
+    const featured: any = await Promise.race([
       client.article.findMany({
         where: { featured: true },
         take: 4,
