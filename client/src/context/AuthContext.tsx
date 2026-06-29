@@ -35,7 +35,6 @@ function mapSupabaseUserToProfile(supabaseUser: any, dbRole?: string): UserProfi
     '';
 
   const roleFromMeta = metadata?.role ?? 'member';
-  // تعريف كـ string[] لمنع تعارض TypeScript في Vercel
   const validRoles: string[] = ['guest', 'member', 'writer', 'admin'];
 
   let finalRole: UserProfile['role'] = 'member';
@@ -90,7 +89,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (currentUser && accessToken) {
         let fetchedUser = null;
         try {
-          // إضافة API_URL للتواصل مع Railway
           const res = await fetch(`${API_URL}/api/auth/me`, {
             credentials: 'include',
             headers: {
@@ -103,14 +101,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               fetchedUser = responseData.user;
             }
           }
-        } catch {
-          // Fallback to Supabase metadata if server call fails
-        }
+        } catch {}
         if (fetchedUser) {
           const { role, ...rest } = fetchedUser;
           setUser({
             ...rest,
-            role: (role as UserProfile['role']) || 'member',
+            role: (role as any) || 'member',
           } as UserProfile);
         } else {
           setUser(mapSupabaseUserToProfile(currentUser));
@@ -132,7 +128,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (nextUser && accessToken) {
         let fetchedUser = null;
         try {
-          // إضافة API_URL للتواصل مع Railway
           const res = await fetch(`${API_URL}/api/auth/me`, {
             credentials: 'include',
             headers: {
@@ -145,14 +140,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               fetchedUser = responseData.user;
             }
           }
-        } catch {
-          // Fallback
-        }
+        } catch {}
         if (fetchedUser) {
           const { role, ...rest } = fetchedUser;
           setUser({
             ...rest,
-            role: (role as UserProfile['role']) || 'member',
+            role: (role as any) || 'member',
           } as UserProfile);
         } else {
           setUser(mapSupabaseUserToProfile(nextUser));
@@ -174,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login: AuthState['login'] = async (email, password) => {
     if (!supabase) {
       throw new Error(
-        'Supabase client is not initialized. Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.'
+        'Supabase client is not initialized.'
       );
     }
     const { data: sessionData } = await supabase.auth.signInWithPassword({ email, password });
@@ -183,7 +176,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (accessToken) {
       let userFetched = false;
       try {
-        // إضافة API_URL للتواصل مع Railway
         const res = await fetch(`${API_URL}/api/auth/me`, {
           credentials: 'include',
           headers: {
@@ -196,13 +188,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const { role, ...rest } = data.user;
             setUser({
               ...rest,
-              role: (role as UserProfile['role']) || 'member',
+              role: (role as any) || 'member',
             } as UserProfile);
             userFetched = true;
           }
         }
       } catch (err) {
-        console.error('Failed to fetch user profile from server:', err);
+        console.error('Failed to fetch user profile:', err);
       }
       if (!userFetched) {
         const { data: { user: supabaseUser } } = await supabase.auth.getUser(accessToken);
@@ -214,68 +206,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout: AuthState['logout'] = async () => {
-    if (!supabase) {
-      throw new Error(
-        'Supabase client is not initialized. Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.'
-      );
-    }
+    if (!supabase) return;
     await supabase.auth.signOut();
     setUser(null);
   };
 
   const register: AuthState['register'] = async (email, password, name) => {
-    if (!supabase) {
-      return {
-        data: null,
-        error: new Error(
-          'Supabase client is not initialized. Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.'
-        ),
-      };
-    }
-
+    if (!supabase) return { data: null, error: new Error('Supabase not init') };
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: {
-          name,
-        },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
+      options: { data: { name }, emailRedirectTo: `${window.location.origin}/auth/callback` },
     });
-
-    if (error) {
-      return { data: null, error: error as Error };
-    }
-
-    return { data, error: null };
+    return { data, error: error as Error };
   };
 
   const googleLogin: AuthState['googleLogin'] = async () => {
-    if (!supabase) {
-      throw new Error(
-        'Supabase client is not initialized. Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.'
-      );
-    }
-
+    if (!supabase) return;
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: window.location.origin,
-      },
+      options: { redirectTo: window.location.origin },
     });
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        ...stateValue,
-        login,
-        logout,
-        register,
-        googleLogin,
-      }}
-    >
+    <AuthContext.Provider value={{ ...stateValue, login, logout, register, googleLogin }}>
       {children}
     </AuthContext.Provider>
   );
