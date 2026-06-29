@@ -1,2 +1,0 @@
--- Add communityId to Like table (already done in schema, creating empty migration for tracking)
--- This is a no-op migration since the schema changes are handled by Prisma generate

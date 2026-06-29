@@ -35,7 +35,7 @@ function mapSupabaseUserToProfile(supabaseUser: any, dbRole?: string): UserProfi
     '';
 
   const roleFromMeta = (metadata?.role as any) ?? 'member';
-  const validRoles: string[] = ['guest', 'member', 'writer', 'admin'];
+  const validRoles: UserRole[] = ['guest', 'member', 'writer', 'editor', 'admin'];
 
   let finalRole: UserProfile['role'] = 'member';
   if (dbRole && validRoles.includes(dbRole)) {

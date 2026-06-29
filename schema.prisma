@@ -12,7 +12,7 @@ model User {
   name              String
   email             String     @unique
   password          String?
-  role              String     @default("reader")
+  role              String     @default("member")
   avatar            String?
   bio               String?
   locale            String     @default("en")

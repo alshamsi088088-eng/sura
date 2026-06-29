@@ -5,8 +5,10 @@ function normalizeRole(role?: string) {
   const value = (role || '').toLowerCase();
   if (value === 'admin') return 'admin';
   if (value === 'editor') return 'editor';
-  if (value === 'reader' || value === 'member') return 'reader';
-  return value;
+  if (value === 'writer') return 'writer';
+  if (value === 'reader' || value === 'member') return 'member';
+  if (value === 'guest') return 'guest';
+  return 'member'; // Default to member for unknown roles
 }
 
 export function roleGuard(allowedRoles: string | string[]) {

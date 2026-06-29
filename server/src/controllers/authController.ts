@@ -40,7 +40,7 @@ export async function register(req: Request, res: Response, next: NextFunction) 
         name,
         email,
         password: hashed,
-        role: 'reader',
+        role: 'member',
         locale: 'en',
         theme: 'dark',
         verified: false,
@@ -162,7 +162,7 @@ export function googleAuthCallback(req: Request, res: Response, next: NextFuncti
         data: {
           name: profile.name,
           email,
-          role: 'reader',
+          role: 'member',
           locale: 'en',
           theme: 'dark',
           verified: true
@@ -188,7 +188,7 @@ export async function appleAuthCallback(req: Request, res: Response) {
       data: {
         name,
         email,
-        role: 'reader',
+        role: 'member',
         locale: 'en',
         theme: 'dark',
         verified: true
@@ -219,7 +219,7 @@ export async function AuthCallback(req: Request, res: Response) {
         data: {
           name,
           email,
-          role: 'reader',
+          role: 'member',
           locale: 'en',
           theme: 'dark',
           verified: true,
