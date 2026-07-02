@@ -32,7 +32,7 @@ const server = http.createServer(app);
  */
 registerSocketServer(server);
 
-const port = Number(process.env.PORT || 5000);
+const port = process.env.PORT ? Number(process.env.PORT) : 8080;
 
 server.listen(port, '0.0.0.0', async () => {
   console.log(`Server is running successfully on port ${port}`);
