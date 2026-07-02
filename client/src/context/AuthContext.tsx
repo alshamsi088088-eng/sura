@@ -26,7 +26,7 @@ const AuthContext = createContext<AuthState>({
   googleLogin: async () => {},
 });
 
-function mapSupabaseUserToProfile(supabaseUser: any, dbRole?: string): UserProfile {
+function mapSupabaseUserToProfile(supabaseUser: any): UserProfile {
   const metadata = supabaseUser?.user_metadata ?? {};
   const profileName =
     metadata?.name ??
@@ -34,35 +34,18 @@ function mapSupabaseUserToProfile(supabaseUser: any, dbRole?: string): UserProfi
     metadata?.display_name ??
     '';
 
-  const roleFromMeta = (metadata?.role as string) ?? 'member';
-
-  // All valid role values as a set for O(1) lookup
-  const validRoles = new Set(['guest', 'member', 'writer', 'editor', 'admin']);
-
-  function isValidRole(role: string): role is UserRole {
-    return validRoles.has(role.toLowerCase());
-  }
-
-  let finalRole: UserRole = 'member';
-  const normalizedDbRole = typeof dbRole === 'string' ? dbRole.toLowerCase() : null;
-  const normalizedMetaRole = typeof roleFromMeta === 'string' ? roleFromMeta.toLowerCase() : null;
-
-  // Validate and assign - use type guard to narrow the type
-  const roleToCheck = normalizedDbRole || normalizedMetaRole;
-  if (roleToCheck && isValidRole(roleToCheck)) {
-    finalRole = roleToCheck;
-  }
-
   return {
     id: supabaseUser?.id ?? '',
     email: supabaseUser?.email ?? '',
     name: profileName ?? '',
     avatar: metadata?.avatar ?? undefined,
-    role: finalRole,
+    // IMPORTANT: role must come exclusively from /api/auth/me
+    role: 'member',
     locale: 'en',
     theme: 'light',
   } as UserProfile;
 }
+
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -104,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               Authorization: `Bearer ${accessToken}`,
             },
           });
-          if (res.ok) {
+        if (res.ok) {
             const responseData = await res.json();
             if (responseData?.user) {
               fetchedUser = responseData.user;
@@ -112,13 +95,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } catch {}
         if (fetchedUser) {
-          const { role, ...rest } = fetchedUser;
-          setUser({
-            ...rest,
-            role: (role as any) || 'member',
-          } as UserProfile);
+          setUser(fetchedUser as UserProfile);
         } else {
-          setUser(mapSupabaseUserToProfile(currentUser));
+          // role must be sourced from /api/auth/me only
+          setUser(null);
         }
       } else {
         setUser(null);
@@ -151,13 +131,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } catch {}
         if (fetchedUser) {
-          const { role, ...rest } = fetchedUser;
-          setUser({
-            ...rest,
-            role: (role as any) || 'member',
-          } as UserProfile);
+          setUser(fetchedUser as UserProfile);
         } else {
-          setUser(mapSupabaseUserToProfile(nextUser));
+          // role must be sourced from /api/auth/me only
+          setUser(null);
         }
       } else {
         setUser(null);
