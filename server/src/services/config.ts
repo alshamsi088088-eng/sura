@@ -39,12 +39,16 @@ export const SERVER_URL = process.env.SERVER_URL || (process.env.NODE_ENV === 'p
  * - Duplicate CORS checks
  * - Railway proxy confusion
  */
+// ✅ CHANGED: allow localhost during local testing (including when NODE_ENV=production)
+// هذا يمنع رفض Socket.IO origin أثناء الاختبار من 127.0.0.1:5173
 const ALLOWED_ORIGINS = [
   'https://www.sura-codex.com',
+  'http://127.0.0.1:5173',
   'http://localhost:5173',
   'http://localhost:3000'
 ];
 export const ALLOWED_ORIGINS_STR = process.env.ALLOWED_ORIGINS?.split(',') || ALLOWED_ORIGINS;
+
 
 export function validateEnvironment() {
   return {

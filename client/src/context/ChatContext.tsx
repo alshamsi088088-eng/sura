@@ -25,8 +25,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(false);
   const [unread, setUnread] = useState(0);
 
-  // Use Railway server URL in production to avoid 308 redirect from non-www domain
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || 'https://sura-codex-server-production-64f7.up.railway.app';
+  // ✅ CHANGED: avoid hardcoding a different default domain
+  // If VITE_SOCKET_URL is missing, use same origin as the page (prevents origin mismatch).
+  const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+
   const socket = useMemo(() => io(socketUrl, { autoConnect: false, withCredentials: true }), [socketUrl]);
 
   useEffect(() => {
