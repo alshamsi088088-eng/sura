@@ -228,67 +228,71 @@ export function ArticlesPage() {
       </div>
       {viewMode === 'grid' ? (
         <div className="grid gap-6 lg:grid-cols-3">
-          {(Array.isArray(paginated) ? paginated : []).map((item, idx) => (
-            <div key={item.id} className={idx === 2 ? 'lg:col-span-2' : undefined}>
-              {idx === 2 ? (
-                <AdsenseAd
-                  adSlot={import.meta.env.VITE_ADSENSE_ARTICLES_SLOT as string}
-                  minHeightPx={280}
-                  className="my-0"
-                />
-              ) : null}
+          {(Array.isArray(paginated) ? paginated : []).map((item, idx) => {
+            const articleUrl = `/articles/${encodeURIComponent(item.slug || '')}`;
 
-              <article className="rounded-3xl border border-sura-line bg-sura-canvas p-6 transition hover:-translate-y-1">
-                  <Link to={`/articles/${encodeURIComponent(item.slug || '')}`} className="block h-full w-full">
-                      <div className="flex items-start justify-between">
-                            <div className="text-xs uppercase tracking-[-0.3em] text-sura-teal">{item.category}</div>
-                                  <AdminMenu entityType="article" entityId={item.id} />
-                                      </div>
-                                          <h2 className="mt-4 text-xl font-semibold">{item.title}</h2>
-                                              <p className="mt-3 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
-                                                  <div className="mt-6 flex flex-wrap items-center gap-3">
-                                                        <Avatar name={item.author} size="xs" />
-                                                              <div className="flex flex-wrap items-center gap-2 text-xs text-sura-navy/70">
-                                                                      <span className="font-medium">{item.author}</span>
-                                                                            </div>
-                                                                                </div>
-                                                                                  </Link>
-                                                                                  </article>
-
-                <div className="flex items-start justify-between">
-                  <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{item.category}</div>
-                  <AdminMenu
-                    entityType="article"
-                    entityId={item.id}
+            return (
+              <div key={item.id} className={idx === 2 ? 'lg:col-span-2' : undefined}>
+                {idx === 2 ? (
+                  <AdsenseAd
+                    adSlot={import.meta.env.VITE_ADSENSE_ARTICLES_SLOT as string}
+                    minHeightPx={280}
+                    className="my-0"
                   />
-                </div>
-                <h2 className="mt-4 text-xl font-semibold">{item.title}</h2>
-                <p className="mt-3 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
-                <div className="mt-6 flex flex-wrap items-center gap-3">
-                  <Avatar name={item.author} size="xs" />
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-sura-navy/70">
-                    <span className="font-medium">{item.author}</span>
-                    <span>•</span>
-                    <span>{item.readingTime}</span>
-                    <span>•</span>
-                    <span>{item.views} views</span>
-                  </div>
-                </div>
-                <button
-                  className={`mt-4 rounded-full border px-3 py-1 text-xs ${activeArticleId === item.id ? 'border-sura-gold text-sura-teal' : 'border-sura-line text-sura-navy/80'}`}
-                  onClick={() => {
-                    setActiveArticleId(item.id);
-                    trackEvent('article_read', {
-                      article_id: item.id,
-                      article_title: item.title
-                    });
-                  }}
-                >
-                  {locale === 'ar' ? 'عرض التعليقات' : 'Open comments'}
-                </button>
-              </article>
-            </div>
-          ))}
+                ) : null}
+
+                <article className="rounded-3xl border border-sura-line bg-sura-canvas p-6 transition hover:-translate-y-1">
+                  <Link
+                    to={articleUrl}
+                    className="block h-full w-full"
+                    onClick={(e) => {
+                      // Allow navigation from anywhere inside the card
+                      // (but other interactive controls stop propagation)
+                      // no-op
+                    }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="text-xs uppercase tracking-[-0.3em] text-sura-teal">{item.category}</div>
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        <AdminMenu entityType="article" entityId={item.id} />
+                      </div>
+                    </div>
+
+                    <h2 className="mt-4 text-xl font-semibold">{item.title}</h2>
+                    <p className="mt-3 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
+
+                    <div className="mt-6 flex flex-wrap items-center gap-3">
+                      <Avatar name={item.author} size="xs" />
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-sura-navy/70">
+                        <span className="font-medium">{item.author}</span>
+                        <span>•</span>
+                        <span>{item.readingTime}</span>
+                        <span>•</span>
+                        <span>{item.views} views</span>
+                      </div>
+                    </div>
+                  </Link>
+
+                  <button
+                    className={`mt-4 rounded-full border px-3 py-1 text-xs ${activeArticleId === item.id ? 'border-sura-gold text-sura-teal' : 'border-sura-line text-sura-navy/80'}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveArticleId(item.id);
+                      trackEvent('article_read', {
+                        article_id: item.id,
+                        article_title: item.title
+                      });
+                    }}
+                  >
+                    {locale === 'ar' ? 'عرض التعليقات' : 'Open comments'}
+                  </button>
+                </article>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="space-y-4">
