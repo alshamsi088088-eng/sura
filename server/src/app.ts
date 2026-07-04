@@ -54,24 +54,22 @@ app.use(
       // ✅ Normalize origin - remove trailing slash
       const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
 
-      // ✅ Production: allow ONLY www.sura-codex.com
+      // Production: allow ONLY https://sura-codex.com (no www)
       if (isProduction) {
-        if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
-          callback(null, true);
-        } else {
-          console.log(`CORS REJECTED in production: ${normalizedOrigin}`);
-          callback(new Error('Not allowed by CORS'), false);
-        }
-        return;
+        const allowed = normalizedOrigin === 'https://sura-codex.com';
+        if (allowed) return callback(null, true);
+
+        console.log(`CORS REJECTED in production: ${normalizedOrigin}`);
+        return callback(new Error('Not allowed by CORS'), false);
       }
 
-      // ✅ Development: allow localhost + www
+      // Development: allow configured local origins
       if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
-        callback(null, true);
-      } else {
-        console.log(`CORS: Dev mode allowing origin ${origin}`);
-        callback(null, true);
+        return callback(null, true);
       }
+
+      console.log(`CORS REJECTED in dev: ${normalizedOrigin}`);
+      return callback(new Error('Not allowed by CORS (dev)'), false);
     },
     credentials: true,
     allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
@@ -84,27 +82,7 @@ app.use(
   })
 );
 
-/**
- * ✅ Preflight handler -must come AFTER cors middleware
- */
-app.options('*', cors({
-  origin: (origin, callback) => {
-    if (!origin) {
-      callback(null, true);
-      return;
-    }
-    const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-    if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
-      callback(null, true);
-    } else if (!isProduction) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed'), false);
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
-}));
+
 app.use(passport.initialize());
 
 const csrfProtection = csurf({

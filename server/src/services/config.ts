@@ -42,7 +42,7 @@ export const SERVER_URL = process.env.SERVER_URL || (process.env.NODE_ENV === 'p
 // ✅ CHANGED: allow localhost during local testing (including when NODE_ENV=production)
 // هذا يمنع رفض Socket.IO origin أثناء الاختبار من 127.0.0.1:5173
 const ALLOWED_ORIGINS = [
-  'https://www.sura-codex.com',
+  'https://sura-codex.com',
   'http://127.0.0.1:5173',
   'http://localhost:5173',
   'http://localhost:3000'
