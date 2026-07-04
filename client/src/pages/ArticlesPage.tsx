@@ -346,7 +346,11 @@ export function ArticlesPage() {
 
       {viewMode === 'grid' ? (
         <div className="grid gap-6 lg:grid-cols-3">
-          {(Array.isArray(paginated) ? paginated : []).map((item, idx) => renderCardInner(item, idx, idx === 2))}
+        {(Array.isArray(paginated) ? paginated : []).map((item, idx) => {
+          // ArticleDetailsPage loads by :slug but expects backend route /api/articles/slug/:slug.
+          // Ensure we only link to valid slugs.
+          return renderCardInner(item, idx, idx === 2);
+        })}
         </div>
       ) : (
         <div className="space-y-4">

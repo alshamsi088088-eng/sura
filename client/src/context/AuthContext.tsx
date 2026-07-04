@@ -67,6 +67,37 @@ async function fetchMe(accessToken: string): Promise<UserProfile | null> {
   }
 }
 
+function readRoleFromAny(obj: any): UserProfile['role'] | null {
+  const raw = obj?.user_metadata?.role ?? obj?.role ?? obj?.user_role ?? null;
+  if (!raw || typeof raw !== 'string') return null;
+  const normalized = raw.toLowerCase();
+  if (normalized === 'admin') return 'admin';
+  if (normalized === 'editor') return 'editor' as any;
+  if (normalized === 'member') return 'member';
+  if (normalized === 'writer') return 'writer' as any;
+  return null;
+}
+
+async function fetchRoleFromSupabaseMetadata(accessToken: string): Promise<UserProfile['role'] | null> {
+  try {
+    // Try to decode role from /api/auth/profile payload if present
+    // But since we can't rely on that, use the existing Supabase session/user.
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+    if (!supabaseUrl || !supabaseAnonKey) return null;
+
+    const sb = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: supa } = await sb.auth.getUser(accessToken);
+    if (!supa?.user) return null;
+
+    return readRoleFromAny(supa.user);
+  } catch {
+    return null;
+  }
+}
+
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,19 +138,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Prefer server-derived role
       const me = await fetchMe(accessToken);
       if (me) {
-        setUser(me);
-        setLoading(false);
-        return;
+        // If server returned a valid role, trust it.
+        if (me.role === 'admin' || me.role === 'member' || me.role === 'editor' || me.role === 'writer') {
+          setUser(me);
+          setLoading(false);
+          return;
+        }
+
+        // Server returned something but not a recognized role; fall through to metadata.
       }
 
-      // Fallback (no role guarantee)
+      // Fallback: Supabase metadata / user payload role
       const { data: supaData } = await supabase.auth.getUser(accessToken);
       if (!mounted) return;
+
       if (supaData?.user) {
-        setUser(mapSupabaseUserToProfile(supaData.user));
+        const roleFromMeta = await fetchRoleFromSupabaseMetadata(accessToken);
+        const profile = mapSupabaseUserToProfile(supaData.user);
+        setUser({
+          ...profile,
+          role: roleFromMeta ?? profile.role,
+        });
       } else {
         setUser(null);
       }
+
 
       setLoading(false);
     };
