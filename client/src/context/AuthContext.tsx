@@ -1,8 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
-import type { UserProfile, UserRole } from '../types';
+import type { UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
-// قراءة رابط السيرفر من Vercel، أو استخدام مسار فارغ للعمل محلياً
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface AuthState {
@@ -34,18 +33,39 @@ function mapSupabaseUserToProfile(supabaseUser: any): UserProfile {
     metadata?.display_name ??
     '';
 
+  // IMPORTANT: default role should NOT force 'member' when API role fetching fails.
+  // We keep it as 'member' only as a last-resort fallback.
+  // Real role should come from /api/auth/me.
+  const role = 'member';
+
   return {
-    id: supabaseUser?.id ?? '',
-    email: supabaseUser?.email ?? '',
+    id: String(supabaseUser?.id ?? ''),
+    email: String(supabaseUser?.email ?? ''),
     name: profileName ?? '',
     avatar: metadata?.avatar ?? undefined,
-    // IMPORTANT: role must come exclusively from /api/auth/me
-    role: 'member',
+    role,
     locale: 'en',
     theme: 'light',
   } as UserProfile;
 }
 
+async function fetchMe(accessToken: string): Promise<UserProfile | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/auth/me`, {
+      credentials: 'include',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!res.ok) return null;
+
+    const body = await res.json();
+    return (body?.user as UserProfile) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -60,11 +80,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
     const init = async () => {
       if (!supabase) {
-        if (!isMounted) return;
+        if (!mounted) return;
         setUser(null);
         setLoading(false);
         return;
@@ -76,30 +96,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = data?.session?.user ?? null;
       const accessToken = data?.session?.access_token ?? null;
 
-      if (!isMounted) return;
+      if (!mounted) return;
 
-      if (currentUser && accessToken) {
-        let fetchedUser = null;
-        try {
-          const res = await fetch(`${API_URL}/api/auth/me`, {
-            credentials: 'include',
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
-        if (res.ok) {
-            const responseData = await res.json();
-            if (responseData?.user) {
-              fetchedUser = responseData.user;
-            }
-          }
-        } catch {}
-        if (fetchedUser) {
-          setUser(fetchedUser as UserProfile);
-        } else {
-          // role must be sourced from /api/auth/me only
-          setUser(null);
-        }
+      if (!currentUser || !accessToken) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      // Prefer server-derived role
+      const me = await fetchMe(accessToken);
+      if (me) {
+        setUser(me);
+        setLoading(false);
+        return;
+      }
+
+      // Fallback (no role guarantee)
+      const { data: supaData } = await supabase.auth.getUser(accessToken);
+      if (!mounted) return;
+      if (supaData?.user) {
+        setUser(mapSupabaseUserToProfile(supaData.user));
       } else {
         setUser(null);
       }
@@ -114,28 +131,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const nextUser = session?.user ?? null;
       const accessToken = session?.access_token ?? null;
-      if (nextUser && accessToken) {
-        let fetchedUser = null;
-        try {
-          const res = await fetch(`${API_URL}/api/auth/me`, {
-            credentials: 'include',
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
-          if (res.ok) {
-            const responseData = await res.json();
-            if (responseData?.user) {
-              fetchedUser = responseData.user;
-            }
-          }
-        } catch {}
-        if (fetchedUser) {
-          setUser(fetchedUser as UserProfile);
-        } else {
-          // role must be sourced from /api/auth/me only
-          setUser(null);
-        }
+
+      if (!mounted) return;
+
+      if (!nextUser || !accessToken) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      const me = await fetchMe(accessToken);
+      if (me) {
+        setUser(me);
+        setLoading(false);
+        return;
+      }
+
+      // Fallback
+      const { data: supaData } = await supabase.auth.getUser(accessToken);
+      if (supaData?.user) {
+        setUser(mapSupabaseUserToProfile(supaData.user));
       } else {
         setUser(null);
       }
@@ -143,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
-      isMounted = false;
+      mounted = false;
       const maybeInner = (subscription as any)?.subscription;
       if (maybeInner?.unsubscribe) maybeInner.unsubscribe();
       else if ((subscription as any)?.unsubscribe) (subscription as any).unsubscribe();
@@ -151,43 +166,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login: AuthState['login'] = async (email, password) => {
-    if (!supabase) {
-      throw new Error(
-        'Supabase client is not initialized.'
-      );
-    }
+    if (!supabase) throw new Error('Supabase client is not initialized.');
+
     const { data: sessionData } = await supabase.auth.signInWithPassword({ email, password });
     const accessToken = sessionData?.session?.access_token ?? null;
 
-    if (accessToken) {
-      let userFetched = false;
-      try {
-        const res = await fetch(`${API_URL}/api/auth/me`, {
-          credentials: 'include',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.user) {
-            const { role, ...rest } = data.user;
-            setUser({
-              ...rest,
-              role: (role as any) || 'member',
-            } as UserProfile);
-            userFetched = true;
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch user profile:', err);
-      }
-      if (!userFetched) {
-        const { data: { user: supabaseUser } } = await supabase.auth.getUser(accessToken);
-        if (supabaseUser) {
-          setUser(mapSupabaseUserToProfile(supabaseUser));
-        }
-      }
+    if (!accessToken) return;
+
+    // Prefer server-derived role immediately after login
+    const me = await fetchMe(accessToken);
+    if (me) {
+      setUser(me);
+      return;
+    }
+
+    // Fallback
+    const { data: supaData } = await supabase.auth.getUser(accessToken);
+    if (supaData?.user) {
+      setUser(mapSupabaseUserToProfile(supaData.user));
     }
   };
 
@@ -199,11 +195,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register: AuthState['register'] = async (email, password, name) => {
     if (!supabase) return { data: null, error: new Error('Supabase not init') };
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name }, emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        data: { name },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
+
     return { data, error: error as Error };
   };
 
@@ -225,3 +226,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
+
