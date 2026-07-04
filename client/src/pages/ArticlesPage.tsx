@@ -238,10 +238,22 @@ export function ArticlesPage() {
                 />
               ) : null}
 
-              <article className="rounded-3xl border border-sura-line bg-sura-canvas p-6 transition hover:-translate-y-1 hover:bg-sura-canvas">
-                <Link to={`/articles/${encodeURIComponent(item.slug || '')}`} className="">
-                  {item.title}
-                </Link>
+              <article className="rounded-3xl border border-sura-line bg-sura-canvas p-6 transition hover:-translate-y-1">
+                  <Link to={`/articles/${encodeURIComponent(item.slug || '')}`} className="block h-full w-full">
+                      <div className="flex items-start justify-between">
+                            <div className="text-xs uppercase tracking-[-0.3em] text-sura-teal">{item.category}</div>
+                                  <AdminMenu entityType="article" entityId={item.id} />
+                                      </div>
+                                          <h2 className="mt-4 text-xl font-semibold">{item.title}</h2>
+                                              <p className="mt-3 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
+                                                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                                                        <Avatar name={item.author} size="xs" />
+                                                              <div className="flex flex-wrap items-center gap-2 text-xs text-sura-navy/70">
+                                                                      <span className="font-medium">{item.author}</span>
+                                                                            </div>
+                                                                                </div>
+                                                                                  </Link>
+                                                                                  </article>
 
                 <div className="flex items-start justify-between">
                   <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{item.category}</div>
