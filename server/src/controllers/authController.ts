@@ -103,8 +103,13 @@ export async function register(_req: Request, res: Response): Promise<any> {
 }
 
 export async function me(req: Request, res: Response): Promise<any> {
-  return res.json({ user: sanitize((req as any).user) });
+  const user = (req as any).user;
+  if (!user) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  return res.json({ user: sanitize(user) });
 }
+
 
 export async function profile(req: Request, res: Response): Promise<any> {
   return me(req, res);
