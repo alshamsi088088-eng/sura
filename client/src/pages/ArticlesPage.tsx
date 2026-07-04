@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLocale } from '../context/LocaleContext';
@@ -238,7 +239,7 @@ export function ArticlesPage() {
               ) : null}
 
               <article className="rounded-3xl border border-sura-line bg-sura-canvas p-6 transition hover:-translate-y-1 hover:bg-sura-canvas">
-                <Link to={`/articles/${encodeURIComponent(item.slug || '')}`} className="sr-only">
+                <Link to={`/articles/${encodeURIComponent(item.slug || '')}`} className="">
                   {item.title}
                 </Link>
 
