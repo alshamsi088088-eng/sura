@@ -149,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Fallback: Supabase metadata / user payload role
-      const { data: supaData } = await supabase.auth.getUser(accessToken);
+      const { data: supaData } = await supabase!.auth.getUser(accessToken);
       if (!mounted) return;
 
       if (supaData?.user) {
@@ -191,7 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Fallback
-      const { data: supaData } = await supabase.auth.getUser(accessToken);
+      const { data: supaData } = await supabase!.auth.getUser(accessToken);
       if (supaData?.user) {
         setUser(mapSupabaseUserToProfile(supaData.user));
       } else {

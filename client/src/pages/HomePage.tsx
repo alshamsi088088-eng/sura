@@ -63,9 +63,11 @@ export function HomePage() {
 
   useEffect(() => {
     if (!supabase) return;
+
+    const sb = supabase;
     const loadTrending = async () => {
-      const { data: articles } = await supabase.from('Article').select('id, title, views, slug').order('createdAt', { ascending: false }).limit(5);
-      const { data: novels } = await supabase.from('Novel').select('id, title, views').order('createdAt', { ascending: false }).limit(5);
+      const { data: articles } = await sb.from('Article').select('id, title, views, slug').order('createdAt', { ascending: false }).limit(5);
+      const { data: novels } = await sb.from('Novel').select('id, title, views').order('createdAt', { ascending: false }).limit(5);
       const articleItems: TrendingItem[] = (articles || []).map(a => ({ id: a.id, title: a.title, type: 'article', views: a.views || 0, slug: a.slug }));
       const novelItems: TrendingItem[] = (novels || []).map(n => ({ id: n.id, title: n.title, type: 'novel', views: n.views || 0 }));
       const allItems: TrendingItem[] = [...articleItems, ...novelItems].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 6);

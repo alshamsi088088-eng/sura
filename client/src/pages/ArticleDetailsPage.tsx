@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
+import { useSupabaseArticleBySlug } from '../components/SupabaseArticleDetails';
 import { useParams, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useLocale } from '../context/LocaleContext';
 import { useAuth } from '../context/AuthContext';
 import { AdminMenu } from '../components/AdminMenu';
@@ -59,59 +60,40 @@ export function ArticleDetailsPage() {
     },
   });
 
-  useEffect(() => {
-    let mounted = true;
+  const navigate = useNavigate();
 
-    async function load() {
+  const { article: sbArticle, loading: sbLoading, error: sbError } = useSupabaseArticleBySlug(slug);
+
+  useEffect(() => {
+    // Kill re-render loops: only mirror state when slug/data changes.
+    if (!sbLoading) {
       if (!slug) {
-        if (mounted) {
-          setError(locale === 'ar' ? 'المقال غير موجود.' : 'Article not found.');
-          setLoading(false);
-        }
+        setArticle(null);
+        setError(locale === 'ar' ? 'المقال غير موجود.' : 'Article not found.');
+        setLoading(false);
         return;
       }
 
-      setLoading(true);
-      setError(null);
-
-      try {
-        // expects backend route that returns full article by slug
-        const res = await axios.get(`/api/articles/slug/${encodeURIComponent(slug)}`);
-        const data = res.data?.article;
-
-        if (!mounted) return;
-
-        const next: Article = {
-          id: String(data?.id || ''),
-          title: String(data?.title || ''),
-          excerpt: String(data?.excerpt || ''),
-          coverImage: data?.coverImage ? String(data.coverImage) : null,
-          content: String(data?.content || ''),
-          authorName: String(data?.authorName || ''),
-          publishedAt: data?.publishedAt ? String(data.publishedAt) : null,
-        };
-
-        if (!next.id || !next.title) {
-          setError(locale === 'ar' ? 'المقال غير موجود.' : 'Article not found.');
-          setArticle(null);
-        } else {
-          setArticle(next);
-        }
-      } catch (e) {
-        if (!mounted) return;
-        setError(locale === 'ar' ? 'فشل تحميل المقال.' : 'Failed to load article.');
+      if (!sbArticle) {
         setArticle(null);
-      } finally {
-        if (mounted) setLoading(false);
+        setError(sbError || (locale === 'ar' ? 'المقال غير موجود.' : 'Article not found.'));
+        setLoading(false);
+        return;
       }
+
+      setArticle(sbArticle);
+      setError(null);
+      setLoading(false);
+    } else {
+      setLoading(true);
     }
+  }, [sbLoading, sbArticle, sbError, slug, locale]);
 
-    load();
-
-    return () => {
-      mounted = false;
-    };
-  }, [slug, locale]);
+  useEffect(() => {
+    // If user becomes unauthenticated, keep reading experience; do not loop.
+    // Engagement widgets handle auth internally.
+    if (!user) return;
+  }, [user, navigate]);
 
   if (loading) {
     return (
