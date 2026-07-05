@@ -2,14 +2,14 @@ import { motion } from 'framer-motion';
 import { useLocale } from '../context/LocaleContext';
 import { useAuth } from '../context/AuthContext';
 import { useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
+
 import { WeeklyTargetBanner } from '../components/WeeklyTargetBanner';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useSeoTags } from '../hooks/useSeoTags';
 import { getWeeklyReading } from '../components/ReadingProgressTracker';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+
 
 interface FeatureCard { title: string; description: string; }
 interface TrendingItem { id: string; title: string; type: string; views: number; slug?: string; }
@@ -44,17 +44,36 @@ export function HomePage() {
   useEffect(() => {
     let mounted = true;
 
-    setFeaturedLoading(true);
-    axios
-      .get(`${API_URL}/api/content/home`)
-      .then((res) => {
-        const next = Array.isArray(res.data?.featured) ? res.data.featured : [];
-        if (mounted) setFeatured(next);
-      })
-      .catch(() => {})
-      .finally(() => {
+    // Direct Supabase query (remove legacy /api/content/home)
+    (async () => {
+      if (!supabase) {
         if (mounted) setFeaturedLoading(false);
-      });
+        return;
+      }
+
+      try {
+        setFeaturedLoading(true);
+
+        const sb = supabase;
+        const { data: featuredArticles } = await sb
+          .from('Article')
+          .select('id, title, excerpt')
+          .eq('featured', true)
+          .order('published_at', { ascending: false })
+          .limit(4);
+
+        const next = (featuredArticles || []).map((a: any) => ({
+          title: a.title,
+          description: a.excerpt,
+        }));
+
+        if (mounted) setFeatured(next);
+      } catch {
+        // keep existing UI state
+      } finally {
+        if (mounted) setFeaturedLoading(false);
+      }
+    })();
 
     return () => {
       mounted = false;
@@ -66,8 +85,17 @@ export function HomePage() {
 
     const sb = supabase;
     const loadTrending = async () => {
-      const { data: articles } = await sb.from('Article').select('id, title, views, slug').order('createdAt', { ascending: false }).limit(5);
-      const { data: novels } = await sb.from('Novel').select('id, title, views').order('createdAt', { ascending: false }).limit(5);
+      const { data: articles } = await sb
+        .from('Article')
+        .select('id, title, views, slug')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      const { data: novels } = await sb
+        .from('Novel')
+        .select('id, title, views')
+        .order('created_at', { ascending: false })
+        .limit(5);
       const articleItems: TrendingItem[] = (articles || []).map(a => ({ id: a.id, title: a.title, type: 'article', views: a.views || 0, slug: a.slug }));
       const novelItems: TrendingItem[] = (novels || []).map(n => ({ id: n.id, title: n.title, type: 'novel', views: n.views || 0 }));
       const allItems: TrendingItem[] = [...articleItems, ...novelItems].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 6);
@@ -75,6 +103,8 @@ export function HomePage() {
     };
     loadTrending();
   }, []);
+
+  const API_URL = import.meta.env.VITE_API_URL || '';
 
   useEffect(() => {
     if (!user) {

@@ -36,6 +36,7 @@ function mapSupabaseUserToProfile(supabaseUser: any): UserProfile {
   // IMPORTANT: default role should NOT force 'member' when API role fetching fails.
   // We keep it as 'member' only as a last-resort fallback.
   // Real role should come from /api/auth/me.
+  // Default role fallback (only when profile lookup fails).
   const role = 'member';
 
   return {
@@ -57,6 +58,8 @@ function normalizeRole(raw: unknown): UserProfile['role'] | null {
   if (normalized === 'editor') return 'editor';
   if (normalized === 'member') return 'member';
   if (normalized === 'writer') return 'writer';
+  // handle possible DB variants
+  if (normalized === 'superadmin') return 'admin';
   return null;
 }
 
