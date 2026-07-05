@@ -111,9 +111,12 @@ export function ArticleDetailsPage() {
     setEditContent(article.content);
   }, [article]);
 
+  const isAdmin = user?.role === 'admin';
+  const canEditOrDelete = Boolean(user && article && (isAdmin || user.id === article.authorId));
+
   const handleDelete = async () => {
     if (!user || !article) return;
-    if (user.id !== article.authorId) return;
+    if (!canEditOrDelete) return;
 
     if (!supabase) return;
 
@@ -134,7 +137,7 @@ export function ArticleDetailsPage() {
   const handleEditSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user || !article) return;
-    if (user.id !== article.authorId) return;
+    if (!canEditOrDelete) return;
 
     if (!supabase) return;
 

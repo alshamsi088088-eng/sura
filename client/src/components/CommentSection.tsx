@@ -16,6 +16,7 @@ type CommentRow = {
 
 export function CommentSection({ articleId }: { articleId: string }) {
   const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [content, setContent] = useState('');
   const [comments, setComments] = useState<CommentRow[]>([]);
 
@@ -66,6 +67,42 @@ export function CommentSection({ articleId }: { articleId: string }) {
   }, [comments]);
 
   const canPost = Boolean(user?.id) && content.trim().length > 0 && !posting;
+
+  async function handleDeleteComment(commentId: string) {
+    if (!user) return;
+    if (!isAdmin && commentId === '') return;
+
+    if (!supabase) {
+      setError('Supabase client is not initialized.');
+      return;
+    }
+
+    setError(null);
+
+    const { error: deleteError } = await supabase
+      .from('Comment')
+      .delete()
+      .eq('id', commentId);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+
+    // Refresh list
+    const { data, error: fetchError } = await supabase
+      .from('Comment')
+      .select('*, User(name)')
+      .eq('article_id', articleId)
+      .order('createdAt', { ascending: false });
+
+    if (fetchError) {
+      setError(fetchError.message);
+      setComments([]);
+    } else {
+      setComments((data ?? []) as CommentRow[]);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -187,6 +224,17 @@ export function CommentSection({ articleId }: { articleId: string }) {
                     {c.createdAt ? new Date(c.createdAt).toLocaleString() : ''}
                   </span>
                 </div>
+
+                {(isAdmin || (user?.id && user.id === c.user_id)) && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteComment(c.id)}
+                    className="rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-200 hover:bg-red-500/15"
+                    aria-label="Delete comment"
+                  >
+                    Delete
+                  </button>
+                )}
               </header>
               <p className="mt-2 font-inter text-sm text-sura-ivory/85">{c.message}</p>
             </article>

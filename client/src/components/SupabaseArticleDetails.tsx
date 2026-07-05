@@ -12,6 +12,22 @@ type Article = {
   authorId?: string | null;
 };
 
+type SupabaseUserJoin = {
+  name?: string | null;
+};
+
+type SupabaseArticleRow = {
+  id: unknown;
+  title: unknown;
+  excerpt: unknown;
+  cover_image?: unknown | null;
+  content?: unknown | null;
+  author_id?: unknown | null;
+  published_at?: unknown | null;
+  slug: unknown;
+  User?: SupabaseUserJoin[] | SupabaseUserJoin | null;
+};
+
 
 export function useSupabaseArticleBySlug(slug?: string) {
   const [article, setArticle] = useState<Article | null>(null);
@@ -35,10 +51,11 @@ export function useSupabaseArticleBySlug(slug?: string) {
       try {
         const sb = getSupabaseOrThrow();
 
-        // Assumes the Supabase table/columns exist. Adjust if your schema differs.
         const { data, error: fetchError } = await sb
           .from('Article')
-          .select('id,title,excerpt,coverImage,content,authorName,authorId,publishedAt,slug')
+          .select(
+            'id,title,excerpt,cover_image,content,author_id,published_at,slug,User(name)'
+          )
           .eq('slug', slug)
           .maybeSingle();
 
@@ -54,11 +71,18 @@ export function useSupabaseArticleBySlug(slug?: string) {
             id: String(data.id),
             title: String(data.title ?? ''),
             excerpt: String(data.excerpt ?? ''),
-            coverImage: data.coverImage ? String(data.coverImage) : null,
+            coverImage: data.cover_image ? String(data.cover_image) : null,
             content: String(data.content ?? ''),
-            authorName: String(data.authorName ?? ''),
-            authorId: data.authorId ? String(data.authorId) : null,
-            publishedAt: data.publishedAt ? String(data.publishedAt) : null,
+            authorName: (() => {
+              const joined = (data as SupabaseArticleRow | null | undefined)?.User;
+              if (!joined) return '';
+              if (Array.isArray(joined)) {
+                return String((joined[0] as SupabaseUserJoin | undefined)?.name ?? '');
+              }
+              return String((joined as SupabaseUserJoin | null | undefined)?.name ?? '');
+            })(),
+            authorId: data.author_id ? String(data.author_id) : null,
+            publishedAt: data.published_at ? String(data.published_at) : null,
           });
         }
       } catch {
