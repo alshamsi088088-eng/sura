@@ -9,7 +9,7 @@ type ReactQuillEditorProps = {
   placeholder?: string;
 };
 
-// Quill modules used for DOM sanitization.
+// ====== Paste sanitization ======
 const DEFAULT_ALLOWED_TAGS = new Set([
   'a',
   'strong',
@@ -17,6 +17,8 @@ const DEFAULT_ALLOWED_TAGS = new Set([
   'em',
   'i',
   'u',
+  's',
+  'strike',
   'br',
   'p',
   'h1',
@@ -27,17 +29,16 @@ const DEFAULT_ALLOWED_TAGS = new Set([
   'li',
   'blockquote',
   'img',
+  'span',
+  'div',
 ]);
 
 function sanitizePastedHtml(rawHtml: string): string {
   // Strategy:
   // - Parse HTML into DOM
-  // - Remove inline styles + classes (messy layout breakers)
-  // - Keep essential tags and only safe attributes
-  // - Convert unknown/unsafe tags to a harmless wrapper (preserve children)
-  //
-  // Note: This returns HTML string; Quill will convert it into its Delta model.
-
+  // - Remove inline event handlers + unsafe tags
+  // - Strip style/class attributes (to avoid layout breakage / tracking)
+  // - Keep link href + img src with protocol allow-list
   try {
     const parser = new DOMParser();
     const doc = parser.parseFromString(rawHtml, 'text/html');
@@ -63,24 +64,22 @@ function sanitizePastedHtml(rawHtml: string): string {
             toRemove.push(el);
           }
         } else {
-          // Remove inline style and classes
+          // Remove inline style + classes (Word/Docs add a lot of messy layout data)
           el.removeAttribute('style');
           el.removeAttribute('class');
 
-          // Sanitize attributes per tag
+          // Drop inline event handlers
           const attrs = Array.from(el.attributes);
           for (const attr of attrs) {
             const name = attr.name.toLowerCase();
-            const value = attr.value;
+            const value = attr.value ?? '';
 
-            // Global: drop anything that looks like inline event handlers.
             if (name.startsWith('on')) {
               el.removeAttribute(attr.name);
               continue;
             }
 
             if (tag === 'a') {
-              // Keep href/target/rel only. Strip javascript/data.
               if (name === 'href') {
                 const href = value.trim();
                 const lower = href.toLowerCase();
@@ -91,16 +90,17 @@ function sanitizePastedHtml(rawHtml: string): string {
                   lower.startsWith('#');
 
                 if (!isSafe) el.setAttribute('href', '#');
-              } else if (name === 'target' || name === 'rel') {
-                // allow but normalize.
-                if (name === 'target' && value !== '_blank') {
-                  el.setAttribute('target', '_blank');
-                }
+              } else if (name === 'target') {
+                if (value !== '_blank') el.setAttribute('target', '_blank');
+              } else if (name === 'rel') {
+                // keep
               } else {
                 el.removeAttribute(attr.name);
               }
-            } else if (tag === 'img') {
-              // Keep src/alt only. Drop style.
+              continue;
+            }
+
+            if (tag === 'img') {
               if (name === 'src') {
                 const src = value.trim();
                 const lower = src.toLowerCase();
@@ -111,13 +111,23 @@ function sanitizePastedHtml(rawHtml: string): string {
               } else {
                 el.removeAttribute(attr.name);
               }
-            } else {
-              // For formatting tags, remove all attrs
+              continue;
+            }
+
+            if (tag === 'span') {
+              // For Quill, formatting is driven by structure/semantic tags.
+              if (name !== 'data-index' && name !== 'data-embed') {
+                el.removeAttribute(attr.name);
+              }
+              continue;
+            }
+
+            // For formatting elements, remove most attributes.
+            if (tag !== 'div') {
               el.removeAttribute(attr.name);
             }
           }
 
-          // Normalize anchor to reduce layout issues
           if (tag === 'a') {
             if (!el.getAttribute('target')) el.setAttribute('target', '_blank');
             if (!el.getAttribute('rel')) el.setAttribute('rel', 'noopener noreferrer');
@@ -125,28 +135,20 @@ function sanitizePastedHtml(rawHtml: string): string {
         }
       }
 
-      // Move walker
       const next = walker.nextNode();
       if (!next) break;
     }
 
-    for (const el of toRemove) {
-      el.remove();
-    }
+    for (const el of toRemove) el.remove();
 
-    // Quill may sometimes paste stray <meta> etc; just serialize body.
     return doc.body.innerHTML;
   } catch {
-    // If parsing fails, fall back to raw HTML.
     return rawHtml;
   }
 }
 
-function getQuillClipboardConfig() {
-  // clipboard: { matchVisual: false } reduces style-driven surprises.
-  return {
-    matchVisual: false,
-  } as const;
+function getClipboardConfig() {
+  return { matchVisual: false } as const;
 }
 
 export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEditorProps) {
@@ -155,14 +157,25 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
 
   const modules = useMemo(() => {
     const toolbar: any[] = [
-      // Headings
-      [{ header: 1 }, { header: 2 }, { header: 3 }],
-      // Inline
-      ['bold', 'italic', 'underline'],
+      // Alignment
+      [{ align: '' }, { align: 'center' }, { align: 'right' }, { align: 'justify' }],
+
+      // Font family / size
+      [{ font: [] }],
+      [{ size: [] }],
+
+      // Font + background color
+      [{ color: [] }, { background: [] }],
+
+      // Inline formatting
+      ['bold', 'italic', 'underline', 'strike'],
+
       // Lists
       [{ list: 'ordered' }, { list: 'bullet' }],
-      // Links + images
+
+      // Links + Image insertion
       ['link', 'image'],
+
       // Clean
       ['clean'],
     ];
@@ -171,7 +184,8 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
       toolbar: {
         container: toolbar,
       },
-      clipboard: getQuillClipboardConfig(),
+      clipboard: getClipboardConfig(),
+
       keyboard: {
         // Plain-text paste shortcut: Ctrl/Cmd + Shift + V
         bindings: {
@@ -192,7 +206,7 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
                   editor.insertText(index, text, 'user');
                   editor.setSelection(index + text.length, 0, 'silent');
                 } catch {
-                  // ignore if clipboard read fails
+                  // ignore
                 }
               })();
             },
@@ -204,10 +218,15 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
 
   const formats = useMemo(
     () => [
-      'header',
+      'align',
+      'font',
+      'size',
+      'color',
+      'background',
       'bold',
       'italic',
       'underline',
+      'strike',
       'list',
       'bullet',
       'link',
@@ -238,13 +257,16 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
       return delta;
     };
 
-    quillInstance.clipboard.addMatcher('A', handler);
     quillInstance.clipboard.addMatcher('BODY', handler);
     quillInstance.clipboard.addMatcher('P', handler);
     quillInstance.clipboard.addMatcher('DIV', handler);
+    quillInstance.clipboard.addMatcher('SPAN', handler);
+    quillInstance.clipboard.addMatcher('A', handler);
+    quillInstance.clipboard.addMatcher('IMG', handler);
     quillInstance.clipboard.addMatcher('UL', handler);
     quillInstance.clipboard.addMatcher('OL', handler);
     quillInstance.clipboard.addMatcher('LI', handler);
+
     quillInstance.clipboard.addMatcher('STRONG', handler);
     quillInstance.clipboard.addMatcher('EM', handler);
     quillInstance.clipboard.addMatcher('I', handler);
@@ -252,17 +274,15 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
     quillInstance.clipboard.addMatcher('H1', handler);
     quillInstance.clipboard.addMatcher('H2', handler);
     quillInstance.clipboard.addMatcher('H3', handler);
-    quillInstance.clipboard.addMatcher('IMG', handler);
 
     return () => {
-      // Quill matcher removal is not exposed directly.
+      // No-op: Quill matcher removal isn't exposed.
     };
   }, [quillInstance]);
 
   useEffect(() => {
     if (!reactQuillRef.current) return;
 
-    // ReactQuill exposes getEditor() via its instance.
     const editor = reactQuillRef.current.getEditor();
     setQuillInstance(editor);
   }, []);
@@ -277,8 +297,9 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
       <div className={editorHeaderClasses}>
         <div className="text-xs font-semibold text-sura-navy/80">Rich Text</div>
         <div className="text-xs text-sura-navy/60">
-          Paste Plain Text: <span className="font-semibold">Ctrl/Cmd</span> +{' '}
-          <span className="font-semibold">Shift</span> + <span className="font-semibold">V</span>
+          Paste rich text (Word/Google Docs) supported · Plain text paste:{' '}
+          <span className="font-semibold">Ctrl/Cmd</span> + <span className="font-semibold">Shift</span> +{' '}
+          <span className="font-semibold">V</span>
         </div>
       </div>
 
@@ -312,7 +333,7 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
                 editor.insertText(index, text, 'user');
                 editor.setSelection(index + text.length, 0, 'silent');
               } catch {
-                // ignore if clipboard access is denied
+                // ignore
               }
             }}
             title="Paste clipboard as plain text (best-effort)."
@@ -324,80 +345,26 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
 
       <style>
         {`
-        /* Shell */
-        .react-quill-editor .ql-container {
-          font-family: inherit;
-          border: none;
-        }
+        /* Quill base styling */
+        .ql-container { font-family: inherit; border: none; }
+        .ql-toolbar.ql-snow { border: none; background: transparent; color: inherit; padding: 8px 12px; }
+        .ql-editor { min-height: 180px; padding: 16px; color: inherit; background: transparent; }
 
-        /* Toolbar styling */
-        .react-quill-editor .ql-toolbar.ql-snow {
-          border: none;
-          border-bottom: 1px solid rgba(0,0,0,0);
-          background: transparent;
-          color: inherit;
-          padding: 8px 12px;
-        }
+        .ql-snow .ql-editor.ql-blank::before { color: rgba(47,65,86,0.55); font-style: normal; }
 
-        /* Quill base */
-        .react-quill-editor .ql-editor {
-          min-height: 180px;
-          padding: 16px;
-          color: inherit;
-          background: transparent;
-        }
+        body.light .ql-editor { color: var(--sura-ink); }
+        body:not(.light) .ql-editor { color: var(--sura-text); }
+        body:not(.light) .ql-toolbar.ql-snow { color: rgba(245,239,235,0.9); }
 
-        /* Snow theme injects dark text; override to use sura tokens */
-        .ql-snow .ql-editor.ql-blank::before {
-          color: rgba(47,65,86,0.55);
-          font-style: normal;
-        }
-
-        /* Use theme variables with body.light toggling */
-        body.light .ql-toolbar.ql-snow,
-        body.light .ql-container.ql-snow {
-          background: transparent;
-        }
-
-        body.light .ql-editor {
-          color: var(--sura-ink);
-        }
-
-        body:not(.light) .ql-editor {
-          color: var(--sura-text);
-        }
-
-        body:not(.light) .ql-toolbar.ql-snow {
-          color: rgba(245,239,235,0.9);
-        }
-
-        /* Buttons */
-        .ql-snow .ql-toolbar button {
-          color: inherit;
-          border-radius: 10px;
-        }
-
-        /* Active button */
+        .ql-snow .ql-toolbar button { color: inherit; border-radius: 10px; }
         .ql-snow .ql-toolbar button.ql-active {
           background: rgba(200,217,230,0.12);
           color: var(--sura-accent);
         }
 
-        /* Links */
-        .ql-editor a {
-          color: #C8D9E6;
-          text-decoration: underline;
-        }
-        body.light .ql-editor a {
-          color: #2F4156;
-        }
+        .ql-editor a { color: #C8D9E6; text-decoration: underline; }
+        body.light .ql-editor a { color: #2F4156; }
 
-        /* Lists */
-        .ql-editor ul, .ql-editor ol {
-          padding-left: 1.2rem;
-        }
-
-        /* Inline image sizing */
         .ql-editor img {
           max-width: 100%;
           height: auto;
@@ -405,45 +372,21 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
           border: 1px solid var(--sura-line);
         }
 
-        /* Placeholder */
-        .ql-editor .ql-placeholder {
-          color: rgba(245,239,235,0.6);
-        }
-        body.light .ql-editor .ql-placeholder {
-          color: rgba(32,48,63,0.5);
-        }
+        .ql-editor ul, .ql-editor ol { padding-left: 1.2rem; }
 
-        /* Focus ring */
-        .ql-container:focus-within {
-          box-shadow: 0 0 0 1px rgba(200,217,230,0.18);
-        }
+        .ql-editor .ql-placeholder { color: rgba(245,239,235,0.6); }
+        body.light .ql-editor .ql-placeholder { color: rgba(32,48,63,0.5); }
 
-        /* Make the toolbar sit nicely inside our shell */
-        .ql-snow .ql-toolbar {
-          border: none !important;
-          padding: 8px 12px;
-        }
-        .ql-snow .ql-toolbar.ql-snow {
-          background: transparent;
-        }
+        .ql-container:focus-within { box-shadow: 0 0 0 1px rgba(200,217,230,0.18); }
 
-        /* Remove default border between toolbar and editor */
-        .ql-snow .ql-toolbar + .ql-container.ql-snow {
-          border-top: none;
-        }
-
-        /* Ensure editor background matches */
-        .ql-container.ql-snow {
-          border: none;
-        }
-
-        /* Make the container inherit our colors */
-        .ql-snow .ql-editor {
-          background: transparent;
-        }
+        /* Ensure toolbar sits nicely */
+        .ql-snow .ql-toolbar { border: none !important; padding: 8px 12px; }
+        .ql-snow .ql-toolbar + .ql-container.ql-snow { border-top: none; }
+        .ql-container.ql-snow { border: none; }
         `}
       </style>
     </div>
   );
 }
+
 
