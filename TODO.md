@@ -1,8 +1,6 @@
-- [ ] Replace entire server/src/controllers/authController.ts with a complete implementation exporting all handlers required by server/src/routes/authRoutes.ts
-- [ ] Add missing imports (express types, prisma, token helpers)
-- [ ] Implement sanitize(user) helper to avoid leaking sensitive fields
-- [ ] Implement AuthCallback with proper Express request body typing + validation + upsert user + cookie/token issuance
-- [ ] Add basic placeholder implementations for other auth handlers (login/logout/me/register/oauth/password/profile/verify/refresh) to unblock build
-- [x] Run `cd server && npm run build` and fix any remaining TypeScript errors
-
-
+- [ ] Inspect existing AuthContext implementation
+- [ ] Refactor AuthContext to fetch user profile (incl. role) from Supabase `public.User` by authenticated `currentUser.id`
+- [ ] Remove legacy role fetching (`/api/auth/me`, `fetchRoleFromSupabaseMetadata`, user_metadata fallbacks)
+- [ ] Ensure init + onAuthStateChange + login all call the same profile-fetching logic
+- [ ] Write the fully updated `client/src/context/AuthContext.tsx`
+- [ ] (Optional) Run typecheck/build to confirm no TS errors
