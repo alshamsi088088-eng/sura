@@ -9,7 +9,9 @@ type Article = {
   content: string;
   authorName: string;
   publishedAt?: string | null;
+  authorId?: string | null;
 };
+
 
 export function useSupabaseArticleBySlug(slug?: string) {
   const [article, setArticle] = useState<Article | null>(null);
@@ -36,7 +38,7 @@ export function useSupabaseArticleBySlug(slug?: string) {
         // Assumes the Supabase table/columns exist. Adjust if your schema differs.
         const { data, error: fetchError } = await sb
           .from('Article')
-          .select('id,title,excerpt,coverImage,content,authorName,publishedAt,slug')
+          .select('id,title,excerpt,coverImage,content,authorName,authorId,publishedAt,slug')
           .eq('slug', slug)
           .maybeSingle();
 
@@ -55,6 +57,7 @@ export function useSupabaseArticleBySlug(slug?: string) {
             coverImage: data.coverImage ? String(data.coverImage) : null,
             content: String(data.content ?? ''),
             authorName: String(data.authorName ?? ''),
+            authorId: data.authorId ? String(data.authorId) : null,
             publishedAt: data.publishedAt ? String(data.publishedAt) : null,
           });
         }

@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useSupabaseArticleBySlug } from '../components/SupabaseArticleDetails';
+import { supabase } from '../lib/supabaseClient';
+import { ReactQuillEditor } from '../components/ReactQuillEditor';
+import { generateSlug } from '../lib/generateSlug';
 import { useParams, Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { useLocale } from '../context/LocaleContext';
@@ -20,7 +23,9 @@ interface Article {
   content: string;
   authorName: string;
   publishedAt?: string | null;
+  authorId?: string | null;
 }
+
 
 export function ArticleDetailsPage() {
   const { locale } = useLocale();
@@ -28,6 +33,13 @@ export function ArticleDetailsPage() {
   const { slug } = useParams<{ slug: string }>();
 
   const [article, setArticle] = useState<Article | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editExcerpt, setEditExcerpt] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [editError, setEditError] = useState<string>('');
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showReadingSettings, setShowReadingSettings] = useState(false);
@@ -95,6 +107,71 @@ export function ArticleDetailsPage() {
     if (!user) return;
   }, [user, navigate]);
 
+  useEffect(() => {
+    if (!article) return;
+    setEditTitle(article.title);
+    setEditExcerpt(article.excerpt);
+    setEditContent(article.content);
+  }, [article]);
+
+  const handleDelete = async () => {
+    if (!user || !article) return;
+    if (user.id !== article.authorId) return;
+
+    if (!supabase) return;
+
+    const { error: deleteError } = await supabase
+      .from('Article')
+      .delete()
+      .eq('id', article.id);
+
+    if (deleteError) {
+      setEditError(deleteError.message);
+      return;
+    }
+
+    setDeleteOpen(false);
+    navigate('/articles');
+  };
+
+  const handleEditSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user || !article) return;
+    if (user.id !== article.authorId) return;
+
+    if (!supabase) return;
+
+    setEditError('');
+
+    const updatedSlug = generateSlug(editTitle);
+
+    const payload = {
+      title: editTitle.trim(),
+      slug: updatedSlug,
+      excerpt: editExcerpt.trim(),
+      content: editContent,
+      publishedAt: article.publishedAt ? article.publishedAt : new Date().toISOString(),
+    };
+
+
+    const { error: updateError } = await supabase
+      .from('Article')
+      .update(payload)
+      .eq('id', article.id);
+
+    if (updateError) {
+      setEditError(updateError.message);
+      return;
+    }
+
+    setEditOpen(false);
+    setEditError('');
+
+    // Reload page data by navigating to same route using current slug
+    navigate(`/articles/${encodeURIComponent(generateSlug(editTitle))}`);
+  };
+
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -139,10 +216,29 @@ export function ArticleDetailsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </button>
-              <AdminMenu
-                entityType="article"
-                entityId={article.id}
-              />
+              {user?.id && article.authorId && user.id === article.authorId ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Toggle edit modal
+                      setEditOpen(true);
+                    }}
+                    className="rounded-full border border-sura-line px-3 py-1 text-xs text-sura-navy/80 hover:bg-sura-navy/10"
+                  >
+                    {locale === 'ar' ? 'تعديل' : 'Edit'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteOpen(true)}
+                    className="rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs text-red-200 hover:bg-red-500/20"
+                  >
+                    {locale === 'ar' ? 'حذف' : 'Delete'}
+                  </button>
+                </div>
+              ) : (
+                <AdminMenu entityType="article" entityId={article.id} />
+              )}
             </div>
           </div>
           {article.coverImage ? (
@@ -186,9 +282,126 @@ export function ArticleDetailsPage() {
         </Link>
       </div>
 
+      {/* Author Edit Modal */}
+      {editOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-3xl rounded-3xl border border-sura-line bg-sura-canvas p-6 shadow-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold">{locale === 'ar' ? 'تعديل المقال' : 'Edit Article'}</h3>
+                <p className="mt-1 text-sm text-sura-navy/70">{locale === 'ar' ? 'قم بتحديث العنوان والملخص والمحتوى.' : 'Update title, excerpt, and content.'}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditOpen(false);
+                  setEditError('');
+                }}
+                className="rounded-full border border-sura-line px-3 py-1 text-sm text-sura-navy/80 hover:bg-sura-navy/10"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-sura-navy/80">{locale === 'ar' ? 'العنوان' : 'Title'}</label>
+                <input
+                  className="mt-1 w-full rounded-lg border border-sura-line bg-sura-canvas px-4 py-2 text-sm text-sura-navy outline-none focus:border-sura-gold"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-sura-navy/80">{locale === 'ar' ? 'الرابط (تلقائي)' : 'URL Slug (auto)'}</label>
+                <input
+                  className="mt-1 w-full rounded-lg border border-sura-line bg-sura-canvas px-4 py-2 text-sm text-sura-navy outline-none focus:border-sura-gold"
+                  value={generateSlug(editTitle)}
+                  readOnly
+                  disabled
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-sura-navy/80">{locale === 'ar' ? 'الملخص' : 'Excerpt'}</label>
+                <textarea
+                  className="mt-1 min-h-24 w-full resize-y rounded-lg border border-sura-line bg-sura-canvas px-4 py-2 text-sm text-sura-navy outline-none focus:border-sura-gold"
+                  value={editExcerpt}
+                  onChange={(e) => setEditExcerpt(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-sura-navy/80">{locale === 'ar' ? 'المحتوى' : 'Content'}</label>
+                <div className="mt-1">
+                  <ReactQuillEditor value={editContent} onChange={setEditContent} />
+                </div>
+              </div>
+
+              {editError ? (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{editError}</div>
+              ) : null}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditOpen(false);
+                    setEditError('');
+                  }}
+                  className="flex-1 rounded-full border border-sura-line px-4 py-2 text-sm text-sura-navy/80 hover:bg-sura-navy/10"
+                >
+                  {locale === 'ar' ? 'إلغاء' : 'Cancel'}
+                </button>
+                <button type="submit" className="flex-1 rounded-full bg-purple-600 px-4 py-2 text-sm font-semibold text-white">
+                  {locale === 'ar' ? 'حفظ' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Delete Confirmation Modal */}
+      {deleteOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md rounded-3xl border border-sura-line bg-sura-canvas p-6 shadow-xl">
+            <h3 className="text-lg font-semibold">{locale === 'ar' ? 'حذف المقال؟' : 'Delete article?'}</h3>
+            <p className="mt-2 text-sm text-sura-navy/70">
+              {locale === 'ar' ? 'لا يمكن التراجع عن هذا الإجراء.' : 'This action cannot be undone.'}
+            </p>
+            {editError ? <p className="mt-3 text-sm text-red-200">{editError}</p> : null}
+
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteOpen(false);
+                  setEditError('');
+                }}
+                className="flex-1 rounded-full border border-sura-line px-4 py-2 text-sm text-sura-navy/80 hover:bg-sura-navy/10"
+              >
+                {locale === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="flex-1 rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white"
+              >
+                {locale === 'ar' ? 'حذف' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Reading Settings Modal */}
       <ReadingSettings isOpen={showReadingSettings} onClose={() => setShowReadingSettings(false)} />
     </div>
   );
 }
+
 
