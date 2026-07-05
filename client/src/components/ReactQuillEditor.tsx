@@ -66,7 +66,6 @@ function sanitizePastedHtml(rawHtml: string): string {
           // Remove inline style and classes
           el.removeAttribute('style');
           el.removeAttribute('class');
-          // Also remove potential Quill/block wrappers styles.
 
           // Sanitize attributes per tag
           const attrs = Array.from(el.attributes);
@@ -74,7 +73,7 @@ function sanitizePastedHtml(rawHtml: string): string {
             const name = attr.name.toLowerCase();
             const value = attr.value;
 
-            // Global: drop anything that looks like inline sizing/positioning.
+            // Global: drop anything that looks like inline event handlers.
             if (name.startsWith('on')) {
               el.removeAttribute(attr.name);
               continue;
@@ -93,7 +92,7 @@ function sanitizePastedHtml(rawHtml: string): string {
 
                 if (!isSafe) el.setAttribute('href', '#');
               } else if (name === 'target' || name === 'rel') {
-                // allow but normalize target
+                // allow but normalize.
                 if (name === 'target' && value !== '_blank') {
                   el.setAttribute('target', '_blank');
                 }
@@ -138,17 +137,13 @@ function sanitizePastedHtml(rawHtml: string): string {
     // Quill may sometimes paste stray <meta> etc; just serialize body.
     return doc.body.innerHTML;
   } catch {
-    // If parsing fails, fall back to plain text content.
+    // If parsing fails, fall back to raw HTML.
     return rawHtml;
   }
 }
 
 function getQuillClipboardConfig() {
   // clipboard: { matchVisual: false } reduces style-driven surprises.
-  // For paste sanitation we will use a custom matcher that:
-  // - Reads pasted HTML
-  // - Sanitizes it
-  // - Lets Quill continue mapping to Delta
   return {
     matchVisual: false,
   } as const;
@@ -157,11 +152,6 @@ function getQuillClipboardConfig() {
 export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEditorProps) {
   const reactQuillRef = useRef<ReactQuill | null>(null);
   const [quillInstance, setQuillInstance] = useState<QuillType | null>(null);
-
-  const fontFamilyOptions = useMemo(() => {
-    // Only allow core formatting options. These are safe, stable for Quill.
-    return ['default'];
-  }, []);
 
   const modules = useMemo(() => {
     const toolbar: any[] = [
@@ -177,7 +167,6 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
       ['clean'],
     ];
 
-    // We will install a clipboard matcher once Quill is available.
     return {
       toolbar: {
         container: toolbar,
@@ -185,23 +174,16 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
       clipboard: getQuillClipboardConfig(),
       keyboard: {
         // Plain-text paste shortcut: Ctrl/Cmd + Shift + V
-        // We implement by forcing Quill to use text only.
-        // Note: Quill uses browser paste events; this shortcut is best-effort.
         bindings: {
           handlePlainTextPaste: {
             key: 'V',
             shiftKey: true,
             shortKey: true,
-            handler: function (this: any) {
-              // 1) Prevent Quill default handling.
-              // 2) Read from clipboard asynchronously.
-              // 3) Insert as plain text.
+            handler: function (this: unknown) {
               const editor = this as QuillType;
               const range = editor.getSelection(true);
               const index = range ? range.index : editor.getLength();
 
-              // Clipboard API (requires permissions). If unavailable, fall back to default paste.
-              // We will insert plain text with Quill's text insertion.
               void (async () => {
                 try {
                   const clipboard = navigator.clipboard;
@@ -210,7 +192,7 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
                   editor.insertText(index, text, 'user');
                   editor.setSelection(index + text.length, 0, 'silent');
                 } catch {
-                  // If clipboard read fails, do nothing.
+                  // ignore if clipboard read fails
                 }
               })();
             },
@@ -235,33 +217,27 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
   );
 
   useEffect(() => {
-    // Attach sanitization clipboard matcher when Quill is ready.
     if (!quillInstance) return;
 
-    // Matcher API: addMatcher(selectorOrType, matcherFn)
-    // Types: 'text' or node types. We'll sanitize element HTML before Quill converts.
+    type QuillClipboardWithConvert = {
+      convert?: (html: string) => any;
+      addMatcher: (nodeType: any, matcher: (node: Node, delta: any) => any) => void;
+    };
 
-    // Sanitize any element nodes by rebuilding the pasted HTML.
-    // We match all element nodes.
+    const clipboard = quillInstance.clipboard as unknown as QuillClipboardWithConvert;
+
     const handler = (node: Node, delta: any) => {
-      // If Quill is giving us Delta already, we can still sanitize by stripping styles/classes
-      // from the original HTML. We'll prefer to do it using node.outerHTML when available.
-      // However, node may be text-like; in that case, just return delta.
-      if (node && node instanceof HTMLElement) {
+      if (node instanceof HTMLElement) {
         const rawHtml = node.outerHTML;
         const cleanHtml = sanitizePastedHtml(rawHtml);
 
-        // Let Quill parse the sanitized HTML by using clipboard convert.
-        // @ts-expect-error Quill has clipboard.convert
-        const converted = (quillInstance as any).clipboard.convert(cleanHtml);
-        return converted;
+        if (typeof clipboard.convert === 'function') {
+          return clipboard.convert(cleanHtml);
+        }
       }
       return delta;
     };
 
-    // Apply to element nodes
-    // Quill docs: addMatcher(nodeType, fn) where nodeType can be tag name.
-    // We'll use a broad matcher for common containers.
     quillInstance.clipboard.addMatcher('A', handler);
     quillInstance.clipboard.addMatcher('BODY', handler);
     quillInstance.clipboard.addMatcher('P', handler);
@@ -279,38 +255,33 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
     quillInstance.clipboard.addMatcher('IMG', handler);
 
     return () => {
-      // Quill matcher removal is not directly exposed; leaving as-is is acceptable
-      // because this effect runs once per mount.
+      // Quill matcher removal is not exposed directly.
     };
   }, [quillInstance]);
 
-  // Extra hook: once mounted, grab Quill instance.
   useEffect(() => {
     if (!reactQuillRef.current) return;
-    // @ts-expect-error ReactQuill stores ReactQuill and exposes getEditor
+
+    // ReactQuill exposes getEditor() via its instance.
     const editor = reactQuillRef.current.getEditor();
     setQuillInstance(editor);
   }, []);
 
-  const editorShellClasses =
-    'rounded-2xl border border-sura-line bg-sura-canvas overflow-hidden';
-
+  const editorShellClasses = 'rounded-2xl border border-sura-line bg-sura-canvas overflow-hidden';
   const editorHeaderClasses =
     'flex flex-wrap items-center gap-2 border-b border-sura-line bg-sura-canvas/40 px-3 py-2';
-
-  const editorBodyClasses =
-    'quill-editor';
+  const editorBodyClasses = 'quill-editor';
 
   return (
     <div className={editorShellClasses}>
       <div className={editorHeaderClasses}>
         <div className="text-xs font-semibold text-sura-navy/80">Rich Text</div>
         <div className="text-xs text-sura-navy/60">
-          Paste Plain Text: <span className="font-semibold">Ctrl/Cmd</span> + <span className="font-semibold">Shift</span> + <span className="font-semibold">V</span>
+          Paste Plain Text: <span className="font-semibold">Ctrl/Cmd</span> +{' '}
+          <span className="font-semibold">Shift</span> + <span className="font-semibold">V</span>
         </div>
       </div>
 
-      {/* react-quill will inject toolbar DOM inside .ql-toolbar. */}
       <div className={editorBodyClasses}>
         <ReactQuill
           ref={(instance) => {
@@ -322,24 +293,22 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
           placeholder={placeholder}
           modules={modules}
           formats={formats}
-          // Plain-text paste button for mouse users: we intercept toolbar button by DOM query.
-          // Quill toolbar doesn't support custom button out-of-the-box in modules, so we add a second toolbar below.
         />
 
-        {/* Plain text paste control */}
         <div className="px-3 py-2 border-t border-sura-line bg-sura-canvas/30">
           <button
             type="button"
             className="rounded-full border border-sura-line px-4 py-1.5 text-xs font-semibold text-sura-navy/80 hover:bg-sura-navy/10"
             onClick={async () => {
               try {
-                // @ts-expect-error clipboard typing varies
                 if (!navigator.clipboard?.readText) return;
                 const text = await navigator.clipboard.readText();
                 const editor = reactQuillRef.current?.getEditor();
                 if (!editor) return;
+
                 const range = editor.getSelection(true);
                 const index = range ? range.index : editor.getLength();
+
                 editor.insertText(index, text, 'user');
                 editor.setSelection(index + text.length, 0, 'silent');
               } catch {
@@ -353,7 +322,6 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
         </div>
       </div>
 
-      {/* Tailwind theming for Quill. */}
       <style>
         {`
         /* Shell */
@@ -475,9 +443,6 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
         }
         `}
       </style>
-
-      {/* NOTE: We kept Quill HTML persistence as-is (value={value}). */}
-      {/* Paste sanitization is applied in the clipboard matcher effect above. */}
     </div>
   );
 }

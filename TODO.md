@@ -1,6 +1,5 @@
-- [ ] Inspect existing AuthContext implementation
-- [ ] Refactor AuthContext to fetch user profile (incl. role) from Supabase `public.User` by authenticated `currentUser.id`
-- [ ] Remove legacy role fetching (`/api/auth/me`, `fetchRoleFromSupabaseMetadata`, user_metadata fallbacks)
-- [ ] Ensure init + onAuthStateChange + login all call the same profile-fetching logic
-- [ ] Write the fully updated `client/src/context/AuthContext.tsx`
-- [ ] (Optional) Run typecheck/build to confirm no TS errors
+- [x] Inspect ReactQuillEditor.tsx and identify all @ts-expect-error directives.
+- [x] Propose an edit plan removing directives and fixing types safely.
+- [x] Rewrite ReactQuillEditor.tsx fully with clean TypeScript.
+- [x] Run client TypeScript build to confirm no ts-expect-error remain.
+
