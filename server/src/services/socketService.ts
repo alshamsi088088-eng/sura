@@ -7,21 +7,23 @@ import { ALLOWED_ORIGINS_STR } from './config.js';
  *
  * Key fixes:
  * 1. Uses ALLOWED_ORIGINS from config.ts (consistent with Express)
- * 2. WebSocket-first (not polling) - fixes 308 redirect on Railway
- * 3. Function-based CORS (not array) - consistent with Express
- * 4. No duplicate domain (www only)
+ * 2. WebSocket-only (no polling fallback) - fixes 308 redirect on Railway
+ * 3. Function-based CORS (not array) - mirrors Express CORS policy exactly
+ * 4. Production: only https://sura-codex.com (no www — prevents 308 loops)
+ * 5. Compression disabled for Railway reverse-proxy compatibility
  */
 export function registerSocketServer(server: http.Server) {
   const isProduction = process.env.NODE_ENV === 'production';
 
   const io = new Server(server, {
     /**
-     * ✅ CORS -function based (consistent with Express)
-     * Allows proper callback-based validation
+     * ✅ CORS - function-based (mirrors Express CORS policy exactly)
+     * Production: only https://sura-codex.com
+     * Dev: allow configured origins from ALLOWED_ORIGINS_STR
      */
     cors: {
       origin: (origin, callback) => {
-        // Allow no origin (direct server connections)
+        // Allow no origin (server-to-server, curl, Postman)
         if (!origin) {
           callback(null, true);
           return;
@@ -30,13 +32,14 @@ export function registerSocketServer(server: http.Server) {
         // ✅ Normalize - remove trailing slash
         const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
 
-        // ✅ Production: strict www only
+        // ✅ Production: strict single-domain (no www — Railway redirects www → non-www via 308)
         if (isProduction) {
-          if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
+          const allowed = normalizedOrigin === 'https://sura-codex.com';
+          if (allowed) {
             callback(null, true);
           } else {
             console.log(`Socket CORS REJECTED: ${normalizedOrigin}`);
-            callback(new Error('Not allowed'), false);
+            callback(new Error('Not allowed by CORS'), false);
           }
           return;
         }
@@ -45,9 +48,8 @@ export function registerSocketServer(server: http.Server) {
         if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
           callback(null, true);
         } else {
-          // Dev mode: allow but log
-          console.log(`Socket CORS: Dev allowing ${origin}`);
-          callback(null, true);
+          console.log(`Socket CORS REJECTED in dev: ${normalizedOrigin}`);
+          callback(new Error('Not allowed by CORS (dev)'), false);
         }
       },
       methods: ['GET', 'POST'],
@@ -55,24 +57,26 @@ export function registerSocketServer(server: http.Server) {
     },
 
     /**
-     * ✅ WebSocket-first - fixes 308 redirect on Railway
+     * ✅ WebSocket-only transport - fixes 308 redirect on Railway
      *
-     * Why polling-first causes 308:
-     * - Railway proxy sees HTTP polling as regular HTTP
-     * - Gets redirected to www (non-www redirect)
-     * - Socket.IO follows redirect -> 308 error
+     * Why polling causes 308:
+     * - Railway proxy treats HTTP polling as a regular HTTP request
+     * - www → non-www redirect fires during the polling handshake
+     * - Socket.IO follows the 308 and the handshake fails
      *
-     * Solution: WebSocket upgrades directly, bypasses redirect
+     * Solution: WebSocket upgrades bypass the HTTP redirect entirely
      */
     transports: ['websocket'],
 
     /**
-     * ✅ Minimal configuration for Railway
+     * ✅ Railway-optimised timing and compression settings
+     * - pingTimeout/pingInterval tuned for Railway's reverse proxy idle timeout
+     * - perMessageDeflate + httpCompression disabled for Railway compatibility
      */
     pingTimeout: 20000,
     pingInterval: 25000,
     perMessageDeflate: false,
-    httpCompression: true,
+    httpCompression: false,
 
     /**
      * ✅ Allow upgrades but limit to WebSocket only
