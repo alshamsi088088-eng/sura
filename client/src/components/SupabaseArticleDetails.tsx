@@ -51,12 +51,21 @@ export function useSupabaseArticleBySlug(slug?: string) {
       try {
         const sb = getSupabaseOrThrow();
 
+        // slug comes from the URL and may be percent-encoded (e.g. %D9%86%D8%B5%D8%AD...).
+        // Decode it before querying so Supabase matches the stored Arabic slug.
+        let decodedSlug = slug;
+        try {
+          decodedSlug = decodeURIComponent(slug);
+        } catch {
+          decodedSlug = slug;
+        }
+
         const { data, error: fetchError } = await sb
           .from('Article')
           .select(
             'id,title,excerpt,cover_image,content,author_id,published_at,slug,User(name)'
           )
-          .eq('slug', slug)
+          .eq('slug', decodedSlug)
           .maybeSingle();
 
         if (cancelled) return;
