@@ -26,16 +26,17 @@ function getDatabaseUrl() {
 export const JWT_SECRET = assertEnv('JWT_SECRET', 'dev_jwt_secret');
 export const JWT_REFRESH_SECRET = assertEnv('JWT_REFRESH_SECRET', 'dev_jwt_refresh_secret');
 export const DATABASE_URL = getDatabaseUrl();
-// Use HTTPS in production to avoid Mixed Content - ONLY www domain
-export const CLIENT_URL = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://www.sura-codex.com' : 'http://localhost:5173');
-export const SERVER_URL = process.env.SERVER_URL || (process.env.NODE_ENV === 'production' ? 'https://www.sura-codex.com' : 'http://localhost:5000');
+// Use HTTPS in production to avoid Mixed Content - non-www only (www causes 308 redirect loops)
+export const CLIENT_URL = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://sura-codex.com' : 'http://localhost:5173');
+export const SERVER_URL = process.env.SERVER_URL || (process.env.NODE_ENV === 'production' ? 'https://sura-codex.com' : 'http://localhost:5000');
 
 /**
- * ✅ CORS Origins - PRODUCTION: ONLY www.sura-codex.com
- * This fixes 308 redirect loops by not allowing non-www domain
+ * ✅ CORS Origins - PRODUCTION: ONLY https://sura-codex.com (no www)
+ * www.sura-codex.com is intentionally excluded — Railway redirects www → non-www
+ * via a 308 permanent redirect, which breaks the Socket.IO handshake.
  *
- * @important - Do NOT add non-www domain (sura-codex.com) as it causes:
- * - 308 permanent redirect loops
+ * @important - Do NOT add www.sura-codex.com here as it causes:
+ * - 308 permanent redirect loops during Socket.IO handshake
  * - Duplicate CORS checks
  * - Railway proxy confusion
  */

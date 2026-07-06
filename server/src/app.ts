@@ -31,14 +31,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 /**
- * ✅ CORS Production-Fix: السماح فقط بـ www domain
- * إصلاح مشكلة 308 redirect ومنع ازدواجية origins
+ * ✅ CORS Production-Fix: single non-www domain only
+ * Fixes 308 redirect loops and prevents origin duplication.
  *
- *_rules:_
- * - ✅_allowed Origins: www.sura-codex.com و localhost فقط
- * - ✅_non-www domain = لا يُسمح (يسبب 308 redirect)
- * - ✅_credentials = مفعل
- * - ✅_preflight = مُعالج بشكل صحيح
+ * Rules:
+ * - ✅ Production: https://sura-codex.com only (no www — causes 308 redirect loops)
+ * - ✅ Dev: configured origins from ALLOWED_ORIGINS_STR
+ * - ✅ credentials = true
+ * - ✅ preflight handled correctly (optionsSuccessStatus: 204)
  */
 const isProduction = process.env.NODE_ENV === 'production';
 
