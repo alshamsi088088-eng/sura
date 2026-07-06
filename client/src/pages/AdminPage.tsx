@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import axios from 'axios';
 import { useLocale } from '../context/LocaleContext';
+import { supabase } from '../lib/supabaseClient';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface ModerationComment {
   id: string;
@@ -45,12 +44,39 @@ export function AdminPage() {
   };
 
   useEffect(() => {
-    setOverviewLoading(true);
-    axios.get(`${API_URL}/api/admin/overview`)
-      .then((res) => setOverview(res.data as OverviewData))
-      .catch(() => setOverviewError(locale === 'ar' ? 'فشل تحميل البيانات' : 'Failed to load data'))
-      .finally(() => setOverviewLoading(false));
+    const loadOverview = async () => {
+      setOverviewLoading(true);
+      setOverviewError(null);
+
+      try {
+        const sb = supabase;
+        if (!sb) throw new Error('Supabase client is not initialized');
+
+        const [usersRes, articlesRes, novelsRes] = await Promise.all([
+          sb.from('User').select('*', { count: 'exact', head: true }),
+          sb.from('Article').select('*', { count: 'exact', head: true }),
+          sb.from('Novel').select('*', { count: 'exact', head: true }),
+        ]);
+
+        if (usersRes.error) throw usersRes.error;
+        if (articlesRes.error) throw articlesRes.error;
+        if (novelsRes.error) throw novelsRes.error;
+
+        setOverview({
+          totalUsers: usersRes.count ?? 0,
+          totalArticles: articlesRes.count ?? 0,
+          totalNovels: novelsRes.count ?? 0,
+        });
+      } catch {
+        setOverviewError(locale === 'ar' ? 'فشل تحميل البيانات' : 'Failed to load data');
+      } finally {
+        setOverviewLoading(false);
+      }
+    };
+
+    loadOverview();
   }, [locale]);
+
 
   const [loadingComments, setLoadingComments] = useState(false);
   const [commentsError, setCommentsError] = useState<string | null>(null);
@@ -59,11 +85,17 @@ export function AdminPage() {
     setLoadingComments(true);
     setCommentsError(null);
     try {
-      const res = await fetch(`${API_URL}/api/admin/comments?limit=150`);
-      if (res.ok) {
-        const data = await res.json();
-        setComments(data.comments || []);
-      }
+      const sb = supabase;
+      if (!sb) throw new Error('Supabase client is not initialized');
+
+      const { data, error } = await sb
+        .from('Comment')
+        .select('*')
+        .order('createdAt', { ascending: false });
+
+      if (error) throw error;
+      setComments((data as ModerationComment[]) || []);
+
     } catch (e) {
       setCommentsError(e instanceof Error ? e.message : 'Failed to load comments');
     } finally {
@@ -87,16 +119,21 @@ export function AdminPage() {
 
   const moderate = async (commentId: string, status: 'visible' | 'hidden') => {
     try {
-      await fetch(`${API_URL}/api/admin/comments/${commentId}/moderate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-      });
+      const sb = supabase;
+      if (!sb) throw new Error('Supabase client is not initialized');
+
+      const { error } = await sb
+        .from('Comment')
+        .update({ status })
+        .eq('id', commentId);
+
+      if (error) throw error;
       fetchComments();
     } catch (err) {
       console.error('Failed to moderate comment:', err);
     }
   };
+
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -127,20 +164,50 @@ export function AdminPage() {
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'overview' && overview && (
+      {activeTab === 'overview' && (
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-3xl border border-sura-line bg-sura-canvas p-6">
-            <div className="text-sm uppercase tracking-[0.3em] text-sura-teal">Users</div>
-            <div className="mt-4 text-4xl font-semibold">{overview.users}</div>
-            <div className="mt-2 text-sm text-sura-navy/70">Active readers, writers, and admins</div>
+            <div className="text-sm uppercase tracking-[0.3em] text-sura-teal">
+              {locale === 'ar' ? 'المستخدمون' : 'Users'}
+            </div>
+            <div className="mt-4 text-4xl font-semibold">
+              {overviewLoading ? '...' : (overview?.totalUsers ?? 0)}
+            </div>
+            <div className="mt-2 text-sm text-sura-navy/70">
+              {locale === 'ar' ? 'إجمالي القراء والكتّاب والمديرين' : 'Total readers, writers, and admins'}
+            </div>
           </div>
+
           <div className="rounded-3xl border border-sura-line bg-sura-canvas p-6">
-            <div className="text-sm uppercase tracking-[0.3em] text-sura-teal">Revenue</div>
-            <div className="mt-4 text-4xl font-semibold">${overview.revenue}</div>
-            <div className="mt-2 text-sm text-sura-navy/70">Stripe orders and digital sales</div>
+            <div className="text-sm uppercase tracking-[0.3em] text-sura-teal">
+              {locale === 'ar' ? 'المحتوى' : 'Content'}
+            </div>
+            <div className="mt-4 text-4xl font-semibold">
+              {overviewLoading ? '...' : (overview?.totalArticles ?? 0)}
+            </div>
+            <div className="mt-2 text-sm text-sura-navy/70">
+              {locale === 'ar' ? 'إجمالي المقالات' : 'Total articles'}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-sura-line bg-sura-canvas p-6 lg:col-span-2">
+            <div className="text-sm uppercase tracking-[0.3em] text-sura-teal">
+              {locale === 'ar' ? 'الروايات' : 'Novels'}
+            </div>
+            <div className="mt-4 text-4xl font-semibold">
+              {overviewLoading ? '...' : (overview?.totalNovels ?? 0)}
+            </div>
+            <div className="mt-2 text-sm text-sura-navy/70">
+              {locale === 'ar' ? 'إجمالي الروايات' : 'Total novels'}
+            </div>
+
+            {overviewError ? (
+              <div className="mt-3 text-sm text-red-400">{overviewError}</div>
+            ) : null}
           </div>
         </div>
       )}
+
 
       {/* Comments Tab */}
       {activeTab === 'comments' && (

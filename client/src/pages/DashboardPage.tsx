@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
@@ -87,20 +86,24 @@ function updateReadingStreak() {
   const streak = getReadingStreak();
   const newStreak = {
     days: streak.days + 1,
-    lastDate: today
+    lastDate: today,
   };
   localStorage.setItem(READING_STREAK_KEY, JSON.stringify(newStreak));
   localStorage.setItem(LAST_READ_DATE_KEY, today);
 }
 
 function generateWeeklyChartData(localeValue: string): { day: string; articles: number; chapters: number }[] {
-  const days = [];
+  const days: { day: string; articles: number; chapters: number }[] = [];
   const now = new Date();
   for (let i = 6; i >= 0; i--) {
     const date = new Date(now);
     date.setDate(date.getDate() - i);
     const key = `${WEEKLY_READING_KEY}_${date.toISOString().slice(0, 7)}`;
-    const dayData = { day: date.toLocaleDateString(localeValue === 'ar' ? 'ar-SA' : 'en-US', { weekday: 'short' }), articles: 0, chapters: 0 };
+    const dayData = {
+      day: date.toLocaleDateString(localeValue === 'ar' ? 'ar-SA' : 'en-US', { weekday: 'short' }),
+      articles: 0,
+      chapters: 0,
+    };
     try {
       const saved = localStorage.getItem(key);
       if (saved) {
@@ -119,7 +122,9 @@ function generateWeeklyChartData(localeValue: string): { day: string; articles: 
 export function DashboardPage() {
   const { user } = useAuth();
   const { locale } = useLocale();
-  const [history, setHistory] = useState<string[]>([]);
+
+  const [history] = useState<string[]>([]); // kept for UI compatibility (previously from /api/dashboard)
+
   const [weeklyData, setWeeklyData] = useState<WeeklyData>({ articles: 0, chapters: 0, date: '' });
   const [lastRead, setLastRead] = useState<ReadingEntry[]>([]);
   const [userContent, setUserContent] = useState<UserContent>({ articles: 0, novels: 0, chapters: 0 });
@@ -130,10 +135,6 @@ export function DashboardPage() {
     { id: 'bookworm', name: 'Bookworm', icon: '📚', earned: false },
     { id: 'collector', name: 'Collector', icon: '📦', earned: false },
   ]);
-
-  useEffect(() => {
-    axios.get('/api/dashboard').then((res) => setHistory(res.data.history || [])).catch(() => setHistory([]));
-  }, []);
 
   useEffect(() => {
     const weekly = loadWeeklyData();
@@ -147,17 +148,23 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (!user || !supabase) return;
+
     const loadUserContent = async () => {
-      const { data: articles } = await supabase!.from('Article').select('id').eq('authorId', user.id);
-      const { data: novels } = await supabase!.from('Novel').select('id').eq('authorId', user.id);
-      const { data: chapters } = await supabase!.from('Chapter').select('id');
+      // Direct Supabase calls for dashboard metrics (no /api/dashboard)
+      const sb = supabase!;
+      const { data: articles } = await sb.from('Article').select('id').eq('authorId', user.id);
+      const { data: novels } = await sb.from('Novel').select('id').eq('authorId', user.id);
+      const { data: chapters } = await sb.from('Chapter').select('id');
+
+
       setUserContent({
         articles: articles?.length || 0,
         novels: novels?.length || 0,
-        chapters: chapters?.length || 0
+        chapters: chapters?.length || 0,
       });
     };
-    loadUserContent();
+
+    void loadUserContent();
   }, [user]);
 
   useEffect(() => {
@@ -167,36 +174,35 @@ export function DashboardPage() {
     const streakDays = streak?.days ?? 0;
 
     if (articleCount >= 1) {
-      const badge = updated.find(b => b.id === 'first_article');
+      const badge = updated.find((b) => b.id === 'first_article');
       if (badge) badge.earned = true;
     }
     if (streakDays >= 7) {
-      const badge = updated.find(b => b.id === 'reading_streak');
+      const badge = updated.find((b) => b.id === 'reading_streak');
       if (badge) badge.earned = true;
     }
     if (articleCount >= 5) {
-      const badge = updated.find(b => b.id === 'bookworm');
+      const badge = updated.find((b) => b.id === 'bookworm');
       if (badge) badge.earned = true;
     }
-    if ((articleCount + novelCount) >= 10) {
-      const badge = updated.find(b => b.id === 'collector');
+    if (articleCount + novelCount >= 10) {
+      const badge = updated.find((b) => b.id === 'collector');
       if (badge) badge.earned = true;
     }
+
     setBadges(updated);
   }, [userContent, streak]);
 
   const chartData = useMemo(() => generateWeeklyChartData(locale), [locale]);
   const totalWeekly = weeklyData.articles + weeklyData.chapters;
   const totalRead = lastRead.length;
-  const maxChartValue = Math.max(...chartData.map(d => d.articles + d.chapters), 1);
+  const maxChartValue = Math.max(...chartData.map((d) => d.articles + d.chapters), 1);
   const isArabic = locale === 'ar';
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
-        <h1 className="text-4xl font-semibold text-sura-ivory">
-          {isArabic ? 'لوحة الأعضاء' : 'Member Dashboard'}
-        </h1>
+        <h1 className="text-4xl font-semibold text-sura-ivory">{isArabic ? 'لوحة الأعضاء' : 'Member Dashboard'}</h1>
         <p className="mt-3 text-sm leading-7 text-sura-ivory/60">
           {isArabic ? 'مركز تحكمك الشخصي للكتب والمفضلات والمشتريات.' : 'Your hub for bookmarks, reading progress, and purchases.'}
         </p>
@@ -204,56 +210,47 @@ export function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-5">
         <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
-          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
-            {isArabic ? 'هذا الأسبوع' : 'This Week'}
-          </div>
+          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">{isArabic ? 'هذا الأسبوع' : 'This Week'}</div>
           <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{totalWeekly}</div>
           <div className="text-xs text-sura-ivory/50">{isArabic ? 'مقال/فصل' : 'items read'}</div>
         </div>
+
         <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
-          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
-            {isArabic ? 'المقالات' : 'Articles'}
-          </div>
+          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">{isArabic ? 'المقالات' : 'Articles'}</div>
           <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{userContent?.articles ?? 0}</div>
           <div className="text-xs text-sura-ivory/50">{isArabic ? 'مقالات لك' : 'your articles'}</div>
         </div>
+
         <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
-          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
-            {isArabic ? 'الروايات' : 'Novels'}
-          </div>
+          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">{isArabic ? 'الروايات' : 'Novels'}</div>
           <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{userContent?.novels ?? 0}</div>
           <div className="text-xs text-sura-ivory/50">{isArabic ? 'روايات لك' : 'your novels'}</div>
         </div>
+
         <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
-          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
-            {isArabic ? 'سلسلة القراءة' : 'Reading Streak'}
-          </div>
+          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">{isArabic ? 'سلسلة القراءة' : 'Reading Streak'}</div>
           <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{streak?.days ?? 0}</div>
           <div className="text-xs text-sura-ivory/50">{isArabic ? 'أيام متتالية' : 'days in a row'}</div>
         </div>
+
         <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
-          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
-            {isArabic ? 'الإجمالي' : 'Total'}
-          </div>
+          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">{isArabic ? 'الإجمالي' : 'Total'}</div>
           <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{totalRead}</div>
           <div className="text-xs text-sura-ivory/50">{isArabic ? 'عنوان مقروء' : 'titles read'}</div>
         </div>
       </div>
 
       <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-6 sm:p-8">
-        <h2 className="text-xl font-semibold text-sura-ivory">
-          {isArabic ? 'القراءة الأسبوعية' : 'Weekly Reading'}
-        </h2>
+        <h2 className="text-xl font-semibold text-sura-ivory">{isArabic ? 'القراءة الأسبوعية' : 'Weekly Reading'}</h2>
         <div className="mt-6 flex h-40 items-end gap-2">
           {chartData.map((day, i) => {
             const value = day.articles + day.chapters;
             const height = Math.max(4, (value / maxChartValue) * 100);
+
             return (
               <div key={i} className="flex flex-1 flex-col items-center gap-2">
                 <div className="w-full rounded-t-sm bg-[#7F77DD]/60 transition-all duration-300" style={{ height: `${height}%` }}>
-                  {value > 0 && (
-                    <div className="text-center text-xs font-bold text-sura-dark">{value}</div>
-                  )}
+                  {value > 0 && <div className="text-center text-xs font-bold text-sura-dark">{value}</div>}
                 </div>
                 <div className="text-xs text-sura-ivory/50">{day.day}</div>
               </div>
@@ -282,27 +279,27 @@ export function DashboardPage() {
             </div>
           </div>
           <div className="mt-6 space-y-3 text-sm text-sura-ivory/60">
-            <div>{isArabic ? 'البريد الإلكتروني:' : 'Email:'} {user?.email}</div>
-            <div>{isArabic ? 'اللغة' : 'Language'}: {user?.locale.toUpperCase()} / {user?.theme}</div>
+            <div>
+              {isArabic ? 'البريد الإلكتروني:' : 'Email:'} {user?.email}
+            </div>
+            <div>
+              {isArabic ? 'اللغة' : 'Language'}: {user?.locale.toUpperCase()} / {user?.theme}
+            </div>
           </div>
         </section>
 
         <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
-          <h2 className="text-xl font-semibold text-sura-ivory">
-            {isArabic ? 'آخر قراءة' : 'Last Read'}
-          </h2>
+          <h2 className="text-xl font-semibold text-sura-ivory">{isArabic ? 'آخر قراءة' : 'Last Read'}</h2>
           <div className="mt-4 space-y-3">
             {lastRead.length === 0 ? (
-              <div className="text-sm text-sura-ivory/50">
-                {isArabic ? 'لا توجد قراءات بعد.' : 'No reading history yet.'}
-              </div>
+              <div className="text-sm text-sura-ivory/50">{isArabic ? 'لا توجد قراءات بعد.' : 'No reading history yet.'}</div>
             ) : (
               lastRead.slice(0, 5).map((entry) => (
                 <div key={entry.id} className="flex items-center justify-between rounded-lg bg-sura-ivory/5 p-3">
                   <div>
                     <div className="text-sm font-medium text-sura-ivory">{entry.title}</div>
                     <div className="text-xs text-sura-ivory/50">
-                      {entry.type === 'article' ? (isArabic ? 'مقال' : 'Article') : (isArabic ? 'رواية' : 'Novel')}
+                      {entry.type === 'article' ? (isArabic ? 'مقال' : 'Article') : isArabic ? 'رواية' : 'Novel'}
                     </div>
                   </div>
                   <div className="text-right">
@@ -319,28 +316,18 @@ export function DashboardPage() {
       </div>
 
       <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
-        <h2 className="text-xl font-semibold text-sura-ivory">
-          {isArabic ? 'الإنجازات' : 'Achievements'}
-        </h2>
+        <h2 className="text-xl font-semibold text-sura-ivory">{isArabic ? 'الإنجازات' : 'Achievements'}</h2>
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {badges.map((badge) => (
             <div
               key={badge.id}
               className={`flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition ${
-                badge.earned
-                  ? 'border-[#7F77DD]/50 bg-[#7F77DD]/10'
-                  : 'border-[#7F77DD]/20 bg-sura-dark/50 opacity-50'
+                badge.earned ? 'border-[#7F77DD]/50 bg-[#7F77DD]/10' : 'border-[#7F77DD]/20 bg-sura-dark/50 opacity-50'
               }`}
             >
               <div className="text-3xl">{badge.icon}</div>
-              <div className={`text-sm font-medium ${badge.earned ? 'text-sura-ivory' : 'text-sura-ivory/50'}`}>
-                {badge.name}
-              </div>
-              {badge.earned && (
-                <div className="text-xs text-[#7F77DD]">
-                  {isArabic ? '✓ محقق' : '✓ Earned'}
-                </div>
-              )}
+              <div className={`text-sm font-medium ${badge.earned ? 'text-sura-ivory' : 'text-sura-ivory/50'}`}>{badge.name}</div>
+              {badge.earned && <div className="text-xs text-[#7F77DD]">{isArabic ? '✓ محقق' : '✓ Earned'}</div>}
             </div>
           ))}
         </div>
@@ -348,12 +335,12 @@ export function DashboardPage() {
 
       {history.length > 0 && (
         <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
-          <h2 className="text-xl font-semibold text-sura-ivory">
-            {isArabic ? 'الأنشطة الأخيرة' : 'Recent Activity'}
-          </h2>
+          <h2 className="text-xl font-semibold text-sura-ivory">{isArabic ? 'الأنشطة الأخيرة' : 'Recent Activity'}</h2>
           <div className="mt-4 space-y-3 text-sm text-sura-ivory/60">
             {history.map((entry, i) => (
-              <div key={i} className="border-b border-sura-ivory/10 pb-2">{entry}</div>
+              <div key={i} className="border-b border-sura-ivory/10 pb-2">
+                {entry}
+              </div>
             ))}
           </div>
         </section>
@@ -361,3 +348,4 @@ export function DashboardPage() {
     </div>
   );
 }
+

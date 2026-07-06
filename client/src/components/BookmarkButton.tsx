@@ -1,21 +1,40 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, memo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
 import { trackEvent } from '../lib/analytics';
 import type { ContentType } from './LikeButton';
+import { supabase } from '../lib/supabaseClient';
 
 export type BookmarkButtonProps = {
-  // New props
   contentType?: ContentType;
   contentId?: string;
-  // Legacy props (for backward compatibility)
+
+  // Legacy props
   entityId?: string;
   entityType?: string;
+
   initialBookmarked?: boolean;
   initialCount?: number;
   size?: 'sm' | 'md' | 'lg';
   onChange?: (bookmarked: boolean, count: number) => void;
 };
+
+function targetColumnFor(contentType: ContentType) {
+  switch (contentType) {
+    case 'article':
+      return 'article_id';
+    case 'novel':
+      return 'novel_id';
+    case 'chapter':
+      return 'chapter_id';
+    case 'book':
+      return 'book_id';
+    case 'community':
+      return 'community_id';
+    default:
+      return 'article_id';
+  }
+}
 
 export function BookmarkButton({
   contentType: propContentType,
@@ -27,50 +46,69 @@ export function BookmarkButton({
   size = 'md',
   onChange
 }: BookmarkButtonProps) {
-  // Support both new and legacy prop names
   const contentType = propContentType || (entityType as ContentType) || 'article';
   const contentId = propContentId || entityId || '';
 
   const { user } = useAuth();
   const { locale } = useLocale();
+
   const [bookmarked, setBookmarked] = useState(initialBookmarked);
   const [count, setCount] = useState(initialCount);
   const [isLoading, setIsLoading] = useState(false);
 
   const isArabic = locale === 'ar';
 
-  // Sync with props
   useEffect(() => {
     setBookmarked(initialBookmarked);
     setCount(initialCount);
   }, [contentId, initialBookmarked, initialCount]);
 
-  // Fetch status on mount
+  const targetCol = useMemo(() => targetColumnFor(contentType), [contentType]);
+
+  const load = useCallback(async () => {
+    if (!contentId || !supabase) return;
+
+    const { data: bookmarkRow, error: bookmarkErr } = await supabase
+      .from('Bookmark')
+      .select('user_id')
+      .eq('user_id', user?.id ?? '')
+      .eq(targetCol, contentId)
+      .maybeSingle();
+
+    if (bookmarkErr) {
+      // ignore
+    }
+
+    const nextBookmarked = Boolean(bookmarkRow);
+
+    const { count: bookmarkCount, error: countErr } = await supabase
+      .from('Bookmark')
+      .select('*', { count: 'exact', head: true })
+      .eq(targetCol, contentId);
+
+    if (countErr) return;
+
+    const nextCount = Number(bookmarkCount ?? 0);
+    setBookmarked(nextBookmarked);
+    setCount(nextCount);
+    onChange?.(nextBookmarked, nextCount);
+  }, [contentId, targetCol, user?.id, onChange]);
+
   useEffect(() => {
     if (!contentId) return;
-
-    fetch(`/api/engagement/bookmark?type=${contentType}&id=${contentId}`, {
-      credentials: 'include'
-    })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data) {
-          setBookmarked(data.bookmarked);
-          setCount(data.count);
-        }
-      })
-      .catch(() => {});
-  }, [contentId, contentType]);
+    load().catch(() => {});
+  }, [contentId, load]);
 
   const handleToggle = useCallback(async () => {
     if (!user) return;
+    if (!contentId) return;
+    if (!supabase) return;
     if (isLoading) return;
 
     const prevBookmarked = bookmarked;
     const prevCount = count;
-    const nextBookmarked = !bookmarked;
+    const nextBookmarked = !prevBookmarked;
 
-    // Optimistic update
     setBookmarked(nextBookmarked);
     setCount(nextBookmarked ? count + 1 : Math.max(0, count - 1));
     onChange?.(nextBookmarked, nextBookmarked ? count + 1 : Math.max(0, count - 1));
@@ -78,47 +116,48 @@ export function BookmarkButton({
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/engagement/bookmark', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ type: contentType, id: contentId })
-      });
+      const { data: existing } = await supabase
+        .from('Bookmark')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .eq(targetCol, contentId)
+        .maybeSingle();
 
-      if (!res.ok) throw new Error('Failed');
+      if (existing) {
+        const { error: delError } = await supabase
+          .from('Bookmark')
+          .delete()
+          .eq('user_id', user.id)
+          .eq(targetCol, contentId);
+        if (delError) throw delError;
+      } else {
+        const payload: any = { user_id: user.id, [targetCol]: contentId };
+        const { error: insError } = await supabase.from('Bookmark').insert(payload);
+        if (insError) throw insError;
+      }
 
-      const data = await res.json();
-      setBookmarked(data.bookmarked);
-      setCount(data.count);
-      onChange?.(data.bookmarked, data.count);
+      await load();
 
       trackEvent(nextBookmarked ? 'bookmark_added' : 'bookmark_removed', {
         content_type: contentType,
         content_id: contentId
       });
     } catch {
-      // Revert on error
       setBookmarked(prevBookmarked);
       setCount(prevCount);
       onChange?.(prevBookmarked, prevCount);
     } finally {
       setIsLoading(false);
     }
-  }, [user, contentType, contentId, bookmarked, count, isLoading, onChange]);
+  }, [user, contentId, targetCol, supabase, isLoading, bookmarked, count, onChange, load, contentType]);
 
-  const sizeClasses = {
+  const sizeClasses: Record<string, string> = {
     sm: 'px-2 py-1 text-xs',
     md: 'px-3 py-1.5 text-sm',
     lg: 'px-4 py-2 text-base'
   };
 
-  const iconSizes = {
-    sm: 'w-3 h-3',
-    md: 'w-4 h-4',
-    lg: 'w-5 h-5'
-  };
-
-  const iconStroke = {
+  const iconStroke: Record<string, string> = {
     sm: 'w-3 h-3',
     md: 'w-4 h-4',
     lg: 'w-5 h-5'
@@ -134,7 +173,11 @@ export function BookmarkButton({
           : 'border border-sura-ivory/20 bg-sura-beige/80 text-sura-navy/80 hover:border-sura-gold/60'
       } ${sizeClasses[size]} ${!user ? 'cursor-not-allowed opacity-50' : ''}`}
       aria-label={bookmarked ? 'Remove bookmark' : 'Add bookmark'}
-      title={bookmarked ? (isArabic ? 'إزالة منالمفضات' : 'Remove from Library') : (isArabic ? 'إضافة للمفضات' : 'Add to Library')}
+      title={
+        bookmarked
+          ? isArabic ? 'إزالة منالمفضات' : 'Remove from Library'
+          : isArabic ? 'إضافة للمفضات' : 'Add to Library'
+      }
     >
       <svg
         className={iconStroke[size]}
@@ -144,17 +187,28 @@ export function BookmarkButton({
         strokeWidth={2}
       >
         {bookmarked ? (
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.096 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.09.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M17.593 3.322c1.1.128 1.907 1.096 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.09.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
+          />
         ) : (
           <>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.096 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.09.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M17.593 3.322c1.1.128 1.907 1.096 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.09.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
+            />
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v4.5M9 9h6" />
           </>
         )}
       </svg>
       <span className="hidden sm:inline">
-        {bookmarked ? (isArabic ? 'محفوظ' : 'Saved') : (isArabic ? 'حفظ' : 'Save')}
+        {bookmarked ? (isArabic ? 'محفوظ' : 'Saved') : isArabic ? 'حفظ' : 'Save'}
       </span>
     </button>
   );
 }
+
+export default memo(BookmarkButton);
+

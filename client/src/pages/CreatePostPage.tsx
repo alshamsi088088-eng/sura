@@ -4,7 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { useLocale } from '../context/LocaleContext';
 import { trackEvent } from '../lib/analytics';
-import { TipTapEditor } from '../components/TipTapEditor';
+import { ReactQuillEditor } from '../components/ReactQuillEditor';
+import { generateSlug } from '../lib/generateSlug';
+
 
 function slugify(input: string) {
   return input
@@ -123,7 +125,8 @@ export function CreatePostPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // ✅ input for slug auto-generate from title
-  const slug = useMemo(() => slugify(title), [title]);
+  const slug = useMemo(() => generateSlug(title), [title]);
+
 
   const wordCount = useMemo(() => {
     const wc = content.trim() ? content.trim().split(/\s+/).length : 0;
@@ -301,11 +304,15 @@ export function CreatePostPage() {
             />
           </div>
 
-          {/* Content editor with TipTap */}
+{/* Content editor */}
           <div>
             <label className={themeClasses.label}>{locale === 'ar' ? 'المحتوى' : 'Content'}</label>
 
-            <TipTapEditor theme="post" content={content} onChange={setContent} />
+            <ReactQuillEditor
+              value={content}
+              onChange={setContent}
+              placeholder={locale === 'ar' ? 'اكتب محتوى المقالة...' : 'Write your article...'}
+            />
 
             <p className="text-xs text-slate-400 mt-2">
               {wordCount} {locale === 'ar' ? 'كلمة' : 'words'} {' | '} ~{readingTime} {locale === 'ar' ? 'دقيقة قراءة' : 'min read'}

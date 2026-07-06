@@ -8,9 +8,10 @@ export function createTokenPair(userId: string) {
   return { token, refreshToken };
 }
 
+// Use sameSite: 'none' for production (cross-origin cookies for Railway HTTPS proxy)
 const cookieOptions = {
   httpOnly: true,
-  sameSite: 'lax',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
   secure: process.env.NODE_ENV === 'production',
   path: '/'
 };
