@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { getSupabaseOrThrow } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export function StorageUploader() {
   const { user } = useAuth();

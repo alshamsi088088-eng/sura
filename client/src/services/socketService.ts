@@ -3,12 +3,9 @@ import { io, Socket } from 'socket.io-client';
 /**
  * ✅ Client-side Socket.IO singleton service
  *
- * Configuration rationale:
- * - Production URL: https://sura-codex.com (non-www only — www causes 308 redirect loops)
- * - Dev URL: http://localhost:5000 (matches server default port)
+ * Uses VITE_SOCKET_URL when provided and falls back to the local
+ * development server so the same client can run locally or in production.
  * - transports: ['websocket'] — WebSocket-only, no polling fallback.
- *   Polling over HTTP triggers Railway's www → non-www 308 redirect during the
- *   Socket.IO handshake, breaking the connection entirely.
  * - withCredentials: true — required to send cookies for authenticated sessions,
  *   must match server-side CORS `credentials: true`.
  * - autoConnect: false — connection is initiated explicitly so components can
