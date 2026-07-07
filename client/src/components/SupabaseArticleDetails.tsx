@@ -20,10 +20,10 @@ type SupabaseArticleRow = {
   id: unknown;
   title: unknown;
   excerpt: unknown;
-  cover_image?: unknown | null;
+  coverImage?: unknown | null;
   content?: unknown | null;
-  author_id?: unknown | null;
-  published_at?: unknown | null;
+  authorId?: unknown | null;
+  publishedAt?: unknown | null;
   slug: unknown;
   User?: SupabaseUserJoin[] | SupabaseUserJoin | null;
 };
@@ -63,7 +63,7 @@ export function useSupabaseArticleBySlug(slug?: string) {
         const { data, error: fetchError } = await sb
           .from('Article')
           .select(
-            'id,title,excerpt,cover_image,content,author_id,published_at,slug,User(name)'
+            'id,title,excerpt,coverImage,content,authorId,publishedAt,slug,User(name)'
           )
           .eq('slug', decodedSlug)
           .maybeSingle();
@@ -80,7 +80,7 @@ export function useSupabaseArticleBySlug(slug?: string) {
             id: String(data.id),
             title: String(data.title ?? ''),
             excerpt: String(data.excerpt ?? ''),
-            coverImage: data.cover_image ? String(data.cover_image) : null,
+            coverImage: data.coverImage ? String(data.coverImage) : null,
             content: String(data.content ?? ''),
             authorName: (() => {
               const joined = (data as SupabaseArticleRow | null | undefined)?.User;
@@ -90,8 +90,8 @@ export function useSupabaseArticleBySlug(slug?: string) {
               }
               return String((joined as SupabaseUserJoin | null | undefined)?.name ?? '');
             })(),
-            authorId: data.author_id ? String(data.author_id) : null,
-            publishedAt: data.published_at ? String(data.published_at) : null,
+            authorId: data.authorId ? String(data.authorId) : null,
+            publishedAt: data.publishedAt ? String(data.publishedAt) : null,
           });
         }
       } catch {

@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { getSocketUrl } from '../lib/runtimeConfig';
 
 /**
  * ✅ Client-side Socket.IO singleton service
@@ -12,7 +13,7 @@ import { io, Socket } from 'socket.io-client';
  *   control the lifecycle and avoid connecting before auth state is known.
  */
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+const SOCKET_URL = getSocketUrl();
 
 
 const socket: Socket = io(SOCKET_URL, {

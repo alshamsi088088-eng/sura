@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { trackEvent } from '../lib/analytics';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = getApiBaseUrl();
 
 type EntityType = 'article' | 'book' | 'novel' | 'community';
 

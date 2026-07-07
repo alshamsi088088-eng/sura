@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useSeoTags } from '../hooks/useSeoTags';
 import { getWeeklyReading } from '../components/ReadingProgressTracker';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
 
 
 
@@ -59,7 +60,7 @@ export function HomePage() {
           .from('Article')
           .select('id, title, excerpt')
           .eq('featured', true)
-          .order('published_at', { ascending: false })
+          .order('publishedAt', { ascending: false })
           .limit(4);
 
         const next = (featuredArticles || []).map((a: any) => ({
@@ -88,23 +89,23 @@ export function HomePage() {
       const { data: articles } = await sb
         .from('Article')
         .select('id, title, views, slug')
-        .order('created_at', { ascending: false })
+        .order('createdAt', { ascending: false })
         .limit(5);
 
       const { data: novels } = await sb
         .from('Novel')
-        .select('id, title, views')
-        .order('created_at', { ascending: false })
+        .select('id, title, slug')
+        .order('createdAt', { ascending: false })
         .limit(5);
       const articleItems: TrendingItem[] = (articles || []).map(a => ({ id: a.id, title: a.title, type: 'article', views: a.views || 0, slug: a.slug }));
-      const novelItems: TrendingItem[] = (novels || []).map(n => ({ id: n.id, title: n.title, type: 'novel', views: n.views || 0 }));
+      const novelItems: TrendingItem[] = (novels || []).map(n => ({ id: n.id, title: n.title, type: 'novel', views: 0 }));
       const allItems: TrendingItem[] = [...articleItems, ...novelItems].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 6);
       setTrending(allItems);
     };
     loadTrending();
   }, []);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const API_URL = getApiBaseUrl();
 
   useEffect(() => {
     if (!user) {

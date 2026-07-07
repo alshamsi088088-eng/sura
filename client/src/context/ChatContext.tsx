@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 import type { UserProfile } from '../types';
+import { getSocketUrl } from '../lib/runtimeConfig';
 
 interface ChatMessage {
   id: string;
@@ -25,7 +26,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(false);
   const [unread, setUnread] = useState(0);
 
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+  const socketUrl = getSocketUrl();
 
   const socket = useMemo(
     () =>

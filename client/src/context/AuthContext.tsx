@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import type { UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = getApiBaseUrl();
 
 interface AuthState {
   user: UserProfile | null;

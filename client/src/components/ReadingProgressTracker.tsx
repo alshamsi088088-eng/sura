@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { trackReadingProgress } from '../lib/analytics';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = getApiBaseUrl();
 const LOCALSTORAGE_KEY = 'sura_reading_progress';
 const WEEKLY_READING_KEY = 'sura_weekly_reading';
 

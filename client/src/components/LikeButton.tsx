@@ -24,17 +24,17 @@ export type LikeButtonProps = {
 function targetColumnFor(contentType: ContentType) {
   switch (contentType) {
     case 'article':
-      return 'article_id';
+      return 'articleId';
     case 'novel':
-      return 'novel_id';
+      return 'novelId';
     case 'chapter':
-      return 'chapter_id';
+      return 'chapterId';
     case 'book':
-      return 'book_id';
+      return 'bookId';
     case 'community':
-      return 'community_id';
+      return 'communityId';
     default:
-      return 'article_id';
+      return 'articleId';
   }
 }
 
@@ -74,8 +74,8 @@ export function LikeButton({
     // liked?
     const { data: likeRow, error: likeRowErr } = await supabase
       .from('Like')
-      .select('user_id')
-      .eq('user_id', user?.id ?? '')
+      .select('userId')
+      .eq('userId', user?.id ?? '')
       .eq(targetCol, contentId)
       .maybeSingle();
 
@@ -127,8 +127,8 @@ export function LikeButton({
       // check existing
       const { data: existing } = await supabase
         .from('Like')
-        .select('user_id')
-        .eq('user_id', user.id)
+        .select('userId')
+        .eq('userId', user.id)
         .eq(targetCol, contentId)
         .maybeSingle();
 
@@ -136,12 +136,12 @@ export function LikeButton({
         const { error: delError } = await supabase
           .from('Like')
           .delete()
-          .eq('user_id', user.id)
+          .eq('userId', user.id)
           .eq(targetCol, contentId);
         if (delError) throw delError;
       } else {
         const payload: any = {
-          user_id: user.id,
+          userId: user.id,
           [targetCol]: contentId
         };
         const { error: insError } = await supabase.from('Like').insert(payload);

@@ -4,10 +4,10 @@ import { useAuth } from '../context/AuthContext';
 
 type CommentRow = {
   id: string;
-  article_id: string;
-  user_id: string;
-  message: string;
-  status?: 'visible' | 'hidden' | string;
+  articleId: string;
+  userId: string;
+  content: string;
+  approved?: boolean;
   createdAt?: string;
   User?: {
     name?: string | null;
@@ -39,8 +39,8 @@ export function CommentSection({ articleId }: { articleId: string }) {
 
       const { data, error: fetchError } = await supabase
         .from('Comment')
-        .select('*, User(name)')
-        .eq('article_id', articleId)
+        .select('id, articleId, userId, content, approved, createdAt, User(name)')
+        .eq('articleId', articleId)
         .order('createdAt', { ascending: false });
 
       if (cancelled) return;
@@ -63,7 +63,7 @@ export function CommentSection({ articleId }: { articleId: string }) {
   }, [articleId]);
 
   const visibleComments = useMemo(() => {
-    return comments.filter((c) => (c.status ?? 'visible') === 'visible');
+    return comments.filter((c) => c.approved !== false);
   }, [comments]);
 
   const canPost = Boolean(user?.id) && content.trim().length > 0 && !posting;
@@ -92,8 +92,8 @@ export function CommentSection({ articleId }: { articleId: string }) {
     // Refresh list
     const { data, error: fetchError } = await supabase
       .from('Comment')
-      .select('*, User(name)')
-      .eq('article_id', articleId)
+      .select('id, articleId, userId, content, approved, createdAt, User(name)')
+      .eq('articleId', articleId)
       .order('createdAt', { ascending: false });
 
     if (fetchError) {
@@ -127,10 +127,10 @@ export function CommentSection({ articleId }: { articleId: string }) {
     setError(null);
 
     const { error: insertError } = await supabase.from('Comment').insert({
-      article_id: articleId,
-      user_id: user.id,
-      message: trimmed,
-      status: 'visible',
+      articleId,
+      userId: user.id,
+      content: trimmed,
+      approved: true,
     });
 
     if (insertError) {
@@ -144,8 +144,8 @@ export function CommentSection({ articleId }: { articleId: string }) {
     // Refresh list
     const { data, error: fetchError } = await supabase
       .from('Comment')
-      .select('*, User(name)')
-      .eq('article_id', articleId)
+      .select('id, articleId, userId, content, approved, createdAt, User(name)')
+      .eq('articleId', articleId)
       .order('createdAt', { ascending: false });
 
     if (fetchError) {
@@ -225,7 +225,7 @@ export function CommentSection({ articleId }: { articleId: string }) {
                   </span>
                 </div>
 
-                {(isAdmin || (user?.id && user.id === c.user_id)) && (
+                {(isAdmin || (user?.id && user.id === c.userId)) && (
                   <button
                     type="button"
                     onClick={() => handleDeleteComment(c.id)}
@@ -236,7 +236,7 @@ export function CommentSection({ articleId }: { articleId: string }) {
                   </button>
                 )}
               </header>
-              <p className="mt-2 font-inter text-sm text-sura-ivory/85">{c.message}</p>
+              <p className="mt-2 font-inter text-sm text-sura-ivory/85">{c.content}</p>
             </article>
           ))
         )}
