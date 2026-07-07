@@ -11,12 +11,11 @@ export function getApiBaseUrl() {
     return configured.replace(/\/$/, '');
   }
 
-  if (typeof window === 'undefined') {
-    return 'http://localhost:5000';
-  }
-
-  return isLocalHost() ? 'http://localhost:5000' : window.location.origin;
+  // Local fallback only; in production, API_URL must be provided to avoid
+  // hitting the frontend origin (which can return 404 for /api/*).
+  return 'http://localhost:5000';
 }
+
 
 export function getSocketUrl() {
   const configured = import.meta.env.VITE_SOCKET_URL?.trim();

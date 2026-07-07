@@ -34,7 +34,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         autoConnect: false,
         withCredentials: true,
         transports: ['websocket'],
-        upgrade: false
+        upgrade: false,
+        reconnectionDelayMax: 2000,
+        forceNew: true
       }),
     [socketUrl]
   );

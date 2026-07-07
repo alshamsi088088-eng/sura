@@ -21,7 +21,7 @@ const socket: Socket = io(SOCKET_URL, {
    * Prefer WebSocket, but allow polling as a fallback when the proxy
    * or hosting platform does not support direct upgrades.
    */
-  transports: ['websocket', 'polling'],
+  transports: ['websocket'],
 
   /**
    * Send cookies with every request so the server can authenticate the user.
@@ -46,6 +46,7 @@ const socket: Socket = io(SOCKET_URL, {
 
 socket.on('connect_error', (err) => {
   console.error('[Socket.IO] Connection error:', err.message);
+  console.error('[Socket.IO] transport query:', socket.io?.opts?.transports);
 });
 
 socket.on('connect', () => {
