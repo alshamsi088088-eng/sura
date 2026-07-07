@@ -73,6 +73,7 @@ function stopCardEvent(e: React.SyntheticEvent) {
 
 export function ArticlesPage() {
   const { locale, strings } = useLocale();
+  const adsenseSlot = (import.meta.env.VITE_GOOGLE_ADSENSE_SLOT || import.meta.env.VITE_ADSENSE_ARTICLES_SLOT || '') as string;
 
   useSeoTags({
     title: locale === 'ar' ? 'المقالات — سُرى' : 'Articles — Sura Codex',
@@ -183,7 +184,7 @@ export function ArticlesPage() {
       <div key={item.id} className={idx === 2 ? 'lg:col-span-2' : undefined}>
         {isAdSlot ? (
           <AdsenseAd
-            adSlot={import.meta.env.VITE_ADSENSE_ARTICLES_SLOT as string}
+            adSlot={adsenseSlot}
             minHeightPx={280}
             className="my-0"
           />
@@ -361,7 +362,7 @@ export function ArticlesPage() {
               <div key={item.id}>
                 {idx === 2 ? (
                   <AdsenseAd
-                    adSlot={import.meta.env.VITE_ADSENSE_ARTICLES_SLOT as string}
+                    adSlot={adsenseSlot}
                     minHeightPx={280}
                   />
                 ) : null}

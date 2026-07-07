@@ -79,6 +79,8 @@ const fontSizes = ['text-base', 'text-lg', 'text-xl', 'text-2xl'];
 
 export function NovelsPage() {
   const { locale } = useLocale();
+  const adsenseSlot = (import.meta.env.VITE_GOOGLE_ADSENSE_SLOT || import.meta.env.VITE_ADSENSE_NOVELS_SLOT || '') as string;
+
   useSeoTags({
     title: locale === 'ar' ? 'الروايات — سُرى' : 'Novels — Sura Codex',
     description:
@@ -342,7 +344,7 @@ export function NovelsPage() {
           <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{locale === 'ar' ? 'رواياتي' : 'My novels'}</div>
 
           <AdsenseAd
-            adSlot={import.meta.env.VITE_ADSENSE_NOVELS_SLOT as string}
+            adSlot={adsenseSlot}
             minHeightPx={300}
           />
 
