@@ -15,9 +15,8 @@ import { io, Socket } from 'socket.io-client';
  *   control the lifecycle and avoid connecting before auth state is known.
  */
 
-const SOCKET_URL =
-  import.meta.env.VITE_SOCKET_URL ||
-  (import.meta.env.PROD ? 'https://sura-codex.com' : 'http://localhost:5000');
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+
 
 const socket: Socket = io(SOCKET_URL, {
   /**
