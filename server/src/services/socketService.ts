@@ -9,47 +9,36 @@ import { ALLOWED_ORIGINS_STR } from './config.js';
  * 1. Uses ALLOWED_ORIGINS from config.ts (consistent with Express)
  * 2. WebSocket-only (no polling fallback) - fixes 308 redirect on Railway
  * 3. Function-based CORS (not array) - mirrors Express CORS policy exactly
- * 4. Production: only https://sura-codex.com (no www — prevents 308 loops)
+ * 4. Allows both sura-codex.com and www.sura-codex.com (browser may send
+ *    the www origin even after a redirect, since WS upgrades bypass HTTP redirects)
  * 5. Compression disabled for Railway reverse-proxy compatibility
  */
 export function registerSocketServer(server: http.Server) {
-  const isProduction = process.env.NODE_ENV === 'production';
-
   const io = new Server(server, {
     /**
-     * ✅ CORS - function-based (mirrors Express CORS policy exactly)
-     * Production: only https://sura-codex.com
-     * Dev: allow configured origins from ALLOWED_ORIGINS_STR
+     * ✅ CORS - function-based, driven entirely by ALLOWED_ORIGINS_STR from config.ts
+     * Covers production (sura-codex.com + www fallback) and dev (localhost).
      */
     cors: {
       origin: (origin, callback) => {
-        // Allow no origin (server-to-server, curl, Postman)
+        console.log(`[Socket.IO] Origin received: ${origin ?? '(none)'}`);
+
+        // Allow no origin (server-to-server, curl, Postman, Railway health checks)
         if (!origin) {
+          console.log('[Socket.IO] Origin ACCEPTED: no-origin request');
           callback(null, true);
           return;
         }
 
-        // ✅ Normalize - remove trailing slash
+        // Normalize - remove trailing slash
         const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
 
-        // ✅ Production: strict single-domain (no www — Railway redirects www → non-www via 308)
-        if (isProduction) {
-          const allowed = normalizedOrigin === 'https://sura-codex.com';
-          if (allowed) {
-            callback(null, true);
-          } else {
-            console.log(`Socket CORS REJECTED: ${normalizedOrigin}`);
-            callback(new Error('Not allowed by CORS'), false);
-          }
-          return;
-        }
-
-        // ✅ Development: allow configured origins
         if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
+          console.log(`[Socket.IO] Origin ACCEPTED: ${normalizedOrigin}`);
           callback(null, true);
         } else {
-          console.log(`Socket CORS REJECTED in dev: ${normalizedOrigin}`);
-          callback(new Error('Not allowed by CORS (dev)'), false);
+          console.log(`[Socket.IO] Origin REJECTED: ${normalizedOrigin} — not in allowed list: [${ALLOWED_ORIGINS_STR.join(', ')}]`);
+          callback(new Error(`CORS: origin '${normalizedOrigin}' is not allowed`), false);
         }
       },
       methods: ['GET', 'POST'],
@@ -84,13 +73,21 @@ export function registerSocketServer(server: http.Server) {
     allowUpgrades: true
   });
 
+  // Log any engine-level errors so handshake failures appear in server logs
+  io.engine.on('connection_error', (err) => {
+    console.error('[Socket.IO] Connection error:', err.code, err.message, err.context);
+  });
+
   io.on('connection', (socket) => {
+    const origin = socket.handshake.headers.origin ?? '(none)';
+    console.log(`[Socket.IO] Client connected: id=${socket.id} origin=${origin} transport=${socket.conn.transport.name}`);
+
     socket.on('send_message', (message) => {
       socket.broadcast.emit('receive_message', { ...message, fromAdmin: false });
     });
 
-    socket.on('disconnect', () => {
-      // Cleanup if needed
+    socket.on('disconnect', (reason) => {
+      console.log(`[Socket.IO] Client disconnected: id=${socket.id} reason=${reason}`);
     });
   });
 

@@ -31,19 +31,23 @@ export const CLIENT_URL = process.env.CLIENT_URL || (process.env.NODE_ENV === 'p
 export const SERVER_URL = process.env.SERVER_URL || (process.env.NODE_ENV === 'production' ? 'https://sura-codex.com' : 'http://localhost:5000');
 
 /**
- * ✅ CORS Origins - PRODUCTION: ONLY https://sura-codex.com (no www)
- * www.sura-codex.com is intentionally excluded — Railway redirects www → non-www
- * via a 308 permanent redirect, which breaks the Socket.IO handshake.
+ * ✅ CORS Origins
  *
- * @important - Do NOT add www.sura-codex.com here as it causes:
- * - 308 permanent redirect loops during Socket.IO handshake
- * - Duplicate CORS checks
- * - Railway proxy confusion
+ * Primary:   https://sura-codex.com  (canonical production domain)
+ * Fallback:  https://www.sura-codex.com — included because a browser that
+ *            follows a www → non-www redirect may still send the original
+ *            www origin in the Socket.IO handshake header.
+ *
+ * Note: Railway's HTTP redirect (www → non-www) fires at the HTTP layer.
+ * WebSocket upgrades bypass that redirect, so the www origin can arrive
+ * at the Socket.IO CORS callback without ever being redirected.
+ * Allowing it here prevents a spurious 400 rejection in that case.
+ *
+ * Localhost origins are included for local and Railway-internal testing.
  */
-// ✅ CHANGED: allow localhost during local testing (including when NODE_ENV=production)
-// هذا يمنع رفض Socket.IO origin أثناء الاختبار من 127.0.0.1:5173
 const ALLOWED_ORIGINS = [
   'https://sura-codex.com',
+  'https://www.sura-codex.com', // fallback: browser may send www origin after redirect
   'http://127.0.0.1:5173',
   'http://localhost:5173',
   'http://localhost:3000'
