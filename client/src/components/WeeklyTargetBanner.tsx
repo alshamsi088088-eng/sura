@@ -73,10 +73,14 @@ export function WeeklyTargetBanner() {
               date: data.date || new Date().toISOString()
             });
           }
+          return;
         }
-      } catch (err) {
-        console.error('Failed to fetch weekly target:', err);
+      } catch {
+        // Keep the local weekly state when the backend is unavailable.
       }
+
+      const savedWeekly = loadWeeklyReadingFromLocalStorage();
+      setWeeklyData(savedWeekly);
     };
 
     fetchTarget();

@@ -55,7 +55,7 @@ export function registerSocketServer(server: http.Server) {
      *
      * Solution: WebSocket upgrades bypass the HTTP redirect entirely
      */
-    transports: ['websocket'],
+    transports: ['websocket', 'polling'],
 
     /**
      * ✅ Railway-optimised timing and compression settings
@@ -70,7 +70,7 @@ export function registerSocketServer(server: http.Server) {
     /**
      * ✅ Allow upgrades but limit to WebSocket only
      */
-    allowUpgrades: false
+    allowUpgrades: true
   });
 
   // Log any engine-level errors so handshake failures appear in server logs

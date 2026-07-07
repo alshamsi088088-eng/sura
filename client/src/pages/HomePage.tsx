@@ -123,10 +123,15 @@ export function HomePage() {
           const data = await res.json();
           setWeeklyProgressCount(data.completed || 0);
           setWeeklyAverage(data.average || 0);
+          return;
         }
-      } catch (err) {
-        console.error('Failed to fetch weekly progress:', err);
+      } catch {
+        // Fall back to local reading stats when the backend is unavailable.
       }
+
+      const weeklyData = getWeeklyReading();
+      setWeeklyProgressCount((weeklyData.articles || 0) + (weeklyData.chapters || 0));
+      setWeeklyAverage(0);
     };
 
     fetchProgress();

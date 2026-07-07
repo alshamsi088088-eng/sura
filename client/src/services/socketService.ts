@@ -18,10 +18,10 @@ const SOCKET_URL = getSocketUrl();
 
 const socket: Socket = io(SOCKET_URL, {
   /**
-   * WebSocket-only transport.
-   * Eliminates the polling → 308 redirect failure path on Railway.
+   * Prefer WebSocket, but allow polling as a fallback when the proxy
+   * or hosting platform does not support direct upgrades.
    */
-  transports: ['websocket'],
+  transports: ['websocket', 'polling'],
 
   /**
    * Send cookies with every request so the server can authenticate the user.

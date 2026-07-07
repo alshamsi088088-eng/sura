@@ -42,6 +42,7 @@ export function ArticleDetailsPage() {
     }
   }, [slug]);
 
+
   const [article, setArticle] = useState<Article | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -148,7 +149,8 @@ export function ArticleDetailsPage() {
   const handleEditSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user || !article) return;
-    if (!canEditOrDelete) return;
+    if (!canManageArticle) return;
+
 
     if (!supabase) return;
 

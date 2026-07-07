@@ -16,6 +16,7 @@ import { partRoutes } from './routes/partRoutes.js';
 import { engagementRoutes } from './routes/engagementRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import { communityRoutes } from './routes/communityRoutes.js';
+import { readingProgressRoutes } from './routes/readingProgressRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { ALLOWED_ORIGINS_STR } from './services/config.js';
 
@@ -112,6 +113,7 @@ app.use('/api', partRoutes);
 app.use('/api/engagement', engagementRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/community', communityRoutes);
+app.use('/api', readingProgressRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/webhooks', webhookRoutes);
