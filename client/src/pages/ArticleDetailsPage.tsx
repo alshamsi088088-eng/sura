@@ -33,6 +33,15 @@ export function ArticleDetailsPage() {
   const { user } = useAuth();
   const { slug } = useParams<{ slug: string }>();
 
+  const decodedSlug = useMemo(() => {
+    if (!slug) return '';
+    try {
+      return decodeURIComponent(slug);
+    } catch {
+      return slug;
+    }
+  }, [slug]);
+
   const [article, setArticle] = useState<Article | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -49,8 +58,8 @@ export function ArticleDetailsPage() {
 
   const canonicalUrl = useMemo(() => {
     const base = import.meta.env.VITE_PUBLIC_BASE_URL || '';
-    return `${base}/articles/${slug || ''}`;
-  }, [slug]);
+    return `${base}/articles/${encodeURIComponent(decodedSlug || '')}`;
+  }, [decodedSlug]);
 
   useSeoTags({
     title: article?.title || (locale === 'ar' ? 'مقالة — سُرى' : 'Article — Sura Codex'),
@@ -74,11 +83,11 @@ export function ArticleDetailsPage() {
 
   const navigate = useNavigate();
 
-  const { article: sbArticle, loading: sbLoading, error: sbError } = useSupabaseArticleBySlug(slug);
+  const { article: sbArticle, loading: sbLoading, error: sbError } = useSupabaseArticleBySlug(decodedSlug);
 
   useEffect(() => {
     if (!sbLoading) {
-      if (!slug) {
+      if (!decodedSlug) {
         setArticle(null);
         setError(locale === 'ar' ? 'المقال غير موجود.' : 'Article not found.');
         setLoading(false);
@@ -98,7 +107,7 @@ export function ArticleDetailsPage() {
     } else {
       setLoading(true);
     }
-  }, [sbLoading, sbArticle, sbError, slug, locale]);
+  }, [sbLoading, sbArticle, sbError, decodedSlug, locale]);
 
   useEffect(() => {
     if (!user) return;
@@ -112,11 +121,13 @@ export function ArticleDetailsPage() {
   }, [article]);
 
   const isAdmin = user?.role === 'admin';
-  const canEditOrDelete = Boolean(user && article && (isAdmin || user.id === article.authorId));
+  const canManageArticle = Boolean(user && article && isAdmin);
 
   const handleDelete = async () => {
-    if (!user || !article) return;
-    if (!canEditOrDelete) return;
+    if (!user || !article || !canManageArticle) return;
+    if (!window.confirm(locale === 'ar' ? 'هل أنت متأكد من حذف هذا المقال؟' : 'Are you sure you want to delete this article?')) {
+      return;
+    }
 
     if (!supabase) return;
 
@@ -167,7 +178,7 @@ export function ArticleDetailsPage() {
     setEditOpen(false);
     setEditError('');
 
-    navigate(`/articles/${encodeURIComponent(generateSlug(editTitle))}`);
+    navigate(`/articles/${encodeURIComponent(updatedSlug)}`);
   };
 
 
@@ -199,9 +210,36 @@ export function ArticleDetailsPage() {
 
       <article className="rounded-3xl border border-sura-line bg-sura-canvas p-8">
         <header className="space-y-4">
-          {/* ... بقية الهيدر كما هي ... */}
-          <h1 className="text-4xl font-semibold">{article.title}</h1>
-          {/* ... باقي الكود ... */}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-semibold">{article.title}</h1>
+              <p className="text-sm leading-7 text-sura-navy/80">{article.excerpt}</p>
+            </div>
+            {isAdmin ? (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(true)}
+                  className="rounded-full border border-sura-line px-3 py-1.5 text-sm text-sura-navy/80"
+                >
+                  {locale === 'ar' ? 'تعديل' : 'Edit'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteOpen(true)}
+                  className="rounded-full border border-red-200 px-3 py-1.5 text-sm text-red-600"
+                >
+                  {locale === 'ar' ? 'حذف' : 'Delete'}
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 text-sm text-sura-navy/70">
+            <span>{article.authorName || (locale === 'ar' ? 'مؤلف غير معروف' : 'Unknown author')}</span>
+            {article.publishedAt ? <span>•</span> : null}
+            {article.publishedAt ? <span>{new Date(article.publishedAt).toLocaleDateString()}</span> : null}
+          </div>
         </header>
 
         <section className="pt-6">

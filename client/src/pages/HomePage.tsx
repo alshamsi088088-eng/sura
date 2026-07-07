@@ -227,7 +227,7 @@ export function HomePage() {
             <h2 className="text-2xl font-bold mb-6 text-sura-ink">{locale === 'ar' ? 'المحتوى الرائج' : 'Trending Content'}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
               {trending?.map((item, i) => (
-                <Link key={item?.id} to={item?.type === 'article' ? `/articles/${item?.slug || item?.id}` : `/novels/${item?.id}`} className="glass-card p-4 text-center group">
+                <Link key={item?.id} to={item?.type === 'article' ? `/articles/${encodeURIComponent(String(item?.slug || item?.id))}` : `/novels/${item?.id}`} className="glass-card p-4 text-center group">
                   <div className="text-xs font-bold text-sura-sky/70 mb-2">#{i + 1}</div>
                   <h3 className="font-serif text-sm font-bold mb-1 text-sura-ink line-clamp-2 group-hover:text-sura-sky">{item?.title}</h3>
                   <div className="text-xs text-sura-ink/50">{item?.type === 'article' ? (locale === 'ar' ? 'مقال' : 'Article') : (locale === 'ar' ? 'رواية' : 'Novel')}</div>
