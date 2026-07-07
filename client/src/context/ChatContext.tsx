@@ -29,7 +29,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   // If VITE_SOCKET_URL is missing, use same origin as the page (prevents origin mismatch).
   const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
 
-  const socket = useMemo(() => io(socketUrl, { autoConnect: false, withCredentials: true }), [socketUrl]);
+  const socket = useMemo(
+    () =>
+      io(socketUrl, {
+        autoConnect: false,
+        withCredentials: true,
+        transports: ['websocket'],
+        upgrade: false
+      }),
+    [socketUrl]
+  );
 
   useEffect(() => {
     socket.connect();

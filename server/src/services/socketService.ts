@@ -70,7 +70,7 @@ export function registerSocketServer(server: http.Server) {
     /**
      * ✅ Allow upgrades but limit to WebSocket only
      */
-    allowUpgrades: true
+    allowUpgrades: false
   });
 
   // Log any engine-level errors so handshake failures appear in server logs
