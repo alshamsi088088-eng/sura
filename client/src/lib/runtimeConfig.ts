@@ -11,11 +11,15 @@ export function getApiBaseUrl() {
     return configured.replace(/\/$/, '');
   }
 
-  // Local fallback only; in production, API_URL must be provided to avoid
-  // hitting the frontend origin (which can return 404 for /api/*).
-  return 'http://localhost:5000';
-}
+  if (typeof window === 'undefined') {
+    return 'http://localhost:5000';
+  }
 
+  // Local dev: talk to the backend dev server directly.
+  // Any other host (production/staging): use the current origin, since
+  // nginx proxies /api/ and /socket.io/ to the backend on the same domain.
+  return isLocalHost() ? 'http://localhost:5000' : window.location.origin;
+}
 
 export function getSocketUrl() {
   const configured = import.meta.env.VITE_SOCKET_URL?.trim();

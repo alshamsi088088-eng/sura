@@ -1,5 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { getSocketUrl } from '../lib/runtimeConfig';
+import { supabase } from '../lib/supabaseClient';
+
 
 /**
  * ✅ Client-side Socket.IO singleton service
@@ -15,8 +17,25 @@ import { getSocketUrl } from '../lib/runtimeConfig';
 
 const SOCKET_URL = getSocketUrl();
 
+async function getSupabaseAccessToken(): Promise<string | null> {
+  try {
+    if (!supabase) return null;
+    const { data, error } = await supabase.auth.getSession();
+    if (error) return null;
+    return data?.session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
 
 const socket: Socket = io(SOCKET_URL, {
+  auth: (cb) => {
+    getSupabaseAccessToken().then((token) => cb({ token }));
+  },
+
+
+
+
   /**
    * Prefer WebSocket, but allow polling as a fallback when the proxy
    * or hosting platform does not support direct upgrades.
