@@ -28,7 +28,7 @@ export const JWT_REFRESH_SECRET = assertEnv('JWT_REFRESH_SECRET', 'dev_jwt_refre
 export const DATABASE_URL = getDatabaseUrl();
 // Use HTTPS in production to avoid Mixed Content - non-www only (www causes 308 redirect loops)
 export const CLIENT_URL = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://sura-codex.com' : 'http://localhost:5173');
-export const SERVER_URL = process.env.SERVER_URL || (process.env.NODE_ENV === 'production' ? 'https://sura-codex.com' : 'http://localhost:5000');
+export const SERVER_URL = process.env.SERVER_URL || (process.env.NODE_ENV === 'production' ? 'https://api.sura-codex.com' : 'http://localhost:5000');
 
 /**
  * ✅ CORS Origins
