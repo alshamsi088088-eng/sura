@@ -1,4 +1,3 @@
-
 import express from 'express';
 import passport from 'passport';
 import cors from 'cors';
@@ -32,14 +31,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 /**
- * ✅ CORS Production-Fix: single non-www domain only
+ * ✅ CORS Production-Fix: allowed domains
  * Fixes 308 redirect loops and prevents origin duplication.
- *
- * Rules:
- * - ✅ Production: https://sura-codex.com only (no www — causes 308 redirect loops)
- * - ✅ Dev: configured origins from ALLOWED_ORIGINS_STR
- * - ✅ credentials = true
- * - ✅ preflight handled correctly (optionsSuccessStatus: 204)
  */
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -55,9 +48,14 @@ app.use(
       // ✅ Normalize origin - remove trailing slash
       const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
 
-      // Production: allow ONLY https://sura-codex.com (no www)
+      // Production: allow BOTH https://sura-codex.com and https://www.sura-codex.com
       if (isProduction) {
-        const allowed = normalizedOrigin === 'https://sura-codex.com';
+        const allowedProductionOrigins = [
+          'https://sura-codex.com',
+          'https://www.sura-codex.com'
+        ];
+        
+        const allowed = allowedProductionOrigins.includes(normalizedOrigin);
         if (allowed) return callback(null, true);
 
         console.log(`CORS REJECTED in production: ${normalizedOrigin}`);
@@ -122,4 +120,3 @@ app.use('/api/webhooks', webhookRoutes);
 app.use('/', seoRouter);
 
 app.use(errorHandler);
-
