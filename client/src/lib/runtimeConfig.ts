@@ -1,9 +1,11 @@
 function isLocalHost() {
   if (typeof window === 'undefined') return true;
-
   const hostname = window.location.hostname;
   return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
 }
+
+// الرابط الثابت للسيرفر الخاص بك
+const PRODUCTION_API_URL = 'https://api.sura-codex.com';
 
 export function getApiBaseUrl() {
   const configured = import.meta.env.VITE_API_URL?.trim();
@@ -11,14 +13,13 @@ export function getApiBaseUrl() {
     return configured.replace(/\/$/, '');
   }
 
-  if (typeof window === 'undefined') {
+  // إذا كنا في تطوير محلي
+  if (isLocalHost()) {
     return 'http://localhost:5000';
   }
 
-  // Local dev: talk to the backend dev server directly.
-  // Any other host (production/staging): use the current origin, since
-  // nginx proxies /api/ and /socket.io/ to the backend on the same domain.
-  return isLocalHost() ? 'http://localhost:5000' : window.location.origin;
+  // في الإنتاج، نستخدم الرابط الثابت للسيرفر
+  return PRODUCTION_API_URL;
 }
 
 export function getSocketUrl() {
@@ -27,9 +28,11 @@ export function getSocketUrl() {
     return configured.replace(/\/$/, '');
   }
 
-  if (typeof window === 'undefined') {
+  // إذا كنا في تطوير محلي
+  if (isLocalHost()) {
     return 'http://localhost:5000';
   }
 
-  return isLocalHost() ? 'http://localhost:5000' : window.location.origin;
+  // في الإنتاج، نستخدم الرابط الثابت للسيرفر
+  return PRODUCTION_API_URL;
 }
