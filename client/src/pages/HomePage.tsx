@@ -84,7 +84,7 @@ export function HomePage() {
 
   const API_URL = getApiBaseUrl();
 
-  // 3. Weekly Progress Effect
+  // 3. Weekly Progress Effect (تم تحديثه لإرسال CSRF Token)
   useEffect(() => {
     const fetchProgress = async () => {
       if (!user || !supabase) {
@@ -94,12 +94,17 @@ export function HomePage() {
       }
 
       try {
+        // جلب توكن الـ CSRF من السيرفر
+        const csrfRes = await fetch(`${API_URL}/api/csrf-token`);
+        const { csrfToken } = await csrfRes.json();
+
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error("No session");
 
         const res = await fetch(`${API_URL}/api/weekly-progress`, {
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
+            'X-CSRF-Token': csrfToken, // إرسال التوكن المطلوب لتجاوز حماية csurf
             'Content-Type': 'application/json'
           }
         });
@@ -127,14 +132,10 @@ export function HomePage() {
     if (weeklyProgressCount >= 3) return locale === 'ar' ? 'استمر، أنت على الطريق الصحيح.' : 'Keep going, you are on track.';
     return locale === 'ar' ? 'ابدأ بهدف بسيط هذا الأسبوع.' : 'Start with a small goal this week.';
   }, [weeklyProgressCount, locale]);
-
-  // (بقية الـ JSX كما هي...)
-  // ملاحظة: تأكد أن ملف الـ JSX لا يحتوي على استدعاء مباشر لـ supabase في أماكن غير محمية
-  // الكود أعلاه يغطي المنطق الأساسي، ويمكنك نسخ الـ JSX من ملفك السابق ولصقه هنا.
   
   return (
     <div dir={dir}>
-      {/* الـ JSX الخاصة بك هنا */}
+      {/* تأكد من إضافة محتواك هنا */}
     </div>
   );
 }
