@@ -50,7 +50,7 @@ const ALLOWED_ORIGINS = [
   'https://www.sura-codex.com', // fallback: browser may send www origin after redirect
   'http://127.0.0.1:5173',
   'http://localhost:5173',
-  'http://localhost:3000'
+  'http://localhost:3000',
   'https://api.sura-codex.com'
 ];
 export const ALLOWED_ORIGINS_STR = process.env.ALLOWED_ORIGINS?.split(',') || ALLOWED_ORIGINS;
