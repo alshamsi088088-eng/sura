@@ -51,6 +51,7 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:5173',
   'http://localhost:5173',
   'http://localhost:3000'
+  'https://api.sura-codex.com'
 ];
 export const ALLOWED_ORIGINS_STR = process.env.ALLOWED_ORIGINS?.split(',') || ALLOWED_ORIGINS;
 
