@@ -7,20 +7,22 @@ export async function authGuard(req: Request, res: Response, next: NextFunction)
   try {
     let user: any = null;
 
-    // Try cookie token first (server JWT)
+    // 1. محاولة استخدام الـ Cookie (JWT)
     const cookieToken = req.cookies?.token;
     if (cookieToken) {
       try {
         const payload: any = jwt.verify(cookieToken, JWT_SECRET);
         user = await prisma.user.findUnique({ where: { id: payload.userId } });
       } catch {
-        // ignore invalid cookie
+        console.log("Cookie token invalid");
       }
     }
 
-    // If no valid cookie, check Authorization header for Supabase access token
+    // 2. إذا لم يوجد مستخدم، تحقق من التوكن القادم من الواجهة (Supabase Header)
     if (!user) {
       const authHeader = req.headers.authorization;
+      console.log("Authorization Header:", authHeader); // <--- سيظهر التوكن في كونسول السيرفر
+
       if (authHeader?.startsWith('Bearer ')) {
         const accessToken = authHeader.substring(7);
         try {
@@ -30,41 +32,33 @@ export async function authGuard(req: Request, res: Response, next: NextFunction)
 
           if (supabaseUrl && supabaseKey) {
             const supabase = createClient(supabaseUrl, supabaseKey);
-            const {
-              data: { user: supabaseUser },
-            } = await supabase.auth.getUser(accessToken);
+            const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(accessToken);
+
+            if (error) {
+              console.error("Supabase Error:", error.message); // <--- سيظهر سبب الخطأ هنا
+            }
 
             if (supabaseUser?.id) {
-              // ID lookup
-              try {
-                user = await prisma.user.findUnique({ where: { id: supabaseUser.id } });
-              } catch {
-                user = null;
-              }
-
-              // Fallback to email lookup
-              if (!user && supabaseUser.email) {
-                try {
-                  user = await prisma.user.findUnique({ where: { email: supabaseUser.email } });
-                } catch {
-                  user = null;
-                }
+              user = await prisma.user.findUnique({ where: { id: supabaseUser.id } });
+              if (!user) {
+                console.log("User not found in Prisma with ID:", supabaseUser.id);
               }
             }
           }
-        } catch {
-          // ignore supabase verification failures
+        } catch (e) {
+          console.error("AuthGuard Exception:", e);
         }
       }
     }
 
-    if (!user) return res.status(401).json({ message: 'Unauthorized' });
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized - No valid user found' });
+    }
 
     (req as any).user = user;
     return next();
-  } catch {
-    // Ensure the guard never crashes the server
-    return res.status(401).json({ message: 'Unauthorized' });
+  } catch (err) {
+    console.error("Critical AuthGuard Error:", err);
+    return res.status(401).json({ message: 'Unauthorized - Critical Error' });
   }
 }
-
