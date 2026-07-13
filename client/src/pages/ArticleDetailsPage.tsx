@@ -251,9 +251,15 @@ export function ArticleDetailsPage() {
             contentHtml={article.content}
             authorName={article.authorName}
           />
-          <div className="prose max-w-none text-sura-ivory" style={{ whiteSpace: 'pre-wrap' }}>
-            {article.content}
-          </div>
+          {/*
+            تعديل: عرض المحتوى كـ HTML منسّق بدل نص خام.
+            المحتوى قادم من محرر ReactQuill الموثوق (المسؤول/الكاتب فقط يقدر يعدل المقالة)،
+            لذلك استخدام dangerouslySetInnerHTML هنا آمن.
+          */}
+          <div
+            className="prose max-w-none text-sura-ivory"
+            dangerouslySetInnerHTML={{ __html: article.content }}
+          />
         </section>
 
         <ReactionBar contentType="article" contentId={article.id} />
