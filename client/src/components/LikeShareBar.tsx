@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
 import { getApiBaseUrl } from '../lib/runtimeConfig';
+import { getAuthHeaders } from '../lib/authHeaders';
 
 const API_URL = getApiBaseUrl();
 
@@ -57,7 +58,10 @@ export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps)
   const fetchBookmark = useCallback(async () => {
     if (!user) return;
     try {
-      const res = await fetch(`${API_URL}/api/engagement/bookmark?${query}`, { credentials: 'include' });
+      const res = await fetch(`${API_URL}/api/engagement/bookmark?${query}`, {
+        credentials: 'include',
+        headers: await getAuthHeaders()
+      });
       if (res.ok) {
         const d = await res.json();
         setIsBookmarked(!!d.bookmarked);
@@ -117,7 +121,7 @@ export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps)
     try {
       const res = await fetch(`${API_URL}/api/engagement/like`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
         credentials: 'include',
         body: JSON.stringify({ type: entityType, id: entityId })
       });
@@ -155,7 +159,7 @@ export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps)
     try {
       const res = await fetch(`${API_URL}/api/engagement/bookmark`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
         credentials: 'include',
         body: JSON.stringify({ type: entityType, id: entityId })
       });
@@ -183,7 +187,7 @@ export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps)
     try {
       const res = await fetch(`${API_URL}/api/engagement/reaction`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
         credentials: 'include',
         body: JSON.stringify({ contentId: entityId, contentType: entityType, emoji: nextEmoji })
       });
@@ -204,7 +208,7 @@ export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps)
     try {
       const res = await fetch(`${API_URL}/api/engagement/rating`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
         credentials: 'include',
         body: JSON.stringify({ type: entityType, id: entityId, value: rating })
       });
