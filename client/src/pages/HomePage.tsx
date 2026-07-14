@@ -109,15 +109,24 @@ export function HomePage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="rounded-3xl border border-sura-line bg-sura-canvas p-8 sm:p-12 text-center"
+        className="relative overflow-hidden rounded-3xl border border-sura-line p-8 text-center sm:p-12"
       >
-        <p className="text-xs uppercase tracking-[0.3em] text-sura-teal">
+        {/* Background image: hero-night.png (client/public/hero-night.png) */}
+        <div
+          className="absolute inset-0 -z-10 bg-cover bg-center"
+          style={{ backgroundImage: "url('/hero-night.png')" }}
+          aria-hidden="true"
+        />
+        {/* Dark overlay so text stays legible over the photo */}
+        <div className="absolute inset-0 -z-10 bg-sura-dark/60" aria-hidden="true" />
+
+        <p className="text-xs uppercase tracking-[0.3em] text-sura-sky">
           {isArabic ? 'سُرى' : 'Sura Codex'}
         </p>
-        <h1 className="mt-4 font-serif text-4xl font-semibold sm:text-5xl">
+        <h1 className="mt-4 font-serif text-4xl font-semibold text-sura-ivory sm:text-5xl">
           {isArabic ? 'مساحة للقراءة العميقة والتأمل' : 'A Space for Thought & Creativity'}
         </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-sura-navy/80 sm:text-base">
+        <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-sura-ivory/80 sm:text-base">
           {isArabic
             ? 'مقالات وروايات مختارة بعناية، مبنية على قراءة أعمق ووقت أهدأ.'
             : 'Curated essays and novels, built for deeper reading and a slower pace.'}
@@ -131,7 +140,7 @@ export function HomePage() {
           </Link>
           <Link
             to="/novels"
-            className="rounded-full border border-sura-line px-6 py-2.5 text-sm font-semibold text-sura-navy/80 transition hover:border-sura-gold/50 select-none"
+            className="rounded-full border border-sura-ivory/30 px-6 py-2.5 text-sm font-semibold text-sura-ivory/90 transition hover:border-sura-gold/50 select-none"
           >
             {isArabic ? 'استكشف الروايات' : 'Explore Novels'}
           </Link>
