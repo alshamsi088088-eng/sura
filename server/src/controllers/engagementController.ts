@@ -507,7 +507,7 @@ export async function setReaction(req: Request, res: Response) {
     return res.status(400).json({ error: 'Missing contentId, contentType, or emoji' });
   }
 
-  if (!VALID_EMOJIS.includes(emoji as EmojiType)) {
+  if (emoji !== 'remove' && !VALID_EMOJIS.includes(emoji as EmojiType)) {
     return res.status(400).json({ error: 'Invalid emoji' });
   }
 
