@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
 import { trackEvent } from '../lib/analytics';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
+
+const API_URL = getApiBaseUrl();
 
 export interface QuoteHighlight {
   id: string;
@@ -102,7 +105,9 @@ export function QuoteHighlighter({
     setSaving(true);
 
     try {
-      const res = await fetch('/api/quotes', {
+      // NOTE: backend route is POST /api/engagement/quote (not /api/quotes),
+      // and must use the API domain, not a relative path.
+      const res = await fetch(`${API_URL}/api/engagement/quote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -187,12 +192,16 @@ export function QuoteHighlighter({
 
   return (
     <div className="relative">
+      {/*
+        تعديل: عرض contentHtml كـ HTML منسّق بدل نص خام.
+        كان {contentHtml} يُعرض كنص عادي (React يهرب أي HTML تلقائيًا)،
+        وهذا كان السبب الحقيقي وراء ظهور وسوم HTML خام في الصفحة.
+      */}
       <div
         ref={containerRef}
         className="quote-highlight-container"
-      >
-        {contentHtml}
-      </div>
+        dangerouslySetInnerHTML={{ __html: contentHtml }}
+      />
 
       {/* Highlight Tooltip Popup */}
       {showPopup && (

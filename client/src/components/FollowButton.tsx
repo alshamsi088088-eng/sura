@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API_URL = getApiBaseUrl();
 
 interface FollowButtonProps {
   targetUserId: string;

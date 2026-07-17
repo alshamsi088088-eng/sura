@@ -36,13 +36,16 @@ export function ReadingProgress({ contentType, contentId, title, content }: Read
       if (!user || !supabase) return;
 
       try {
+        // NOTE: .maybeSingle() instead of .single() so a "no rows yet"
+        // result (very common for a first-time visit) returns null
+        // quietly instead of throwing a 406 Not Acceptable error.
         const { data } = await supabase
           .from('ReadingHistory')
           .select('progress')
           .eq('userId', user.id)
           .eq('contentType', contentType)
           .eq('contentId', contentId)
-          .single();
+          .maybeSingle();
 
         if (data?.progress) {
           setProgress(data.progress);
@@ -80,13 +83,14 @@ export function ReadingProgress({ contentType, contentId, title, content }: Read
     setIsSaving(true);
 
     try {
+      // NOTE: .maybeSingle() instead of .single() — see comment above.
       const { data: existing } = await supabase
         .from('ReadingHistory')
         .select('id')
         .eq('userId', user.id)
         .eq('contentType', contentType)
         .eq('contentId', contentId)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         await supabase
@@ -97,9 +101,14 @@ export function ReadingProgress({ contentType, contentId, title, content }: Read
           })
           .eq('id', existing.id);
       } else {
+        // NOTE: the "id" column has no database-level default, and this
+        // insert goes directly from the browser to Supabase (bypassing
+        // Prisma, which normally generates ids on the server). Without
+        // this, the insert fails with a 400 Bad Request.
         await supabase
           .from('ReadingHistory')
           .insert({
+            id: crypto.randomUUID(),
             userId: user.id,
             contentType,
             contentId,
@@ -193,7 +202,7 @@ export function useReadingHistory(contentType: string, contentId: string) {
           .eq('userId', user.id)
           .eq('contentType', contentType)
           .eq('contentId', contentId)
-          .single();
+          .maybeSingle();
 
         if (data?.progress) {
           setProgress(data.progress);

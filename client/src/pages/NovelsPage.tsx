@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocale } from '../context/LocaleContext';
 import { ThreadedComments } from '../components/ThreadedComments';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 import { AdsenseAd } from '../components/AdsenseAd';
 import { LikeShareBar } from '../components/LikeShareBar';
 import { LikeButton } from '../components/LikeButton';
@@ -12,6 +13,9 @@ import { RatingStars } from '../components/RatingStars';
 import { ReactionBar } from '../components/ReactionBar';
 import { BookmarkButton } from '../components/BookmarkButton';
 import { AdminMenu } from '../components/AdminMenu';
+
+import { ReactQuillEditor } from '../components/ReactQuillEditor';
+import { generateSlug } from '../lib/generateSlug';
 import { ChapterPollSection } from '../components/ChapterPollSection';
 import { ReadingProgress } from '../components/ReadingProgress';
 import { ReadingSettings, useReadingSettings } from '../components/ReadingSettings';
@@ -75,6 +79,8 @@ const fontSizes = ['text-base', 'text-lg', 'text-xl', 'text-2xl'];
 
 export function NovelsPage() {
   const { locale } = useLocale();
+  const adsenseSlot = (import.meta.env.VITE_GOOGLE_ADSENSE_SLOT || import.meta.env.VITE_ADSENSE_NOVELS_SLOT || '') as string;
+
   useSeoTags({
     title: locale === 'ar' ? 'الروايات — سُرى' : 'Novels — Sura Codex',
     description:
@@ -105,8 +111,71 @@ export function NovelsPage() {
   const [nightMode, setNightMode] = useState(true);
   const [showReadingSettings, setShowReadingSettings] = useState(false);
 
+  // Novel author-only edit/delete modal
+  const [novelEditOpen, setNovelEditOpen] = useState(false);
+  const [novelDeleteOpen, setNovelDeleteOpen] = useState(false);
+  const [editNovelTitle, setEditNovelTitle] = useState('');
+  const [editNovelDescription, setEditNovelDescription] = useState('');
+  const [editNovelError, setEditNovelError] = useState<string>('');
+
+
   // Load reading settings
   const { settings: readingSettings, getContentClass } = useReadingSettings();
+
+  const handleNovelEditSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user || !activeNovel) return;
+    if (user.id !== activeNovel.authorId) return;
+    if (!supabase) return;
+
+    setEditNovelError('');
+
+    const updatedSlug = generateSlug(editNovelTitle);
+
+    const payload = {
+      title: editNovelTitle.trim(),
+      slug: updatedSlug,
+      description: editNovelDescription.trim(),
+    };
+
+    const { error: updateError } = await supabase
+      .from('Novel')
+      .update(payload)
+      .eq('id', activeNovel.id);
+
+    if (updateError) {
+      setEditNovelError(updateError.message);
+      return;
+    }
+
+    setNovelEditOpen(false);
+    navigate('/novels');
+  };
+
+  const handleNovelDelete = async () => {
+    if (!user || !activeNovel) return;
+    if (user.id !== activeNovel.authorId) return;
+    if (!supabase) return;
+
+    setEditNovelError('');
+
+    const { error: deleteError } = await supabase
+      .from('Novel')
+      .delete()
+      .eq('id', activeNovel.id);
+
+    if (deleteError) {
+      setEditNovelError(deleteError.message);
+      return;
+    }
+
+    setNovelDeleteOpen(false);
+    setActiveNovel(null);
+    setActiveChapter(null);
+
+    navigate('/novels');
+  };
+
 
   // DnD sensors for chapter reordering (author only)
   const sensors = useSensors(
@@ -155,10 +224,11 @@ export function NovelsPage() {
           >
             {chapter.title}
           </button>
-          <AdminMenu
-            entityType="chapter"
-            entityId={chapter.id}
-          />
+              <AdminMenu
+                entityType="chapter"
+                entityId={chapter.id}
+              />
+
         </div>
         <div className="mt-1 text-xs">{chapter.readingTime}</div>
       </div>
@@ -248,6 +318,7 @@ export function NovelsPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
+
       <header className="rounded-3xl border border-sura-line bg-sura-canvas p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -273,7 +344,7 @@ export function NovelsPage() {
           <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{locale === 'ar' ? 'رواياتي' : 'My novels'}</div>
 
           <AdsenseAd
-            adSlot={import.meta.env.VITE_ADSENSE_NOVELS_SLOT as string}
+            adSlot={adsenseSlot}
             minHeightPx={300}
           />
 
@@ -300,11 +371,38 @@ export function NovelsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between">
                     <div className="font-semibold truncate">{novel.title}</div>
-                    <AdminMenu
-                      entityType="novel"
-                      entityId={novel.id}
-                    />
+                    {user?.id && novel.authorId && user.id === novel.authorId ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setEditNovelTitle(novel.title);
+                            setEditNovelDescription(novel.description);
+                            setNovelEditOpen(true);
+                          }}
+                          className="rounded-full border border-sura-line px-3 py-1 text-xs text-sura-navy/80 hover:bg-sura-navy/10"
+                        >
+                          {locale === 'ar' ? 'تعديل' : 'Edit'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setNovelDeleteOpen(true);
+                          }}
+                          className="rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs text-red-200 hover:bg-red-500/20"
+                        >
+                          {locale === 'ar' ? 'حذف' : 'Delete'}
+                        </button>
+                      </div>
+                    ) : (
+                      <AdminMenu entityType="novel" entityId={novel.id} />
+                    )}
                   </div>
+
                   <div className="mt-1 text-xs text-sura-navy/70 line-clamp-2">{novel.description}</div>
                   {novel.category && (
                     <div className="mt-2 flex items-center gap-2 text-xs text-sura-teal">

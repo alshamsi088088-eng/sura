@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 import type { UserProfile } from '../types';
+import { getSocketUrl } from '../lib/runtimeConfig';
 
 interface ChatMessage {
   id: string;
@@ -25,9 +26,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(false);
   const [unread, setUnread] = useState(0);
 
-  // Use Railway server URL in production to avoid 308 redirect from non-www domain
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || 'https://sura-codex-server-production-64f7.up.railway.app';
-  const socket = useMemo(() => io(socketUrl, { autoConnect: false, withCredentials: true }), [socketUrl]);
+  const socketUrl = getSocketUrl();
+
+  const socket = useMemo(
+    () =>
+      io(socketUrl, {
+        autoConnect: false,
+        withCredentials: true,
+        transports: ['websocket'],
+        upgrade: false,
+        reconnectionDelayMax: 2000,
+        forceNew: true
+      }),
+    [socketUrl]
+  );
 
   useEffect(() => {
     socket.connect();

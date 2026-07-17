@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import passport from 'passport';
+import { authGuard } from '../middleware/authGuard.js';
 import {
   toggleLike,
   getLikeStatus,
@@ -38,62 +38,68 @@ import {
   getUserCommunityBookmarks
 } from '../controllers/engagementController.js';
 
-// JWT auth helper
-const authenticate = passport.authenticate('jwt', { session: false });
-
+// NOTE: previously this used passport.authenticate('jwt', ...), but no JWT
+// strategy was ever registered with passport.use(...) anywhere in the app
+// (only a Google OAuth strategy is registered in passportConfig.ts). That
+// caused passport to throw internally on every request through this
+// middleware, which the global error handler turned into an opaque
+// 500 "Internal server error" instead of a normal 401. authGuard is the
+// middleware already used successfully elsewhere in the app (e.g. the
+// reading-progress routes) — it checks the cookie-based JWT and falls back
+// to validating a Supabase access token, so it works correctly here too.
 export const engagementRoutes = Router();
 
 // Likes
-engagementRoutes.post('/like', authenticate, toggleLike);
+engagementRoutes.post('/like', authGuard, toggleLike);
 engagementRoutes.get('/like', getLikeStatus);
 
 // Bookmarks
-engagementRoutes.post('/bookmark', authenticate, toggleBookmark);
-engagementRoutes.get('/bookmark', authenticate, getBookmarkStatus);
-engagementRoutes.get('/bookmarks', authenticate, getUserBookmarks);
+engagementRoutes.post('/bookmark', authGuard, toggleBookmark);
+engagementRoutes.get('/bookmark', authGuard, getBookmarkStatus);
+engagementRoutes.get('/bookmarks', authGuard, getUserBookmarks);
 
 // Ratings
-engagementRoutes.post('/rating', authenticate, setRating);
+engagementRoutes.post('/rating', authGuard, setRating);
 engagementRoutes.get('/rating', getRatingStatus);
 
 // Comments
 engagementRoutes.get('/comments', getComments);
-engagementRoutes.post('/comment', authenticate, createComment);
-engagementRoutes.put('/comment', authenticate, updateComment);
-engagementRoutes.delete('/comment', authenticate, deleteComment);
-engagementRoutes.put('/comment/moderate', authenticate, moderateComment);
+engagementRoutes.post('/comment', authGuard, createComment);
+engagementRoutes.put('/comment', authGuard, updateComment);
+engagementRoutes.delete('/comment', authGuard, deleteComment);
+engagementRoutes.put('/comment/moderate', authGuard, moderateComment);
 
 // Reactions
-engagementRoutes.post('/reaction', authenticate, setReaction);
+engagementRoutes.post('/reaction', authGuard, setReaction);
 engagementRoutes.get('/reaction', getReactionStatus);
 
 // Polls
-engagementRoutes.post('/poll', authenticate, createPoll);
+engagementRoutes.post('/poll', authGuard, createPoll);
 engagementRoutes.get('/polls', getPolls);
-engagementRoutes.post('/vote', authenticate, votePoll);
-engagementRoutes.put('/vote', authenticate, changeVote);
-engagementRoutes.delete('/poll', authenticate, deletePoll);
+engagementRoutes.post('/vote', authGuard, votePoll);
+engagementRoutes.put('/vote', authGuard, changeVote);
+engagementRoutes.delete('/poll', authGuard, deletePoll);
 engagementRoutes.get('/results', getPollResults);
 
 // Quotes
-engagementRoutes.post('/quote', authenticate, saveQuote);
-engagementRoutes.get('/quotes', authenticate, getQuotes);
-engagementRoutes.delete('/quote', authenticate, deleteQuote);
+engagementRoutes.post('/quote', authGuard, saveQuote);
+engagementRoutes.get('/quotes', authGuard, getQuotes);
+engagementRoutes.delete('/quote', authGuard, deleteQuote);
 
 // Follow
-engagementRoutes.post('/follow', authenticate, toggleFollow);
+engagementRoutes.post('/follow', authGuard, toggleFollow);
 engagementRoutes.get('/follow', getFollowStatus);
 engagementRoutes.get('/followers', getFollowers);
-engagementRoutes.get('/following', authenticate, getFollowing);
+engagementRoutes.get('/following', authGuard, getFollowing);
 
 // Notifications
-engagementRoutes.get('/notifications', authenticate, getNotifications);
-engagementRoutes.post('/notification/read', authenticate, markNotificationRead);
-engagementRoutes.post('/notifications/read-all', authenticate, markAllNotificationsRead);
-engagementRoutes.get('/notification/settings', authenticate, getNotificationSettings);
-engagementRoutes.put('/notification/settings', authenticate, updateNotificationSettings);
+engagementRoutes.get('/notifications', authGuard, getNotifications);
+engagementRoutes.post('/notification/read', authGuard, markNotificationRead);
+engagementRoutes.post('/notifications/read-all', authGuard, markAllNotificationsRead);
+engagementRoutes.get('/notification/settings', authGuard, getNotificationSettings);
+engagementRoutes.put('/notification/settings', authGuard, updateNotificationSettings);
 
 // Community Bookmarks
-engagementRoutes.post('/community-bookmark', authenticate, toggleCommunityBookmark);
+engagementRoutes.post('/community-bookmark', authGuard, toggleCommunityBookmark);
 engagementRoutes.get('/community-bookmark', getCommunityBookmarkStatus);
-engagementRoutes.get('/community-bookmarks', authenticate, getUserCommunityBookmarks);
+engagementRoutes.get('/community-bookmarks', authGuard, getUserCommunityBookmarks);

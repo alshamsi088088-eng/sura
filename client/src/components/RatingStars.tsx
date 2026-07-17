@@ -3,6 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
 import { trackEvent } from '../lib/analytics';
 import type { ContentType } from './LikeButton';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
+
+const API_URL = getApiBaseUrl();
 
 export type RatingStarsProps = {
   // New props
@@ -54,7 +57,7 @@ export function RatingStars({
   useEffect(() => {
     if (!contentId) return;
 
-    fetch(`/api/engagement/rating?type=${contentType}&id=${contentId}`, {
+    fetch(`${API_URL}/api/engagement/rating?type=${contentType}&id=${contentId}`, {
       credentials: 'include'
     })
       .then(res => res.ok ? res.json() : null)
@@ -79,7 +82,7 @@ export function RatingStars({
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/engagement/rating', {
+      const res = await fetch(`${API_URL}/api/engagement/rating`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

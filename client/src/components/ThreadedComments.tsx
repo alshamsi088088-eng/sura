@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { trackEvent } from '../lib/analytics';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API_URL = getApiBaseUrl();
 
 type EntityType = 'article' | 'book' | 'novel' | 'community';
 
@@ -53,7 +54,12 @@ export function ThreadedComments({ entityId, entityType }: ThreadedCommentsProps
 
   const fetchComments = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/comments?entityId=${entityId}&entityType=${entityType}`);
+      // NOTE: backend route is /api/engagement/comments and expects
+      // `type` + `id` query params (not entityType/entityId).
+      const res = await fetch(
+        `${API_URL}/api/engagement/comments?type=${entityType}&id=${entityId}`,
+        { credentials: 'include' }
+      );
       if (res.ok) {
         const data = await res.json();
         setComments(data.comments || []);
@@ -93,14 +99,17 @@ export function ThreadedComments({ entityId, entityType }: ThreadedCommentsProps
     if (!user || !message.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch(`${API_URL}/api/comments`, {
+      // NOTE: backend route is POST /api/engagement/comment (singular) and
+      // expects { type, id, content, parentId } (not entityType/entityId/message).
+      const res = await fetch(`${API_URL}/api/engagement/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          entityId,
-          entityType,
+          type: entityType,
+          id: entityId,
           parentId: null,
-          message: message.trim()
+          content: message.trim()
         })
       });
       if (res.ok) {
@@ -120,14 +129,15 @@ export function ThreadedComments({ entityId, entityType }: ThreadedCommentsProps
     if (!user || !replyText.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch(`${API_URL}/api/comments`, {
+      const res = await fetch(`${API_URL}/api/engagement/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          entityId,
-          entityType,
+          type: entityType,
+          id: entityId,
           parentId,
-          message: replyText.trim()
+          content: replyText.trim()
         })
       });
       if (res.ok) {
@@ -147,10 +157,13 @@ export function ThreadedComments({ entityId, entityType }: ThreadedCommentsProps
   async function moderateComment(commentId: string, status: 'visible' | 'hidden') {
     if (!isModerator) return;
     try {
-      const res = await fetch(`${API_URL}/api/comments/${commentId}/moderate`, {
-        method: 'POST',
+      // NOTE: backend route is PUT /api/engagement/comment/moderate and
+      // expects { id, approved } (not a status path param).
+      const res = await fetch(`${API_URL}/api/engagement/comment/moderate`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
+        credentials: 'include',
+        body: JSON.stringify({ id: commentId, approved: status === 'visible' })
       });
       if (res.ok) {
         trackEvent('comment_moderation', { entity_id: entityId, entity_type: entityType, status });

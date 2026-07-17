@@ -1,4 +1,3 @@
-
 import { useEffect, useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -21,7 +20,9 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (user) navigate('/dashboard');
+    if (!user) return;
+    if (user.role === 'admin') navigate('/admin', { replace: true });
+    else navigate('/dashboard', { replace: true });
   }, [user, navigate]);
 
   const submit = async (event: FormEvent) => {
@@ -33,7 +34,7 @@ export function LoginPage() {
     try {
       if (mode === 'login') {
         await login(email, password);
-        navigate('/dashboard');
+        // Role-based redirect will happen in the user effect.
         return;
       }
 
@@ -55,7 +56,6 @@ export function LoginPage() {
         return;
       }
 
-      // Supabase sends verification email (email confirmations flow)
       setSuccessMessage(
         locale === 'ar'
           ? 'تم إرسال إيميل تفعيل، يرجى مراجعة بريدك الإلكتروني.'
@@ -196,3 +196,4 @@ export function LoginPage() {
     </div>
   );
 }
+

@@ -1,117 +1,201 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
+import { getAuthHeaders } from '../lib/authHeaders';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API_URL = getApiBaseUrl();
 
 interface LikeShareBarProps {
   entityId: string;
-  entityType: string;
+  entityType: string; // 'article' | 'novel' | 'chapter' | 'book'
   title?: string;
 }
 
-interface EngagementData {
-  likes: number;
-  shares: number;
-  bookmarks: string[];
-  ratings: { [userId: string]: number };
-  emojis: { [key: string]: number };
-}
-
-const EMOJI_OPTIONS = ['👍', '😍', '😮', '🔥', '👏'];
+// UI emoji -> backend-accepted emoji value
+// Backend only accepts: love, fire, funny, sad, wow, clap, mind_blown, excellent
+const EMOJI_MAP: Record<string, string> = {
+  '👍': 'clap',
+  '😍': 'love',
+  '😮': 'wow',
+  '🔥': 'fire',
+  '👏': 'excellent'
+};
+const EMOJI_OPTIONS = Object.keys(EMOJI_MAP);
 
 export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps) {
   const { user } = useAuth();
   const { locale } = useLocale();
-  const [data, setData] = useState<EngagementData>({ likes: 0, shares: 0, bookmarks: [], ratings: {}, emojis: {} });
+
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [bookmarkCount, setBookmarkCount] = useState(0);
+
   const [userRating, setUserRating] = useState(0);
-  const [showRating, setShowRating] = useState(false);
+  const [avgRating, setAvgRating] = useState(0);
+  const [ratingCount, setRatingCount] = useState(0);
 
-  const docId = `${entityType}_${entityId}`;
+  const [emojiCounts, setEmojiCounts] = useState<Record<string, number>>({});
+  const [userReaction, setUserReaction] = useState<string | null>(null);
 
-  const fetchEngagement = async () => {
+  const query = `type=${entityType}&id=${entityId}`;
+
+  const fetchLike = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/engagement/${docId}`);
+      const res = await fetch(`${API_URL}/api/engagement/like?${query}`, { credentials: 'include' });
       if (res.ok) {
         const d = await res.json();
-        setData(d || { likes: 0, shares: 0, bookmarks: [], ratings: {}, emojis: {} });
-        if (user) {
-          setUserRating(d?.ratings?.[user.id] || 0);
-        }
+        setLiked(!!d.liked);
+        setLikeCount(d.count || 0);
       }
     } catch (err) {
-      console.error('Failed to fetch engagement:', err);
+      console.error('Failed to fetch like status:', err);
     }
-  };
+  }, [query]);
+
+  const fetchBookmark = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await fetch(`${API_URL}/api/engagement/bookmark?${query}`, {
+        credentials: 'include',
+        headers: await getAuthHeaders()
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setIsBookmarked(!!d.bookmarked);
+        setBookmarkCount(d.count || 0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch bookmark status:', err);
+    }
+  }, [query, user]);
+
+  const fetchRating = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/engagement/rating?${query}`, { credentials: 'include' });
+      if (res.ok) {
+        const d = await res.json();
+        setUserRating(d.userRating || 0);
+        setAvgRating(d.average || 0);
+        setRatingCount(d.count || 0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch rating status:', err);
+    }
+  }, [query]);
+
+  const fetchReaction = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/engagement/reaction?contentId=${entityId}`, { credentials: 'include' });
+      if (res.ok) {
+        const d = await res.json();
+        setUserReaction(d.userReaction || null);
+        setEmojiCounts(d.counts || {});
+      }
+    } catch (err) {
+      console.error('Failed to fetch reaction status:', err);
+    }
+  }, [entityId]);
+
+  const fetchAll = useCallback(() => {
+    fetchLike();
+    fetchBookmark();
+    fetchRating();
+    fetchReaction();
+  }, [fetchLike, fetchBookmark, fetchRating, fetchReaction]);
 
   useEffect(() => {
-    fetchEngagement();
-    // Poll every 10 seconds for real-time updates (alternative to Firestore listeners)
-    const interval = setInterval(fetchEngagement, 10000);
+    fetchAll();
+    // Poll every 10 seconds for near-real-time updates
+    const interval = setInterval(fetchAll, 10000);
     return () => clearInterval(interval);
-  }, [docId, user]);
-
-  const isBookmarked = user && data.bookmarks?.includes(user.id);
-
-  const avgRating = useMemo(() => {
-    const ratings = Object.values(data.ratings || {});
-    if (!ratings.length) return 0;
-    return ratings.reduce((a, b) => a + b, 0) / ratings.length;
-  }, [data.ratings]);
+  }, [fetchAll]);
 
   const handleLike = async () => {
+    // Optimistic update
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setLikeCount(prev => (wasLiked ? prev - 1 : prev + 1));
     try {
-      await fetch(`${API_URL}/api/engagement/${docId}/like`, { method: 'POST' });
-      setData(prev => ({ ...prev, likes: prev.likes + 1 }));
+      const res = await fetch(`${API_URL}/api/engagement/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+        credentials: 'include',
+        body: JSON.stringify({ type: entityType, id: entityId })
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setLiked(!!d.liked);
+        setLikeCount(d.count || 0);
+      } else {
+        // revert on failure
+        setLiked(wasLiked);
+        setLikeCount(prev => (wasLiked ? prev + 1 : prev - 1));
+      }
     } catch (err) {
       console.error('Failed to like:', err);
+      setLiked(wasLiked);
+      setLikeCount(prev => (wasLiked ? prev + 1 : prev - 1));
     }
   };
 
   const handleShare = async () => {
     try {
-      await fetch(`${API_URL}/api/engagement/${docId}/share`, { method: 'POST' });
-      setData(prev => ({ ...prev, shares: prev.shares + 1 }));
-      // Copy to clipboard
       const url = window.location.href;
       await navigator.clipboard.writeText(url);
       alert(locale === 'ar' ? 'تم نسخ الرابط!' : 'Link copied!');
     } catch (err) {
-      console.error('Failed to share:', err);
+      console.error('Failed to copy link:', err);
     }
   };
 
   const handleBookmark = async () => {
     if (!user) return;
+    const wasBookmarked = isBookmarked;
+    setIsBookmarked(!wasBookmarked);
+    setBookmarkCount(prev => (wasBookmarked ? prev - 1 : prev + 1));
     try {
-      const action = isBookmarked ? 'remove' : 'add';
-      await fetch(`${API_URL}/api/engagement/${docId}/bookmark`, {
+      const res = await fetch(`${API_URL}/api/engagement/bookmark`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action })
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+        credentials: 'include',
+        body: JSON.stringify({ type: entityType, id: entityId })
       });
-      setData(prev => ({
-        ...prev,
-        bookmarks: isBookmarked
-          ? prev.bookmarks.filter(id => id !== user.id)
-          : [...prev.bookmarks, user.id]
-      }));
+      if (res.ok) {
+        const d = await res.json();
+        setIsBookmarked(!!d.bookmarked);
+        setBookmarkCount(d.count || 0);
+      } else {
+        setIsBookmarked(wasBookmarked);
+        setBookmarkCount(prev => (wasBookmarked ? prev + 1 : prev - 1));
+      }
     } catch (err) {
       console.error('Failed to bookmark:', err);
+      setIsBookmarked(wasBookmarked);
+      setBookmarkCount(prev => (wasBookmarked ? prev + 1 : prev - 1));
     }
   };
 
-  const handleEmoji = async (emoji: string) => {
+  const handleEmoji = async (uiEmoji: string) => {
+    if (!user) return;
+    const backendEmoji = EMOJI_MAP[uiEmoji];
+    if (!backendEmoji) return;
+    // If clicking the same reaction again, remove it; otherwise set/replace it
+    const nextEmoji = userReaction === backendEmoji ? 'remove' : backendEmoji;
     try {
-      await fetch(`${API_URL}/api/engagement/${docId}/emoji`, {
+      const res = await fetch(`${API_URL}/api/engagement/reaction`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emoji })
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+        credentials: 'include',
+        body: JSON.stringify({ contentId: entityId, contentType: entityType, emoji: nextEmoji })
       });
-      setData(prev => ({
-        ...prev,
-        emojis: { ...prev.emojis, [emoji]: (prev.emojis?.[emoji] || 0) + 1 }
-      }));
+      if (res.ok) {
+        const d = await res.json();
+        setUserReaction(d.userReaction || null);
+        setEmojiCounts(d.counts || {});
+      }
     } catch (err) {
       console.error('Failed to react:', err);
     }
@@ -119,19 +203,26 @@ export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps)
 
   const handleRating = async (rating: number) => {
     if (!user) return;
+    const prevRating = userRating;
     setUserRating(rating);
     try {
-      await fetch(`${API_URL}/api/engagement/${docId}/rate`, {
+      const res = await fetch(`${API_URL}/api/engagement/rating`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rating })
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+        credentials: 'include',
+        body: JSON.stringify({ type: entityType, id: entityId, value: rating })
       });
-      setData(prev => ({
-        ...prev,
-        ratings: { ...prev.ratings, [user.id]: rating }
-      }));
+      if (res.ok) {
+        const d = await res.json();
+        setUserRating(d.userRating || 0);
+        setAvgRating(d.average || 0);
+        setRatingCount(d.count || 0);
+      } else {
+        setUserRating(prevRating);
+      }
     } catch (err) {
       console.error('Failed to rate:', err);
+      setUserRating(prevRating);
     }
   };
 
@@ -154,13 +245,13 @@ export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps)
       {/* Main Actions */}
       <div className="flex flex-wrap items-center gap-3 text-sm text-sura-navy/80">
         <button onClick={handleLike} className="rounded-full border border-sura-sky/20 bg-white/80 px-3 py-2 transition hover:border-sura-gold/50 hover:text-sura-navy">
-          ❤️ {data.likes}
+          {liked ? '❤️' : '🤍'} {likeCount}
         </button>
         <button onClick={handleShare} className="rounded-full border border-sura-sky/20 bg-white/80 px-3 py-2 transition hover:border-sura-gold/50 hover:text-sura-navy">
           🔗 {locale === 'ar' ? 'مشاركة' : 'Share'}
         </button>
         <button onClick={handleBookmark} disabled={!user} className={`rounded-full border px-3 py-2 transition ${isBookmarked ? 'border-sura-gold bg-sura-gold/20' : 'border-sura-sky/20 bg-white/80'} disabled:opacity-50`}>
-          {isBookmarked ? '★' : '☆'} {locale === 'ar' ? 'حفظ' : 'Save'}
+          {isBookmarked ? '★' : '☆'} {locale === 'ar' ? 'حفظ' : 'Save'} {bookmarkCount > 0 ? `(${bookmarkCount})` : ''}
         </button>
       </div>
 
@@ -168,23 +259,32 @@ export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps)
       <div className="flex items-center gap-3">
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map((star) => (
-            <button key={star} onClick={() => handleRating(star)} className="text-xl transition hover:scale-110">
-              {star <= (showRating ? userRating : avgRating) ? '⭐' : '☆'}
+            <button key={star} onClick={() => handleRating(star)} disabled={!user} className="text-xl transition hover:scale-110 disabled:opacity-50">
+              {star <= (userRating || avgRating) ? '⭐' : '☆'}
             </button>
           ))}
         </div>
         <span className="text-sm text-sura-navy/60">
-          {avgRating > 0 ? `${avgRating.toFixed(1)} (${Object.keys(data.ratings || {}).length} ${locale === 'ar' ? 'تصويت' : 'votes'})` : ''}
+          {avgRating > 0 ? `${avgRating.toFixed(1)} (${ratingCount} ${locale === 'ar' ? 'تصويت' : 'votes'})` : ''}
         </span>
       </div>
 
       {/* Emoji Reactions */}
       <div className="flex flex-wrap gap-2">
-        {EMOJI_OPTIONS.map((emoji) => (
-          <button key={emoji} onClick={() => handleEmoji(emoji)} className="rounded-full border border-sura-line bg-white/80 px-3 py-1 text-lg transition hover:bg-sura-teal/20">
-            {emoji} {data.emojis?.[emoji] || 0}
-          </button>
-        ))}
+        {EMOJI_OPTIONS.map((uiEmoji) => {
+          const backendEmoji = EMOJI_MAP[uiEmoji];
+          const isActive = userReaction === backendEmoji;
+          return (
+            <button
+              key={uiEmoji}
+              onClick={() => handleEmoji(uiEmoji)}
+              disabled={!user}
+              className={`rounded-full border px-3 py-1 text-lg transition hover:bg-sura-teal/20 disabled:opacity-50 ${isActive ? 'border-sura-gold bg-sura-teal/20' : 'border-sura-line bg-white/80'}`}
+            >
+              {uiEmoji} {emojiCounts[backendEmoji] || 0}
+            </button>
+          );
+        })}
       </div>
 
       {/* Share to Social */}

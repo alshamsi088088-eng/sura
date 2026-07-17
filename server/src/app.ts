@@ -1,4 +1,3 @@
-
 import express from 'express';
 import passport from 'passport';
 import cors from 'cors';
@@ -16,6 +15,7 @@ import { partRoutes } from './routes/partRoutes.js';
 import { engagementRoutes } from './routes/engagementRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import { communityRoutes } from './routes/communityRoutes.js';
+import { readingProgressRoutes } from './routes/readingProgressRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { ALLOWED_ORIGINS_STR } from './services/config.js';
 
@@ -31,14 +31,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 /**
- * ✅ CORS Production-Fix: السماح فقط بـ www domain
- * إصلاح مشكلة 308 redirect ومنع ازدواجية origins
- *
- *_rules:_
- * - ✅_allowed Origins: www.sura-codex.com و localhost فقط
- * - ✅_non-www domain = لا يُسمح (يسبب 308 redirect)
- * - ✅_credentials = مفعل
- * - ✅_preflight = مُعالج بشكل صحيح
+ * ✅ CORS Production-Fix: allowed domains
+ * Fixes 308 redirect loops and prevents origin duplication.
  */
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -54,24 +48,27 @@ app.use(
       // ✅ Normalize origin - remove trailing slash
       const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
 
-      // ✅ Production: allow ONLY www.sura-codex.com
+      // Production: allow BOTH https://sura-codex.com and https://www.sura-codex.com
       if (isProduction) {
-        if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
-          callback(null, true);
-        } else {
-          console.log(`CORS REJECTED in production: ${normalizedOrigin}`);
-          callback(new Error('Not allowed by CORS'), false);
-        }
-        return;
+        const allowedProductionOrigins = [
+          'https://sura-codex.com',
+          'https://www.sura-codex.com'
+        ];
+        
+        const allowed = allowedProductionOrigins.includes(normalizedOrigin);
+        if (allowed) return callback(null, true);
+
+        console.log(`CORS REJECTED in production: ${normalizedOrigin}`);
+        return callback(new Error('Not allowed by CORS'), false);
       }
 
-      // ✅ Development: allow localhost + www
+      // Development: allow configured local origins
       if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
-        callback(null, true);
-      } else {
-        console.log(`CORS: Dev mode allowing origin ${origin}`);
-        callback(null, true);
+        return callback(null, true);
       }
+
+      console.log(`CORS REJECTED in dev: ${normalizedOrigin}`);
+      return callback(new Error('Not allowed by CORS (dev)'), false);
     },
     credentials: true,
     allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
@@ -84,27 +81,7 @@ app.use(
   })
 );
 
-/**
- * ✅ Preflight handler -must come AFTER cors middleware
- */
-app.options('*', cors({
-  origin: (origin, callback) => {
-    if (!origin) {
-      callback(null, true);
-      return;
-    }
-    const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-    if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
-      callback(null, true);
-    } else if (!isProduction) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed'), false);
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
-}));
+
 app.use(passport.initialize());
 
 const csrfProtection = csurf({
@@ -134,6 +111,7 @@ app.use('/api', partRoutes);
 app.use('/api/engagement', engagementRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/community', communityRoutes);
+app.use('/api', readingProgressRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/webhooks', webhookRoutes);
@@ -142,4 +120,3 @@ app.use('/api/webhooks', webhookRoutes);
 app.use('/', seoRouter);
 
 app.use(errorHandler);
-

@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useState, memo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { ContentType } from './LikeButton';
 import { EMOJI_MAP, EMOJI_KEYS } from './emojis';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
+
+const API_URL = getApiBaseUrl();
 
 interface ReactionBarProps {
   contentType: ContentType;
@@ -20,7 +23,9 @@ export function ReactionBar({ contentType, contentId, layout = 'horizontal' }: R
   useEffect(() => {
     if (!contentId) return;
 
-    fetch(`/api/engagement/reaction?contentId=${contentId}`)
+    fetch(`${API_URL}/api/engagement/reaction?contentId=${contentId}`, {
+      credentials: 'include',
+    })
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data) {
@@ -38,7 +43,7 @@ export function ReactionBar({ contentType, contentId, layout = 'horizontal' }: R
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/engagement/reaction', {
+      const res = await fetch(`${API_URL}/api/engagement/reaction`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

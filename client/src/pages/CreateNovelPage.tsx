@@ -4,18 +4,13 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { useLocale } from '../context/LocaleContext';
 import { trackEvent } from '../lib/analytics';
+import { ReactQuillEditor } from '../components/ReactQuillEditor';
+import { generateSlug } from '../lib/generateSlug';
 
-function slugify(input: string) {
-  return input
-    .trim()
-    .toLowerCase()
-    .replace(/['"]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
 
 export function CreateNovelPage() {
   const { user } = useAuth();
+
   const navigate = useNavigate();
   const { locale } = useLocale();
 
@@ -48,7 +43,8 @@ export function CreateNovelPage() {
     []
   );
 
-  const slug = useMemo(() => slugify(title), [title]);
+  const slug = useMemo(() => generateSlug(title), [title]);
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -215,14 +211,13 @@ export function CreateNovelPage() {
             <label className={themeClasses.label}>
               {locale === 'ar' ? 'الوصف' : 'Description'}
             </label>
-            <textarea
-              className={themeClasses.textarea}
+            <ReactQuillEditor
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={setDescription}
               placeholder={locale === 'ar' ? 'قصة الرواية...' : 'Describe your novel...'}
-              required
             />
           </div>
+
 
           {/* Author Name */}
           <div>

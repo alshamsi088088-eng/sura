@@ -6,8 +6,9 @@ import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './styles/index.css';
 import './registerServiceWorker';
+import { getApiBaseUrl } from './lib/runtimeConfig';
 
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || '/';
+axios.defaults.baseURL = getApiBaseUrl();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

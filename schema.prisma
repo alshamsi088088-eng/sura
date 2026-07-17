@@ -469,3 +469,18 @@ model Quote {
   @@index([userId])
   @@index([contentId, contentType])
 }
+
+model PurchaseHistory {
+  id              String   @id @default(cuid())
+  stripeSessionId String?
+  userId          String?
+  email           String
+  subtotal        Float    @default(0)
+  total           Float    @default(0)
+  discountCode    String?
+  discountAmount  Float    @default(0)
+  currency        String   @default("usd")
+  status          String   @default("paid")
+  items           String?
+  createdAt       DateTime @default(now())
+}

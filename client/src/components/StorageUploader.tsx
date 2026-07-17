@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { getSupabaseOrThrow } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API_URL = getApiBaseUrl();
 
 export function StorageUploader() {
   const { user } = useAuth();

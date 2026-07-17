@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API_URL = getApiBaseUrl();
 
 interface Notification {
   id: string;
@@ -59,32 +60,55 @@ export function NotificationCenter({ isOpen, onClose, onUnreadChange }: Notifica
   }, [isOpen, user]);
 
   const markAsRead = async (id: string) => {
+    // Optimistic update
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+    );
+    const unread = notifications.filter((n) => !n.isRead && n.id !== id).length;
+    onUnreadChange?.(unread);
+
     try {
-      await fetch(`${API_URL}/api/engagement/notifications/${id}/read`, {
+      // Backend route is POST /api/engagement/notification/read (singular) with body { id }
+      const res = await fetch(`${API_URL}/api/engagement/notification/read`, {
         method: 'POST',
-        credentials: 'include'
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id })
       });
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-      );
-      const unread = notifications.filter((n) => !n.isRead && n.id !== id).length;
-      onUnreadChange?.(unread);
+      if (!res.ok) {
+        // revert on failure
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, isRead: false } : n))
+        );
+        onUnreadChange?.(unread + 1);
+      }
     } catch (err) {
       console.error('Failed to mark as read:', err);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead: false } : n))
+      );
+      onUnreadChange?.(unread + 1);
     }
   };
 
   const markAllAsRead = async () => {
     if (!user) return;
+    const previous = notifications;
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    onUnreadChange?.(0);
     try {
-      await fetch(`${API_URL}/api/engagement/notifications/read-all`, {
+      const res = await fetch(`${API_URL}/api/engagement/notifications/read-all`, {
         method: 'POST',
         credentials: 'include'
       });
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      onUnreadChange?.(0);
+      if (!res.ok) {
+        setNotifications(previous);
+        onUnreadChange?.(previous.filter((n) => !n.isRead).length);
+      }
     } catch (err) {
       console.error('Failed to mark all as read:', err);
+      setNotifications(previous);
+      onUnreadChange?.(previous.filter((n) => !n.isRead).length);
     }
   };
 
@@ -277,14 +301,18 @@ function NotificationItem({ notification, icon, timeAgo, isArabic, onClick }: No
 function NotificationSettingsForm({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const { locale } = useLocale();
+  // NOTE: backend (updateNotificationSettings) only recognizes these fields.
+  // "newArticle" was removed here because the controller's `updates` type doesn't
+  // include it and the Prisma model may not have that column, which previously
+  // caused a silent 500 (same class of bug as the ReadingHistory.updatedAt issue).
+  // Add it back only after confirming the Prisma schema + controller support it.
   const [settings, setSettings] = useState({
     likes: true,
     comments: true,
     replies: true,
     reactions: true,
     pollVotes: true,
-    newChapter: true,
-    newArticle: true
+    newChapter: true
   });
   const [loading, setLoading] = useState(false);
 
@@ -293,22 +321,26 @@ function NotificationSettingsForm({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const fetchSettings = async () => {
       if (!user) return;
-      const res = await fetch(`${API_URL}/api/engagement/notifications/settings`, {
-        credentials: 'include'
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.settings) {
+      try {
+        // Backend route is singular: /notification/settings
+        const res = await fetch(`${API_URL}/api/engagement/notification/settings`, {
+          credentials: 'include'
+        });
+        if (res.ok) {
+          // Backend returns the settings object directly (res.json(settings)),
+          // not wrapped in a `settings` key.
+          const data = await res.json();
           setSettings({
-            likes: data.settings.likes,
-            comments: data.settings.comments,
-            replies: data.settings.replies,
-            reactions: data.settings.reactions,
-            pollVotes: data.settings.pollVotes,
-            newChapter: data.settings.newChapter,
-            newArticle: data.settings.newArticle
+            likes: data.likes ?? true,
+            comments: data.comments ?? true,
+            replies: data.replies ?? true,
+            reactions: data.reactions ?? true,
+            pollVotes: data.pollVotes ?? true,
+            newChapter: data.newChapter ?? true
           });
         }
+      } catch (err) {
+        console.error('Failed to fetch notification settings:', err);
       }
     };
     fetchSettings();
@@ -318,13 +350,17 @@ function NotificationSettingsForm({ onClose }: { onClose: () => void }) {
     if (!user) return;
     setLoading(true);
     try {
-      await fetch(`${API_URL}/api/engagement/notifications/settings`, {
+      const res = await fetch(`${API_URL}/api/engagement/notification/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(settings)
       });
-      onClose();
+      if (res.ok) {
+        onClose();
+      } else {
+        console.error('Failed to save settings: server returned', res.status);
+      }
     } catch (err) {
       console.error('Failed to save settings:', err);
     } finally {
@@ -342,8 +378,7 @@ function NotificationSettingsForm({ onClose }: { onClose: () => void }) {
     replies: isArabic ? 'الردود' : 'Replies',
     reactions: isArabic ? 'التفاعلات' : 'Reactions',
     pollVotes: isArabic ? 'تصويتات الاستطلاع' : 'Poll Votes',
-    newChapter: isArabic ? 'فصل جديد' : 'New Chapter',
-    newArticle: isArabic ? 'مقال جديد' : 'New Article'
+    newChapter: isArabic ? 'فصل جديد' : 'New Chapter'
   };
 
   return (

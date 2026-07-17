@@ -14,7 +14,6 @@ import { AdminMenu } from '../components/AdminMenu';
 import { Avatar } from '../components/AvatarUpload';
 import { useSeoTags } from '../hooks/useSeoTags';
 
-
 interface ArticleRow {
   id?: string;
   slug?: string;
@@ -38,7 +37,6 @@ interface ArticleRow {
   clap_count?: number;
 }
 
-
 interface Article {
   id: string;
   slug: string;
@@ -52,34 +50,31 @@ interface Article {
   claps: number;
 }
 
-const categories = ['Literature', 'Culture', 'Technology', 'Design', 'Arabic'];
-
 function mapArticle(row: ArticleRow): Article {
   const id = String(row.id ?? row.article_id ?? row.articleId ?? row.pk ?? '');
-  const slug = String((row as any).slug ?? row.id ?? row.article_id ?? row.articleId ?? row.pk ?? '');
+  const slug = String(row.slug ?? row.id ?? row.article_id ?? row.articleId ?? row.pk ?? '');
   const title = String(row.title ?? '');
   const excerpt = String(row.excerpt ?? '');
   const category = String(row.category ?? '');
   const language = String(row.language ?? '');
   const readingTime = String(row.readingTime ?? row.reading_time ?? '');
-  const author = String(
-    row.authorName ??
-      row.author ??
-      row.author_name ??
-      row.author_id ??
-      row.authorId ??
-      ''
-  );
+  const author = String(row.authorName ?? row.author ?? row.author_name ?? row.author_id ?? row.authorId ?? '');
   const views = Number(row.views ?? row.view_count ?? 0);
   const claps = Number(row.claps ?? row.clap_count ?? 0);
 
   return { id, slug, title, excerpt, category, language, readingTime, author, views, claps };
 }
 
-
+function stopCardEvent(e: React.SyntheticEvent) {
+  e.stopPropagation();
+  // prevent selection/navigation side effects
+  if ('preventDefault' in e) e.preventDefault();
+}
 
 export function ArticlesPage() {
   const { locale, strings } = useLocale();
+  const adsenseSlot = (import.meta.env.VITE_GOOGLE_ADSENSE_SLOT || import.meta.env.VITE_ADSENSE_ARTICLES_SLOT || '') as string;
+
   useSeoTags({
     title: locale === 'ar' ? 'المقالات — سُرى' : 'Articles — Sura Codex',
     description:
@@ -98,6 +93,7 @@ export function ArticlesPage() {
   });
 
   const { user } = useAuth();
+
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -125,15 +121,11 @@ export function ArticlesPage() {
       }
 
       try {
-        // قراءة كل الأعمدة برمجياً لضمان توافق الاسماء مع الواقع
-        const { data, error: selectError } = await supabase
-          .from('Article')
-          .select('*');
-
+        const { data, error: selectError } = await supabase.from('Article').select('*');
         if (selectError) throw selectError;
 
         const rows = Array.isArray(data) ? (data as ArticleRow[]) : [];
-        const mapped = rows.map(mapArticle).filter((a) => a.id && a.title);
+        const mapped = rows.map(mapArticle).filter((a) => a.id && a.slug && a.title);
 
         if (mounted) setArticles(mapped);
       } catch {
@@ -149,15 +141,24 @@ export function ArticlesPage() {
     };
   }, [locale]);
 
+  const categories = useMemo(() => {
+    const fromData = Array.from(new Set(articles.map((a) => a.category).filter(Boolean)));
+    // preserve your original category set ordering when possible
+    const desired = ['Literature', 'Culture', 'Technology', 'Design', 'Arabic'];
+    return desired.filter((c) => fromData.includes(c)).concat(fromData.filter((c) => !desired.includes(c)));
+  }, [articles]);
+
   const allTags = useMemo(() => ['All', ...Array.from(new Set(articles.flatMap((a) => [a.category, a.language])))], [articles]);
-  const authors = useMemo(() => ['All', ...Array.from(new Set(articles.map((a) => a.author)))], [articles]);
+  const authors = useMemo(() => ['All', ...Array.from(new Set(articles.map((a) => a.author))).filter(Boolean)], [articles]);
 
   const filtered = useMemo(() => {
     const byCategory = selected === 'All' ? articles : articles.filter((item) => item.category === selected);
     const byAuthor = authorFilter === 'All' ? byCategory : byCategory.filter((item) => item.author === authorFilter);
     const byTag = tagFilter === 'All' ? byAuthor : byAuthor.filter((item) => item.category === tagFilter || item.language === tagFilter);
+
     const text = search.trim().toLowerCase();
     if (!text) return byTag;
+
     return byTag.filter((item) => `${item.title} ${item.excerpt}`.toLowerCase().includes(text));
   }, [articles, selected, authorFilter, tagFilter, search]);
 
@@ -176,6 +177,76 @@ export function ArticlesPage() {
     }
   }, [paginated, activeArticleId]);
 
+  const renderCardInner = (item: Article, idx: number, isAdSlot: boolean) => {
+    const articleUrl = `/articles/${encodeURIComponent(item.slug)}`;
+
+    return (
+      <div key={item.id} className={idx === 2 ? 'lg:col-span-2' : undefined}>
+        {isAdSlot ? (
+          <AdsenseAd
+            adSlot={adsenseSlot}
+            minHeightPx={280}
+            className="my-0"
+          />
+        ) : null}
+
+        <article className="rounded-3xl border border-sura-line bg-sura-canvas p-6 transition hover:-translate-y-1">
+          <Link
+            to={articleUrl}
+            className="block h-full w-full select-none"
+            onClick={(e) => {
+              // allow navigation; buttons/menus stop propagation themselves
+              // (keep handler present only to ensure consistent event flow)
+              // no-op
+              void e;
+            }}
+          >
+            <div className="flex items-start justify-between">
+              <div className="text-xs uppercase tracking-[-0.3em] text-sura-teal">{item.category}</div>
+              <div
+                className="select-none"
+                onClick={stopCardEvent}
+                onMouseDown={stopCardEvent}
+              >
+                <AdminMenu entityType="article" entityId={item.id} />
+              </div>
+            </div>
+
+            <h2 className="mt-4 text-xl font-semibold">{item.title}</h2>
+            <p className="mt-3 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
+
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Avatar name={item.author} size="xs" />
+              <div className="flex flex-wrap items-center gap-2 text-xs text-sura-navy/70">
+                <span className="font-medium">{item.author}</span>
+                <span>•</span>
+                <span>{item.readingTime}</span>
+                <span>•</span>
+                <span>{item.views} views</span>
+              </div>
+            </div>
+          </Link>
+
+          <button
+            type="button"
+            className={`mt-4 rounded-full border px-3 py-1 text-xs ${
+              activeArticleId === item.id
+                ? 'border-sura-gold text-sura-teal'
+                : 'border-sura-line text-sura-navy/80'
+            }`}
+            onClick={(e) => {
+              stopCardEvent(e);
+              setActiveArticleId(item.id);
+              trackEvent('article_read', { article_id: item.id, article_title: item.title });
+            }}
+          >
+            {locale === 'ar' ? 'عرض التعليقات' : 'Open comments'}
+          </button>
+        </article>
+      </div>
+    );
+  };
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <header className="rounded-3xl border border-sura-line bg-sura-canvas p-8">
@@ -192,20 +263,39 @@ export function ArticlesPage() {
           {user ? (
             <Link
               to="/create-post"
-              className="self-start rounded-full bg-sura-gold px-5 py-2 text-sm font-semibold text-sura-dark transition hover:opacity-95"
+              className="self-start rounded-full bg-sura-gold px-5 py-2 text-sm font-semibold text-sura-dark transition hover:opacity-95 select-none"
             >
               {locale === 'ar' ? 'Write New Post' : 'Write New Post'}
             </Link>
           ) : null}
         </div>
       </header>
+
       <div className="flex flex-col gap-4 rounded-3xl border border-sura-line bg-sura-canvas p-6">
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => setSelected('All')} className={`rounded-full px-4 py-2 text-sm ${selected === 'All' ? 'bg-sura-navy text-white' : 'border border-sura-line text-sura-navy/80'}`}>All</button>
-          {(Array.isArray(categories) ? categories : []).map((category) => (
-            <button key={category} onClick={() => setSelected(category)} className={`rounded-full px-4 py-2 text-sm ${selected === category ? 'bg-sura-navy text-white' : 'border border-sura-line text-sura-navy/80'}`}>{category}</button>
+          <button
+            type="button"
+            onClick={() => setSelected('All')}
+            className={`rounded-full px-4 py-2 text-sm select-none ${
+              selected === 'All' ? 'bg-sura-navy text-white' : 'border border-sura-line text-sura-navy/80'
+            }`}
+          >
+            All
+          </button>
+          {categories.map((category) => (
+            <button
+              key={category}
+              type="button"
+              onClick={() => setSelected(category)}
+              className={`rounded-full px-4 py-2 text-sm select-none ${
+                selected === category ? 'bg-sura-navy text-white' : 'border border-sura-line text-sura-navy/80'
+              }`}
+            >
+              {category}
+            </button>
           ))}
         </div>
+
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <input
             value={search}
@@ -213,144 +303,144 @@ export function ArticlesPage() {
             placeholder={locale === 'ar' ? 'ابحث في المقالات...' : 'Search title/content...'}
             className="rounded-full border border-sura-line bg-sura-canvas px-4 py-2 text-sm text-sura-navy outline-none focus:border-sura-gold"
           />
+
           <select value={authorFilter} onChange={(e) => setAuthorFilter(e.target.value)} className="rounded-full border border-sura-line bg-sura-canvas px-4 py-2 text-sm">
-            {authors.map((author) => <option key={author} value={author}>{author}</option>)}
+            {authors.map((author) => (
+              <option key={author} value={author}>
+                {author}
+              </option>
+            ))}
           </select>
+
           <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="rounded-full border border-sura-line bg-sura-canvas px-4 py-2 text-sm">
-            {allTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+            {allTags.map((tag) => (
+              <option key={tag} value={tag}>
+                {tag}
+              </option>
+            ))}
           </select>
+
           <div className="flex items-center gap-3 text-sm text-sura-navy/80">
-            <button onClick={() => setViewMode('grid')} className={viewMode === 'grid' ? 'font-semibold text-sura-teal' : ''}>Grid</button>
-            <button onClick={() => setViewMode('list')} className={viewMode === 'list' ? 'font-semibold text-sura-teal' : ''}>List</button>
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`select-none ${viewMode === 'grid' ? 'font-semibold text-sura-teal' : ''}`}
+            >
+              Grid
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`select-none ${viewMode === 'list' ? 'font-semibold text-sura-teal' : ''}`}
+            >
+              List
+            </button>
           </div>
         </div>
       </div>
+
+      {error ? <div className="rounded-3xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">{error}</div> : null}
+
+      {isLoading ? (
+        <div className="text-sm text-sura-navy/70">{locale === 'ar' ? 'جارٍ تحميل المقالات...' : 'Loading articles...'}</div>
+      ) : null}
+
       {viewMode === 'grid' ? (
         <div className="grid gap-6 lg:grid-cols-3">
-          {(Array.isArray(paginated) ? paginated : []).map((item, idx) => (
-            <div key={item.id} className={idx === 2 ? 'lg:col-span-2' : undefined}>
-              {idx === 2 ? (
-                <AdsenseAd
-                  adSlot={import.meta.env.VITE_ADSENSE_ARTICLES_SLOT as string}
-                  minHeightPx={280}
-                  className="my-0"
-                />
-              ) : null}
-
-              <article className="rounded-3xl border border-sura-line bg-sura-canvas p-6 transition hover:-translate-y-1 hover:bg-sura-canvas">
-                <Link to={`/articles/${encodeURIComponent(item.slug || '')}`} className="sr-only">
-                  {item.title}
-                </Link>
-
-                <div className="flex items-start justify-between">
-                  <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{item.category}</div>
-                  <AdminMenu
-                    entityType="article"
-                    entityId={item.id}
-                  />
-                </div>
-                <h2 className="mt-4 text-xl font-semibold">{item.title}</h2>
-                <p className="mt-3 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
-                <div className="mt-6 flex flex-wrap items-center gap-3">
-                  <Avatar name={item.author} size="xs" />
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-sura-navy/70">
-                    <span className="font-medium">{item.author}</span>
-                    <span>•</span>
-                    <span>{item.readingTime}</span>
-                    <span>•</span>
-                    <span>{item.views} views</span>
-                  </div>
-                </div>
-                <button
-                  className={`mt-4 rounded-full border px-3 py-1 text-xs ${activeArticleId === item.id ? 'border-sura-gold text-sura-teal' : 'border-sura-line text-sura-navy/80'}`}
-                  onClick={() => {
-                    setActiveArticleId(item.id);
-                    trackEvent('article_read', {
-                      article_id: item.id,
-                      article_title: item.title
-                    });
-                  }}
-                >
-                  {locale === 'ar' ? 'عرض التعليقات' : 'Open comments'}
-                </button>
-              </article>
-            </div>
-          ))}
+        {(Array.isArray(paginated) ? paginated : []).map((item, idx) => {
+          // ArticleDetailsPage loads by :slug but expects backend route /api/articles/slug/:slug.
+          // Ensure we only link to valid slugs.
+          return renderCardInner(item, idx, idx === 2);
+        })}
         </div>
       ) : (
         <div className="space-y-4">
-          {(Array.isArray(paginated) ? paginated : []).map((item, idx) => (
-            <div key={item.id}>
-              {idx === 2 ? (
-                <AdsenseAd
-                  adSlot={import.meta.env.VITE_ADSENSE_ARTICLES_SLOT as string}
-                  minHeightPx={280}
-                />
-              ) : null}
+          {(Array.isArray(paginated) ? paginated : []).map((item, idx) => {
+            const articleUrl = `/articles/${encodeURIComponent(item.slug)}`;
 
-              <article className="rounded-3xl border border-sura-line bg-sura-canvas p-6">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{item.category}</div>
-                    <h2 className="mt-2 text-2xl font-semibold">{item.title}</h2>
+            return (
+              <div key={item.id}>
+                {idx === 2 ? (
+                  <AdsenseAd
+                    adSlot={adsenseSlot}
+                    minHeightPx={280}
+                  />
+                ) : null}
+
+                <article className="rounded-3xl border border-sura-line bg-sura-canvas p-6">
+                  <Link to={articleUrl} className="block select-none">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">{item.category}</div>
+                        <h2 className="mt-2 text-2xl font-semibold">{item.title}</h2>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm text-sura-navy/70">{item.readingTime}</div>
+                        <div onClick={stopCardEvent} onMouseDown={stopCardEvent} className="select-none">
+                          <AdminMenu entityType="article" entityId={item.id} />
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+
+                  <p className="mt-4 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <Avatar name={item.author} size="xs" />
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-sura-navy/70">
+                      <span className="font-medium">{item.author}</span>
+                      <span>•</span>
+                      <span>{item.views} views</span>
+                      <span>•</span>
+                      <span>{item.claps} claps</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-sm text-sura-navy/70">{item.readingTime}</div>
-                    <AdminMenu
-                      entityType="article"
-                      entityId={item.id}
-                    />
-                  </div>
-                </div>
-                <p className="mt-4 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <Avatar name={item.author} size="xs" />
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-sura-navy/70">
-                    <span className="font-medium">{item.author}</span>
-                    <span>•</span>
-                    <span>{item.views} views</span>
-                    <span>•</span>
-                    <span>{item.claps} claps</span>
-                  </div>
-                </div>
-                <button
-                  className={`mt-4 rounded-full border px-3 py-1 text-xs ${activeArticleId === item.id ? 'border-sura-gold text-sura-teal' : 'border-sura-line text-sura-navy/80'}`}
-                  onClick={() => {
-                    setActiveArticleId(item.id);
-                    trackEvent('article_read', {
-                      article_id: item.id,
-                      article_title: item.title
-                    });
-                  }}
-                >
-                  {locale === 'ar' ? 'عرض التعليقات' : 'Open comments'}
-                </button>
-              </article>
-            </div>
-          ))}
+
+                  <button
+                    type="button"
+                    className={`mt-4 rounded-full border px-3 py-1 text-xs ${
+                      activeArticleId === item.id
+                        ? 'border-sura-gold text-sura-teal'
+                        : 'border-sura-line text-sura-navy/80'
+                    }`}
+                    onClick={(e) => {
+                      stopCardEvent(e);
+                      setActiveArticleId(item.id);
+                      trackEvent('article_read', { article_id: item.id, article_title: item.title });
+                    }}
+                  >
+                    {locale === 'ar' ? 'عرض التعليقات' : 'Open comments'}
+                  </button>
+                </article>
+              </div>
+            );
+          })}
         </div>
       )}
 
-
       <div className="flex items-center justify-center gap-2">
         <button
+          type="button"
           onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page <= 1}
-          className="rounded-full border border-sura-line px-4 py-2 text-sm disabled:opacity-50"
+          className="rounded-full border border-sura-line px-4 py-2 text-sm disabled:opacity-50 select-none"
         >
           Prev
         </button>
-        <span className="text-sm text-sura-navy/80">{page} / {totalPages}</span>
+        <span className="text-sm text-sura-navy/80">
+          {page} / {totalPages}
+        </span>
         <button
+          type="button"
           onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           disabled={page >= totalPages}
-          className="rounded-full border border-sura-line px-4 py-2 text-sm disabled:opacity-50"
+          className="rounded-full border border-sura-line px-4 py-2 text-sm disabled:opacity-50 select-none"
         >
           Next
         </button>
       </div>
 
-      {/* Engagement Bar */}
       {activeArticleId ? (
         <div className="rounded-3xl border border-sura-line bg-sura-canvas p-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -370,8 +460,7 @@ export function ArticlesPage() {
       ) : null}
 
       {activeArticleId ? <ThreadedComments entityId={activeArticleId} entityType="article" /> : null}
-
-
     </div>
   );
 }
+

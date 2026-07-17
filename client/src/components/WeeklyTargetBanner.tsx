@@ -1,8 +1,25 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
+import { supabase } from '../lib/supabaseClient';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+
+const API_URL = getApiBaseUrl();
+
+async function getSupabaseAccessToken(): Promise<string | null> {
+  try {
+    if (!supabase) return null;
+    const { data, error } = await supabase.auth.getSession();
+    if (error) return null;
+    const token = data?.session?.access_token ?? null;
+
+    return token;
+  } catch {
+    return null;
+  }
+}
+
 const WEEKLY_TARGET_KEY = 'sura_weekly_target';
 const WEEKLY_READING_KEY = 'sura_weekly_reading';
 
@@ -46,7 +63,9 @@ export function WeeklyTargetBanner() {
   const [weeklyData, setWeeklyData] = useState<WeeklyData>({ articles: 0, chapters: 0, date: '' });
   const [loading, setLoading] = useState(false);
 
+
   useEffect(() => {
+
     const savedTarget = loadTargetFromLocalStorage();
     setTarget(savedTarget);
 
@@ -58,7 +77,10 @@ export function WeeklyTargetBanner() {
     // Sync from API if logged in
     const fetchTarget = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/weekly-target`);
+        const token = await getSupabaseAccessToken();
+        const res = await fetch(`${API_URL}/api/weekly-target`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
         if (res.ok) {
           const data = await res.json();
           if (data.target) {
@@ -72,10 +94,14 @@ export function WeeklyTargetBanner() {
               date: data.date || new Date().toISOString()
             });
           }
+          return;
         }
-      } catch (err) {
-        console.error('Failed to fetch weekly target:', err);
+      } catch {
+        // Keep the local weekly state when the backend is unavailable.
       }
+
+      const savedWeekly = loadWeeklyReadingFromLocalStorage();
+      setWeeklyData(savedWeekly);
     };
 
     fetchTarget();
@@ -86,15 +112,20 @@ export function WeeklyTargetBanner() {
   const completed = progress >= target;
 
   const updateTarget = async (value: number) => {
+
     setLoading(true);
     setTarget(value);
     saveTargetToLocalStorage(value);
 
     if (user) {
       try {
+        const token = await getSupabaseAccessToken();
         await fetch(`${API_URL}/api/weekly-target`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({
             target: value,
             articles: weeklyData.articles,
