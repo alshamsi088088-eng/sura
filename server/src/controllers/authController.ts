@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-Import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
@@ -13,6 +12,33 @@ import { JWT_REFRESH_SECRET } from '../services/config.js';
 
 initGoogleStrategy();
 
+type AuthCallbackBody = {
+  access_token?: string;
+  refresh_token?: string;
+  email?: string;
+  user_metadata?: {
+    full_name?: string;
+    name?: string;
+    avatar_url?: string;
+    avatarUrl?: string;
+  };
+};
+
+function sanitize(user: any) {
+  if (!user) return user;
+  const { password, resetToken, resetTokenExpires, verificationToken, ...rest } = user;
+  return rest;
+}
+
+// Any account (however created) belonging to this email is treated as admin.
+// Used across every account-creation/lookup path so the role stays correct
+// regardless of whether the person signs up with email/password, Google,
+// Apple, or Supabase OAuth.
+function getAdminRoleForEmail(email: string) {
+  const myAdminEmail = 'thesuracodex@gmail.com';
+  return email.toLowerCase() === myAdminEmail.toLowerCase() ? 'admin' : 'member';
+}
+
 export async function register(req: Request, res: Response, next: NextFunction) {
   try {
     const { name, email, password } = req.body;
@@ -20,12 +46,13 @@ export async function register(req: Request, res: Response, next: NextFunction) 
     if (existing) return res.status(400).json({ message: 'Email already exists' });
     const hashed = await bcrypt.hash(password, 12);
     const verificationToken = crypto.randomBytes(24).toString('hex');
+    const role = getAdminRoleForEmail(email);
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashed,
-        role: 'member',
+        role,
         locale: 'en',
         theme: 'dark',
         verified: false,
@@ -131,11 +158,11 @@ export async function verifyEmail(req: Request, res: Response, next: NextFunctio
 }
 
 export async function me(req: Request, res: Response) {
-  res.json({ user: req.user });
+  res.json({ user: sanitize(req.user) });
 }
 
 export async function profile(req: Request, res: Response) {
-  res.json({ user: req.user });
+  res.json({ user: sanitize(req.user) });
 }
 
 export function googleAuthRedirect(req: Request, res: Response, next: NextFunction) {
@@ -151,23 +178,38 @@ export function googleAuthCallback(req: Request, res: Response, next: NextFuncti
     if (err || !profile) return res.redirect('/login');
     const email = profile.email;
     let user = await prisma.user.findUnique({ where: { email } });
+    const role = getAdminRoleForEmail(email);
     if (!user) {
       user = await prisma.user.create({
         data: {
           name: profile.name,
           email,
-          role: 'member',
+          role,
           locale: 'en',
           theme: 'dark',
           verified: true
         }
       });
+    } else if (user.role !== role) {
+      user = await prisma.user.update({ where: { email }, data: { role } });
     }
     const tokens = createTokenPair(user.id);
     sendAuthCookies(res, tokens);
     const clientUrl = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://sura-codex.com' : 'http://localhost:5173');
     res.redirect(clientUrl);
   })(req, res, next);
+}
+
+export function appleAuthRedirect(req: Request, res: Response) {
+  const clientId = process.env.APPLE_CLIENT_ID;
+  if (!clientId) {
+    return res.status(501).json({ message: 'Apple Sign In is not configured' });
+  }
+  // Use HTTPS in production
+  const serverUrl = process.env.SERVER_URL || (process.env.NODE_ENV === 'production' ? 'https://sura-codex.com' : 'http://localhost:5000');
+  const redirectUri = `${serverUrl}/api/auth/apple/callback`;
+  const url = `https://appleid.apple.com/auth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=name%20email&response_mode=form_post`;
+  res.redirect(url);
 }
 
 export async function appleAuthCallback(req: Request, res: Response) {
@@ -177,17 +219,20 @@ export async function appleAuthCallback(req: Request, res: Response) {
     return res.status(400).json({ message: 'Apple authentication failed' });
   }
   let user = await prisma.user.findUnique({ where: { email } });
+  const role = getAdminRoleForEmail(email);
   if (!user) {
     user = await prisma.user.create({
       data: {
         name,
         email,
-        role: 'member',
+        role,
         locale: 'en',
         theme: 'dark',
         verified: true
       }
     });
+  } else if (user.role !== role) {
+    user = await prisma.user.update({ where: { email }, data: { role } });
   }
   const tokens = createTokenPair(user.id);
   sendAuthCookies(res, tokens);
@@ -195,60 +240,12 @@ export async function appleAuthCallback(req: Request, res: Response) {
   res.redirect(clientUrl);
 }
 
-// Supabase Auth callback - handles Supabase identity verification
-export async function AuthCallback(req: Request, res: Response) {
-  try {
-    const accessToken = req.body.access_token;
-    const refreshToken = req.body.refresh_token;
-
-    if (!accessToken) return res.status(400).json({ message: 'Missing access_token' });
-
-    // Verify with Supabase - the token is already validated on client side via Supabase auth
-    // This endpoint receives the user info directly from Supabase after authentication
-    const { email, user_metadata, app_metadata } = req.body;
-
-    if (!email) return res.status(400).json({ message: 'Token does not contain an email' });
-
-    let user = await prisma.user.findUnique({ where: { email } });
-=======
-import { Request, Response, NextFunction } from 'express'; // تم تصحيح حرف i ليكون صغيرًا
-
-import { prisma } from '../services/prisma.js';
-import { createTokenPair, sendAuthCookies } from '../services/tokenService.js';
-
-type AuthCallbackBody = {
-  access_token?: string;
-  email?: string;
-  user_metadata?: {
-    full_name?: string;
-    name?: string;
-    avatar_url?: string;
-    avatarUrl?: string;
-  };
-};
-
-function sanitize<T extends Record<string, any> | null | undefined>(user: T) {
-  if (!user) return user;
-
-  const {
-    password,
-    resetToken,
-    resetTokenExpires,
-    ...safe
-  } = user as any;
-
-  return safe;
-}
-
-function getAdminRoleForEmail(email: string) {
-  const myAdminEmail = 'thesuracodex@gmail.com';
-  return email.toLowerCase() === myAdminEmail.toLowerCase() ? 'admin' : 'member';
-}
-
-// --------------------
-// OAuth/Callback
-// --------------------
-export async function AuthCallback(req: Request, res: Response): Promise<any> { // إضافة نوع الإرجاع الوعدي
+// Supabase Auth callback - handles Supabase identity verification.
+// The client sends the Supabase access token + user info after Supabase
+// has already authenticated the person; this endpoint mirrors that user
+// into our own `User` table (creating it on first sign-in) and issues our
+// own cookie-based session tokens so authGuard can recognize the session.
+export async function AuthCallback(req: Request, res: Response): Promise<any> {
   try {
     const body = (req.body ?? {}) as AuthCallbackBody;
     const accessToken = body.access_token;
@@ -267,121 +264,28 @@ export async function AuthCallback(req: Request, res: Response): Promise<any> { 
 
     let user = await prisma.user.findUnique({ where: { email } });
 
->>>>>>> 3de95a81743840dae025b0f1acd3799b419fc7c2
     if (!user) {
       user = await prisma.user.create({
         data: {
           name: user_metadata?.full_name || user_metadata?.name || 'Reader',
           email,
-<<<<<<< HEAD
-          role: 'member',
-=======
           role,
->>>>>>> 3de95a81743840dae025b0f1acd3799b419fc7c2
           locale: 'en',
           theme: 'dark',
           verified: true,
           avatar: user_metadata?.avatar_url ?? user_metadata?.avatarUrl ?? null
         }
       });
-<<<<<<< HEAD
-=======
-    } else {
-      if (user.role !== role) {
-        user = await prisma.user.update({
-          where: { email },
-          data: { role }
-        });
-      }
->>>>>>> 3de95a81743840dae025b0f1acd3799b419fc7c2
+    } else if (user.role !== role) {
+      user = await prisma.user.update({ where: { email }, data: { role } });
     }
 
     const tokens = createTokenPair(user.id);
     sendAuthCookies(res, tokens);
 
     return res.json({ user: sanitize(user) });
-  } catch (error: any) { // تحديد نوع الخطأ بـ any لمنع تعارض الـ compiler
+  } catch (error: any) {
     console.error('AuthCallback error', error);
     return res.status(500).json({ message: 'Auth processing failed' });
   }
-}
-
-<<<<<<< HEAD
-export function appleAuthRedirect(req: Request, res: Response) {
-  const clientId = process.env.APPLE_CLIENT_ID;
-  if (!clientId) {
-    return res.status(501).json({ message: 'Apple Sign In is not configured' });
-  }
-  // Use HTTPS in production
-  const serverUrl = process.env.SERVER_URL || (process.env.NODE_ENV === 'production' ? 'https://sura-codex.com' : 'http://localhost:5000');
-  const redirectUri = `${serverUrl}/api/auth/apple/callback`;
-  const url = `https://appleid.apple.com/auth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=name%20email&response_mode=form_post`;
-  res.redirect(url);
-}
-
-function sanitize(user: any) {
-  const { password, resetToken, resetTokenExpires, verificationToken, ...rest } = user;
-  return rest;
-=======
-// --------------------
-// Placeholders / minimal implementations
-// --------------------
-export async function login(_req: Request, res: Response): Promise<any> {
-  return res.status(501).json({ message: 'Not implemented (use Supabase OAuth / AuthCallback flow)' });
-}
-
-export async function logout(_req: Request, res: Response): Promise<any> {
-  res.clearCookie('token');
-  res.clearCookie('refreshToken');
-  return res.json({ message: 'Logged out' });
-}
-
-export async function register(_req: Request, res: Response): Promise<any> {
-  return res.status(501).json({ message: 'Not implemented' });
-}
-
-export async function me(req: Request, res: Response): Promise<any> {
-  const user = (req as any).user;
-  if (!user) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
-  return res.json({ user: sanitize(user) });
-}
-
-
-export async function profile(req: Request, res: Response): Promise<any> {
-  return me(req, res);
-}
-
-export async function refreshToken(_req: Request, res: Response): Promise<any> {
-  return res.status(501).json({ message: 'Not implemented' });
-}
-
-export async function forgotPassword(_req: Request, res: Response): Promise<any> {
-  return res.status(501).json({ message: 'Not implemented' });
-}
-
-export async function resetPassword(_req: Request, res: Response): Promise<any> {
-  return res.status(501).json({ message: 'Not implemented' });
-}
-
-export async function verifyEmail(_req: Request, res: Response): Promise<any> {
-  return res.status(501).json({ message: 'Not implemented' });
-}
-
-export async function googleAuthRedirect(_req: Request, res: Response): Promise<any> {
-  return res.status(501).json({ message: 'Not implemented' });
-}
-
-export async function googleAuthCallback(_req: Request, res: Response): Promise<any> {
-  return res.status(501).json({ message: 'Not implemented' });
-}
-
-export async function appleAuthRedirect(_req: Request, res: Response): Promise<any> {
-  return res.status(501).json({ message: 'Not implemented' });
-}
-
-export async function appleAuthCallback(_req: Request, res: Response): Promise<any> {
-  return res.status(501).json({ message: 'Not implemented' });
->>>>>>> 3de95a81743840dae025b0f1acd3799b419fc7c2
 }
