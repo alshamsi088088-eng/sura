@@ -250,7 +250,7 @@ export function ArticleDetailsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDeleteOpen(true)}
+                  onClick={handleDelete}
                   className="rounded-full border border-red-200 px-3 py-1.5 text-sm text-red-600"
                 >
                   {locale === 'ar' ? 'حذف' : 'Delete'}
@@ -292,8 +292,68 @@ export function ArticleDetailsPage() {
         <CommentSection articleId={article.id} />
       </div>
 
-      {/* المودالز (Edit/Delete) تبقى كما هي في الأسفل */}
-      {/* ... */}
+      {/* نافذة التعديل المنبثقة (Edit Modal) المعاد بناؤها بالكامل */}
+      {editOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-3xl border border-sura-line bg-sura-canvas p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-semibold text-white text-right">
+              {locale === 'ar' ? 'تعديل المقال' : 'Edit Article'}
+            </h2>
+            
+            {editError && <p className="text-red-500 text-sm text-right">{editError}</p>}
+            
+            <form onSubmit={handleEditSubmit} className="space-y-4 text-right">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  {locale === 'ar' ? 'العنوان' : 'Title'}
+                </label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full rounded-xl border border-sura-line bg-transparent p-3 text-white focus:outline-none focus:border-purple-500"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  {locale === 'ar' ? 'المقتطف (الوصف المختصر)' : 'Excerpt'}
+                </label>
+                <textarea
+                  value={editExcerpt}
+                  onChange={(e) => setEditExcerpt(e.target.value)}
+                  className="w-full rounded-xl border border-sura-line bg-transparent p-3 text-white focus:outline-none focus:border-purple-500 h-20"
+                  required
+                />
+              </div>
+              
+              <div className="text-left">
+                <label className="block text-sm font-medium text-gray-300 mb-1 text-right">
+                  {locale === 'ar' ? 'المحتوى' : 'Content'}
+                </label>
+                <ReactQuillEditor value={editContent} onChange={setEditContent} />
+              </div>
+              
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(false)}
+                  className="rounded-full border border-sura-line px-4 py-2 text-sm text-white hover:bg-white/10"
+                >
+                  {locale === 'ar' ? 'إلغاء' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-full bg-purple-600 px-4 py-2 text-sm text-white hover:bg-purple-700"
+                >
+                  {locale === 'ar' ? 'حفظ التغييرات' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
