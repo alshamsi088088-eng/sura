@@ -17,6 +17,10 @@ export default function AuthCallbackPage() {
   const [status, setStatus] = useState<'loading' | 'error'>('loading');
   const [message, setMessage] = useState<string>('Processing authentication...');
 
+  // Show a stable page during auth to avoid any “white screen” caused by
+  // Suspense/route issues while the callback is being processed.
+  // (This also helps users see progress if redirect handling takes time.)
+
   useEffect(() => {
     let isMounted = true;
 
@@ -40,10 +44,11 @@ export default function AuthCallbackPage() {
       if (code) {
         setMessage('Completing sign-in...');
 
-        const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(
-          // Supabase expects the current URL (or the URL containing the code)
-          window.location.href
-        );
+        // Use the URL that contains the auth code (and any other params).
+        // Using `window.location.href` is generally correct, but make sure we pass
+        // the full current URL including query.
+        const currentUrl = `${window.location.origin}${window.location.pathname}${window.location.search}`;
+        const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(currentUrl);
 
         if (!isMounted) return;
 
@@ -64,10 +69,10 @@ export default function AuthCallbackPage() {
       }
 
       // Some flows might not use `code` query param; still attempt exchange.
+      // Use current URL consistently.
       setMessage('Completing sign-in...');
-      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(
-        window.location.href
-      );
+      const currentUrl = `${window.location.origin}${window.location.pathname}${window.location.search}`;
+      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(currentUrl);
 
       if (!isMounted) return;
 
