@@ -484,7 +484,7 @@ export async function moderateComment(req: Request, res: Response) {
 }
 
 // ============================================
-// REACTION OPERATIONS
+// REACTION OPERATIONS (المعدلة)
 // ============================================
 
 const VALID_EMOJIS = ['love', 'fire', 'funny', 'sad', 'wow', 'clap', 'mind_blown', 'excellent'] as const;
@@ -558,9 +558,13 @@ export async function setReaction(req: Request, res: Response) {
       counts: emojiCounts,
       topReaction: maxEmoji
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Set reaction error:', error);
-    res.status(500).json({ error: 'Failed to set reaction' });
+    // 💡 تم التعديل هنا لتمرير تفاصيل الخطأ مباشرة للمتصفح كشفاً للسبب
+    res.status(500).json({ 
+      error: 'Failed to set reaction', 
+      details: error?.message || String(error) 
+    });
   }
 }
 
