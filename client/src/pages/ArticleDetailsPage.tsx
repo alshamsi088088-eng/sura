@@ -28,6 +28,22 @@ interface Article {
   authorId?: string | null;
 }
 
+/**
+ * Defensive guard: `excerpt` is meant to be a plain-text summary, but bad
+ * data has slipped in before (HTML from the rich-text editor pasted into
+ * the excerpt field by mistake), which rendered as raw "<h1><strong>..."
+ * text on the page. This strips any HTML tags before display/SEO use so a
+ * bad excerpt degrades gracefully instead of showing broken markup.
+ * This does NOT replace fixing the underlying data — see the DB cleanup.
+ */
+function stripHtml(value: string | null | undefined): string {
+  if (!value) return '';
+  return value
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function ArticleDetailsPage() {
   const { locale } = useLocale();
   const { user } = useAuth();
@@ -62,9 +78,11 @@ export function ArticleDetailsPage() {
     return `${base}/articles/${encodeURIComponent(decodedSlug || '')}`;
   }, [decodedSlug]);
 
+  const cleanExcerpt = useMemo(() => stripHtml(article?.excerpt), [article?.excerpt]);
+
   useSeoTags({
     title: article?.title || (locale === 'ar' ? 'مقالة — سُرى' : 'Article — Sura Codex'),
-    description: article?.excerpt || (locale === 'ar' ? 'محتوى مقال — سُرى' : 'Article content — Sura Codex'),
+    description: cleanExcerpt || (locale === 'ar' ? 'محتوى مقال — سُرى' : 'Article content — Sura Codex'),
     canonicalUrl,
     openGraph: {
       type: 'article',
@@ -158,10 +176,12 @@ export function ArticleDetailsPage() {
 
     const updatedSlug = generateSlug(editTitle);
 
+    // Defensive: strip any HTML that may have been pasted into the excerpt
+    // field (it's meant to be plain text, unlike `content`).
     const payload = {
       title: editTitle.trim(),
       slug: updatedSlug,
-      excerpt: editExcerpt.trim(),
+      excerpt: stripHtml(editExcerpt).trim(),
       content: editContent,
       publishedAt: article.publishedAt ? article.publishedAt : new Date().toISOString(),
     };
@@ -215,7 +235,9 @@ export function ArticleDetailsPage() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-2">
               <h1 className="text-4xl font-semibold">{article.title}</h1>
-              <p className="text-sm leading-7 text-sura-navy/80">{article.excerpt}</p>
+              {cleanExcerpt ? (
+                <p className="text-sm leading-7 text-sura-navy/80">{cleanExcerpt}</p>
+              ) : null}
             </div>
             {isAdmin ? (
               <div className="flex gap-2">
