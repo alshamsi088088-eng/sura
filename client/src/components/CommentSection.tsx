@@ -2,14 +2,14 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 
-// تم تحديث الأسماء هنا لتطابق قاعدة البيانات (snake_case)
+// تم تحديث الأسماء لتطابق جدولك تماماً
 type CommentRow = {
   id: string;
-  article_id: string;
-  user_id: string;
+  articleId: string;
+  userId: string;
   content: string;
   approved?: boolean;
-  created_at?: string;
+  createdAt?: string;
   User?: {
     name?: string | null;
   } | null;
@@ -38,12 +38,12 @@ export function CommentSection({ articleId }: { articleId: string }) {
       setLoading(true);
       setError(null);
 
-      // تم التعديل هنا: article_id, user_id, created_at
+      // الاستعلام بالأسماء الصحيحة لجدولك
       const { data, error: fetchError } = await supabase
         .from('Comment')
-        .select('id, article_id, user_id, content, approved, created_at, User(name)')
-        .eq('article_id', articleId)
-        .order('created_at', { ascending: false });
+        .select('id, articleId, userId, content, approved, createdAt, User(name)')
+        .eq('articleId', articleId)
+        .order('createdAt', { ascending: false });
 
       if (cancelled) return;
 
@@ -91,12 +91,11 @@ export function CommentSection({ articleId }: { articleId: string }) {
       return;
     }
 
-    // تحديث القائمة بعد الحذف بالأسماء الصحيحة
     const { data, error: fetchError } = await supabase
       .from('Comment')
-      .select('id, article_id, user_id, content, approved, created_at, User(name)')
-      .eq('article_id', articleId)
-      .order('created_at', { ascending: false });
+      .select('id, articleId, userId, content, approved, createdAt, User(name)')
+      .eq('articleId', articleId)
+      .order('createdAt', { ascending: false });
 
     if (fetchError) {
       setError(fetchError.message);
@@ -128,10 +127,10 @@ export function CommentSection({ articleId }: { articleId: string }) {
     setPosting(true);
     setError(null);
 
-    // تم التعديل هنا لتطابق قاعدة البيانات (article_id و user_id)
+    // الإضافة للجدول بالأسماء الصحيحة
     const { error: insertError } = await supabase.from('Comment').insert({
-      article_id: articleId,
-      user_id: user.id,
+      articleId: articleId,
+      userId: user.id,
       content: trimmed,
       approved: true,
     });
@@ -144,12 +143,11 @@ export function CommentSection({ articleId }: { articleId: string }) {
 
     setContent('');
 
-    // تحديث القائمة بعد الإضافة بالأسماء الصحيحة
     const { data, error: fetchError } = await supabase
       .from('Comment')
-      .select('id, article_id, user_id, content, approved, created_at, User(name)')
-      .eq('article_id', articleId)
-      .order('created_at', { ascending: false });
+      .select('id, articleId, userId, content, approved, createdAt, User(name)')
+      .eq('articleId', articleId)
+      .order('createdAt', { ascending: false });
 
     if (fetchError) {
       setError(fetchError.message);
@@ -224,13 +222,11 @@ export function CommentSection({ articleId }: { articleId: string }) {
                 <div className="font-inter text-sm text-sura-ivory">
                   <span className="font-semibold">{c.User?.name ?? 'Unknown'}</span>
                   <span className="ml-2 text-sura-ivory/60">
-                    {/* تم التعديل إلى c.created_at */}
-                    {c.created_at ? new Date(c.created_at).toLocaleString() : ''}
+                    {c.createdAt ? new Date(c.createdAt).toLocaleString() : ''}
                   </span>
                 </div>
 
-                {/* تم التعديل إلى c.user_id */}
-                {(isAdmin || (user?.id && user.id === c.user_id)) && (
+                {(isAdmin || (user?.id && user.id === c.userId)) && (
                   <button
                     type="button"
                     onClick={() => handleDeleteComment(c.id)}
