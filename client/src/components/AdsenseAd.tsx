@@ -55,15 +55,25 @@ export function AdsenseAd({ adSlot, className = '', minHeightPx = 250 }: Adsense
   const fallbackSlot = (import.meta.env.VITE_GOOGLE_ADSENSE_SLOT || import.meta.env.VITE_ADSENSE_SLOT) as string | undefined;
   const resolvedSlot = (adSlot || fallbackSlot || '').trim();
 
+  // Hard-disable AdSense unless explicitly enabled by a dedicated flag.
+  // This prevents runtime 400s in non-approved/placeholder environments.
+  const adsenseEnabled = Boolean(import.meta.env.VITE_ENABLE_ADSENSE && String(import.meta.env.VITE_ENABLE_ADSENSE).toLowerCase() === 'true');
+
+
   const isReady = useMemo(() => {
     const slotOk = resolvedSlot.length > 0;
     const clientOk = typeof client === 'string' && client.trim().length > 0;
-    return clientOk && slotOk && !resolvedSlot.includes('PLACEHOLDER');
-  }, [client, resolvedSlot]);
+    return adsenseEnabled && clientOk && slotOk && !resolvedSlot.includes('PLACEHOLDER');
+  }, [adsenseEnabled, client, resolvedSlot]);
+
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    // Disable AdSense in this project unless valid, approved IDs are provided.
+    // This prevents runtime 400 errors like: "The publisher is not approved".
     if (!client || !resolvedSlot || !isReady || adsensePushAttempted) return;
+    if (client.includes('PLACEHOLDER') || resolvedSlot.includes('PLACEHOLDER')) return;
+
 
     const metaTag = document.querySelector('meta[name="google-adsense-account"]') as HTMLMetaElement | null;
     if (metaTag) {
@@ -92,7 +102,9 @@ export function AdsenseAd({ adSlot, className = '', minHeightPx = 250 }: Adsense
       });
   }, [client, isReady, resolvedSlot]);
 
+  if (!adsenseEnabled) return null;
   if (!client || !isReady) return null;
+
 
   return (
     <div className={`my-8 ${className}`}>
