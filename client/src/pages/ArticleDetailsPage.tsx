@@ -87,14 +87,14 @@ export function ArticleDetailsPage() {
     openGraph: {
       type: 'article',
       image: {
-        url: article?.coverImage || `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`,
+        url: article?.coverImage || '/logo.svg',
         alt: article?.title || 'Sura Codex',
       },
     },
     twitter: {
       cardType: 'summary_large_image',
       image: {
-        url: article?.coverImage || `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`,
+        url: article?.coverImage || '/logo.svg',
         alt: article?.title || 'Sura Codex',
       },
     },
