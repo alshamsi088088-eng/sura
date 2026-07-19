@@ -14,9 +14,10 @@ export function AboutPage() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <main className="mx-auto max-w-7xl space-y-6">
       <header className="rounded-3xl border border-sura-line bg-sura-canvas p-8">
         <h1 className="text-4xl font-semibold">{locale === 'ar' ? 'حول سُرى كودكس' : 'About Sura Codex'}</h1>
+
         <p className="mt-3 max-w-2xl text-sm leading-7 text-sura-navy/80">
           {locale === 'ar'
             ? 'سُرى كودكس مساحة هادئة للقراءة والاكتشاف والنشر المدروس—حيث تتقاطع الكتابة بالكود. جمعتُ هنا بين محتوى الأدب والمعرفة التقنية حتى تكون الرحلة أكثر وضوحًا، وأكثر فائدة، وأكثر إنسانية.'
@@ -93,7 +94,8 @@ export function AboutPage() {
           </div>
         </div>
       </section>
-    </div>
+    </main>
   );
 }
+
 

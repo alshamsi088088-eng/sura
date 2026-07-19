@@ -23,9 +23,10 @@ export function ContactPage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <main className="mx-auto max-w-4xl space-y-6">
       <header className="rounded-3xl border border-sura-line bg-sura-canvas p-8">
         <h1 className="text-4xl font-semibold">{locale === 'ar' ? 'تواصل معنا' : 'Contact Sura Codex'}</h1>
+
         <p className="mt-3 text-sm leading-7 text-sura-navy/80">
           {locale === 'ar'
             ? 'نرحب بتواصلك. سواء لديك سؤال حول المحتوى أو منصة القراءة أو ترغب بالتعاون، نقرأ رسائلك باهتمام.'
@@ -82,7 +83,8 @@ export function ContactPage() {
         </div>
         {status && <div className="rounded-3xl bg-sura-canvas p-4 text-sm text-sura-navy">{status}</div>}
       </form>
-    </div>
+    </main>
   );
 }
+
 

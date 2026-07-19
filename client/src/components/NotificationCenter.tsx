@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
@@ -26,13 +27,30 @@ interface NotificationCenterProps {
 export function NotificationCenter({ isOpen, onClose, onUnreadChange }: NotificationCenterProps) {
   const { user } = useAuth();
   const { locale } = useLocale();
+  const isArabic = locale === 'ar';
+
+
+
+
+
+
+
+
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
+
+
+
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const isArabic = locale === 'ar';
+
 
   const fetchNotifications = async () => {
+
+
+
+
     if (!user) return;
 
     setLoading(true);

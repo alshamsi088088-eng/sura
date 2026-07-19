@@ -13,9 +13,10 @@ export function CookiePolicyPage() {
   );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 rounded-3xl border border-sura-line bg-sura-canvas p-8">
+    <main className="mx-auto max-w-5xl space-y-6 rounded-3xl border border-sura-line bg-sura-canvas p-8">
       <header>
         <h1 className="text-4xl font-semibold">{locale === 'ar' ? 'سياسة ملفات تعريف الارتباط' : 'Cookie Policy'}</h1>
+
         <p className="mt-3 text-sm leading-7 text-sura-navy/80">
           {locale === 'ar'
             ? 'تشرح سياسة ملفات تعريف الارتباط هذه كيف نستخدم ملفات تعريف الارتباط (Cookies) وتقنيات مشابهة لتحسين تجربتك على Sura Codex، وتحليل الأداء، وتقديم محتوى وإعلانات ذات صلة (عندما ينطبق ذلك).'
@@ -110,7 +111,10 @@ export function CookiePolicyPage() {
         </div>
       </section>
 
-    </div>
+    </main>
   );
 }
+
+
+
 

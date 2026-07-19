@@ -14,9 +14,10 @@ export function PrivacyPage() {
   );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 rounded-3xl border border-sura-line bg-sura-canvas p-8">
+    <main className="mx-auto max-w-5xl space-y-6 rounded-3xl border border-sura-line bg-sura-canvas p-8">
       <header>
         <h1 className="text-4xl font-semibold">{locale === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}</h1>
+
         <p className="mt-3 text-sm leading-7 text-sura-navy/80">
           {locale === 'ar'
             ? 'نلتزم بحماية خصوصيتك. توضّح هذه السياسة كيف نجمع معلوماتك ونستخدمها ونشاركها، بما في ذلك استخدام خدمات Google مثل Google Analytics وGoogle Search Console وGoogle AdSense، وملفات تعريف الارتباط.'
@@ -164,7 +165,8 @@ export function PrivacyPage() {
           </p>
         </div>
       </section>
-    </div>
+    </main>
   );
 }
+
 

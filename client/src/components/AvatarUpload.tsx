@@ -14,12 +14,7 @@ const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
 const MAX_DIMENSION = 1024;
 const ALLOWED_FORMATS = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
 
-interface CropArea {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+
 
 export function AvatarUpload({ size = 'md', showEditButton = true, onAvatarChange }: AvatarUploadProps) {
   const { user } = useAuth();
@@ -33,8 +28,7 @@ export function AvatarUpload({ size = 'md', showEditButton = true, onAvatarChang
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
-  const [cropMode, setCropMode] = useState(false);
-  const [cropArea, setCropArea] = useState<CropArea>({ x: 0, y: 0, width: 200, height: 200 });
+
 
   const sizeClasses = {
     sm: 'h-10 w-10 text-sm',
@@ -57,7 +51,7 @@ export function AvatarUpload({ size = 'md', showEditButton = true, onAvatarChang
     setError(null);
     setSuccess(false);
     setPreview(null);
-    setCropMode(false);
+
   }, [user?.id]);
 
   const validateFile = useCallback((file: File): string | null => {
@@ -135,7 +129,8 @@ export function AvatarUpload({ size = 'md', showEditButton = true, onAvatarChang
       const filePath = `avatars/${fileName}`;
 
       // Upload to Supabase Storage
-      const { data, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
+
         .from('avatars')
         .upload(filePath, blob, {
           contentType: 'image/jpeg',
