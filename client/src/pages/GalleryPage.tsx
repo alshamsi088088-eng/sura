@@ -5,6 +5,7 @@ import { useLocale } from '../context/LocaleContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { AdminMenu } from '../components/AdminMenu';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 interface GalleryItem {
   id: string;
@@ -93,6 +94,33 @@ function GalleryImage({
 export function GalleryPage() {
   const { locale } = useLocale();
   const { user } = useAuth();
+  useSeoTags({
+    title: locale === 'ar' ? 'المعرض | سُرى' : 'Gallery | Sura Codex',
+    description: locale === 'ar'
+      ? 'قصص مرئية وصور تجمع الجو الأدبي والثقافي في سُرى.'
+      : 'Browse editorial images and creative visual stories on Sura Codex.',
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/gallery`,
+    openGraph: {
+      type: 'website',
+      },
+    twitter: {
+      cardType: 'summary_large_image',
+    },
+    locale,
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: locale === 'ar' ? 'المعرض | سُرى' : 'Gallery | Sura Codex',
+        description: locale === 'ar'
+          ? 'قصص مرئية وصور تجمع الجو الأدبي والثقافي في سُرى.'
+          : 'Browse editorial images and creative visual stories on Sura Codex.',
+        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/gallery`,
+        inLanguage: locale === 'ar' ? 'ar' : 'en',
+      },
+    ],
+  });
+
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [active, setActive] = useState<GalleryItem | null>(null);

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useLocale } from '../context/LocaleContext';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 interface ProductItem {
   id: string;
@@ -14,6 +15,35 @@ interface ProductItem {
 
 export function ProductsPage() {
   const { locale } = useLocale();
+  useSeoTags({
+    title: locale === 'ar' ? 'المنتجات الرقمية | سُرى' : 'Digital Products | Sura Codex',
+    description: locale === 'ar'
+      ? 'قوالب ودورات ومواد رقمية مع ترخيص واضح وتحميل آمن.'
+      : 'Templates, eBooks, and courses with clear licensing and secure download delivery.',
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/products`,
+    openGraph: {
+      type: 'website',
+      // TODO: Add dedicated 1200×630 OG image when available
+    },
+    twitter: {
+      cardType: 'summary_large_image',
+      // TODO: Add dedicated Twitter image when available
+    },
+    locale,
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: locale === 'ar' ? 'المنتجات الرقمية | سُرى' : 'Digital Products | Sura Codex',
+        description: locale === 'ar'
+          ? 'قوالب ودورات ومواد رقمية مع ترخيص واضح وتحميل آمن.'
+          : 'Templates, eBooks, and courses with clear licensing and secure download delivery.',
+        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/products`,
+        inLanguage: locale === 'ar' ? 'ar' : 'en',
+      },
+    ],
+  });
+
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

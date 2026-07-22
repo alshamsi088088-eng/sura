@@ -2,11 +2,21 @@ import { useEffect, useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 export function LoginPage() {
   const { user, login, register } = useAuth();
   const { locale } = useLocale();
   const navigate = useNavigate();
+
+  useSeoTags({
+    title: locale === 'ar' ? 'تسجيل الدخول | سُرى' : 'Login | Sura Codex',
+    description: locale === 'ar'
+      ? 'سجل الدخول إلى حسابك في سُرى للوصول إلى لوحة التحكم والمحتوى الحصري.'
+      : 'Log in to your Sura Codex account to access the dashboard and exclusive content.',
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/login`,
+    noIndex: true,
+  });
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
 

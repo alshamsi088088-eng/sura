@@ -2,6 +2,7 @@
 import {
   getArticlesForSitemap,
   getNovelsForSitemap,
+  getCommunityThreadsForSitemap,
   getStaticPagesForSitemap,
 } from '../services/sitemapService';
 
@@ -24,8 +25,29 @@ function toAbsoluteUrl(baseUrl: string, path: string) {
 }
 
 seoRouter.get('/robots.txt', (_req, res) => {
-  // sitemap is assumed to be served at /sitemap.xml
-  res.type('text/plain').send(`User-agent: *\nAllow: /\nSitemap: /sitemap.xml\n`);
+  const baseUrl = (process.env.PUBLIC_BASE_URL || 'https://sura-codex.com').replace(/\/$/, '');
+  res.type('text/plain').send(
+    `User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /auth/
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /profile
+Disallow: /library
+Disallow: /create-post
+Disallow: /create-chapter
+Disallow: /create-novel
+Disallow: /create-tech
+Disallow: /edit-parts
+Disallow: /login
+Disallow: /register
+
+# Sitemaps
+Sitemap: ${baseUrl}/sitemap.xml
+
+`
+  );
 });
 
 seoRouter.get('/sitemap.xml', async (req, res) => {

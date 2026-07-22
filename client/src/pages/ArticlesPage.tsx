@@ -84,12 +84,25 @@ export function ArticlesPage() {
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/articles`,
     openGraph: {
       type: 'website',
-      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex' },
+      // TODO: Add dedicated 1200×630 OG image when available
     },
     twitter: {
       cardType: 'summary_large_image',
-      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex' },
+      // TODO: Add dedicated Twitter image when available
     },
+    locale,
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: locale === 'ar' ? 'المقالات — سُرى' : 'Articles — Sura Codex',
+        description: locale === 'ar'
+          ? 'مجموعة مقالات منظمة مع قراءة أعمق: المؤلف، وقت القراءة، وفئات مختارة.'
+          : 'Browse curated articles with deeper reading: author details, reading time, and categories.',
+        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/articles`,
+        inLanguage: locale === 'ar' ? 'ar' : 'en',
+      },
+    ],
   });
 
   const { user } = useAuth();

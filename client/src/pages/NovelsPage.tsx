@@ -90,12 +90,25 @@ export function NovelsPage() {
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/novels`,
     openGraph: {
       type: 'website',
-      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex' },
+      // TODO: Add dedicated 1200×630 OG image when available
     },
     twitter: {
       cardType: 'summary_large_image',
-      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex' },
+      // TODO: Add dedicated Twitter image when available
     },
+    locale,
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: locale === 'ar' ? 'الروايات — سُرى' : 'Novels — Sura Codex',
+        description: locale === 'ar'
+          ? 'استكشف الروايات بسرد متسلسل مع قارئ فصول وتتبع التقدم.'
+          : 'Explore serialized novels with a chapter reader and progress tracking.',
+        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/novels`,
+        inLanguage: locale === 'ar' ? 'ar' : 'en',
+      },
+    ],
   });
 
   const { user } = useAuth();

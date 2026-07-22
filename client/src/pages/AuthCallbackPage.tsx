@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 function getCallbackParams(search: string) {
   const params = new URLSearchParams(search);
@@ -12,6 +13,13 @@ function getCallbackParams(search: string) {
 }
 
 export default function AuthCallbackPage() {
+  useSeoTags({
+    title: 'Auth Callback | Sura Codex',
+    description: 'Processing authentication redirect for Sura Codex.',
+    canonicalUrl: typeof window !== 'undefined' ? window.location.href : '',
+    noIndex: true,
+  });
+
   const navigate = useNavigate();
   const location = useLocation();
   const [status, setStatus] = useState<'loading' | 'error'>('loading');

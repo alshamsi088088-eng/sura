@@ -17,7 +17,10 @@ export type SeoTagsInput = {
     cardType?: string;
     image?: SeoOgTwitterImage;
   };
-  jsonLd?: Record<string, unknown>;
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  noIndex?: boolean;
+  locale?: string;
+  alternateLocales?: { lang: string; url: string }[];
 };
 
 function ensureMetaTag(selector: string, create: () => HTMLMetaElement) {
@@ -36,23 +39,6 @@ function ensureLinkTag(selector: string, create: () => HTMLLinkElement) {
     document.head.appendChild(el);
   }
   return el;
-}
-
-function upsertText(selector: string, value: string, attr: 'content' | 'href' = 'content') {
-  const el = document.head.querySelector(selector) as HTMLElement | null;
-  if (el) {
-    el.setAttribute(attr, value);
-
-  }
-}
-
-function escapeHtml(input: string) {
-  return input
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
-    .replace(/'/g, '&#039;');
 }
 
 export function useSeoTags(input: SeoTagsInput) {
@@ -171,20 +157,54 @@ export function useSeoTags(input: SeoTagsInput) {
       twImage.setAttribute('content', twImageUrl);
     }
 
-    // JSON-LD Structured Data
-    if (input.jsonLd) {
-      const jsonLdEl = document.head.querySelector('script[type="application/ld+json"]') as HTMLScriptElement | null;
-      const script = jsonLdEl || document.createElement('script');
-      script.type = 'application/ld+json';
-      script.textContent = JSON.stringify(input.jsonLd);
-      if (!jsonLdEl) {
-        document.head.appendChild(script);
+    // NoIndex / NoFollow
+    if (input.noIndex) {
+      const robots = ensureMetaTag('meta[name="robots"]', () => {
+        const meta = document.createElement('meta');
+        meta.setAttribute('name', 'robots');
+        return meta;
+      });
+      robots.setAttribute('content', 'noindex, nofollow');
+    } else {
+      const existingRobots = document.head.querySelector('meta[name="robots"]');
+      if (existingRobots) {
+        existingRobots.setAttribute('content', 'index, follow');
       }
+    }
+
+    // Hreflang / locale alternates
+    if (input.locale) {
+      document.documentElement.setAttribute('lang', input.locale);
+    }
+    if (input.alternateLocales && Array.isArray(input.alternateLocales)) {
+      input.alternateLocales.forEach((alt) => {
+        ensureLinkTag(`link[rel="alternate"][hreflang="${alt.lang}"]`, () => {
+          const link = document.createElement('link');
+          link.setAttribute('rel', 'alternate');
+          link.setAttribute('hreflang', alt.lang);
+          return link;
+        }).setAttribute('href', alt.url);
+      });
+    }
+
+    // JSON-LD Structured Data (single object or array)
+    if (input.jsonLd) {
+      // Remove any existing JSON-LD scripts we control (by data attribute)
+      const existingScripts = document.head.querySelectorAll('script[type="application/ld+json"]');
+      existingScripts.forEach((s) => s.remove());
+
+      const schemas = Array.isArray(input.jsonLd) ? input.jsonLd : [input.jsonLd];
+      schemas.forEach((schema) => {
+        const script = document.createElement('script');
+        script.type = 'application/ld+json';
+        script.setAttribute('data-seo', 'true');
+        script.textContent = JSON.stringify(schema);
+        document.head.appendChild(script);
+      });
     }
 
   }, [
     input.title,
-
     input.description,
     input.canonicalUrl,
     input.openGraph?.type,
@@ -193,6 +213,9 @@ export function useSeoTags(input: SeoTagsInput) {
     input.twitter?.cardType,
     input.twitter?.image?.url,
     input.jsonLd,
+    input.noIndex,
+    input.locale,
+    input.alternateLocales,
   ]);
 }
 

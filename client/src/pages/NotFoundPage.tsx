@@ -1,10 +1,20 @@
 
 import { Link } from 'react-router-dom';
 import { useLocale } from '../context/LocaleContext';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 export function NotFoundPage() {
   const { locale, strings } = useLocale();
   const isArabic = locale === 'ar';
+
+  useSeoTags({
+    title: isArabic ? 'الصفحة غير موجودة (404) | سُرى' : 'Page Not Found (404) | Sura Codex',
+    description: isArabic
+      ? 'الصفحة التي تبحث عنها غير متوفرة. تصفّح المقالات أو الروايات أو المجتمع.'
+      : 'The page you are looking for is not available. Browse articles, novels, or the community.',
+    canonicalUrl: typeof window !== 'undefined' ? window.location.href : '',
+    noIndex: true,
+  });
 
   return (
     <main

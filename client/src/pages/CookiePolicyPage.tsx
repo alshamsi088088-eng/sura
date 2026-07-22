@@ -1,16 +1,32 @@
 import { useLocale } from '../context/LocaleContext';
-import { usePageMetadata } from '../hooks/usePageMetadata';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 export function CookiePolicyPage() {
   const { locale } = useLocale();
 
-  usePageMetadata(
-    locale === 'ar' ? 'سياسة ملفات تعريف الارتباط | Sura Codex' : 'Cookie Policy | Sura Codex',
-    locale === 'ar'
+  useSeoTags({
+    title: locale === 'ar' ? 'سياسة ملفات تعريف الارتباط | سُرى' : 'Cookie Policy | Sura Codex',
+    description: locale === 'ar'
       ? 'نوضح كيفية استخدام ملفات تعريف الارتباط في Sura Codex، بما في ذلك ملفات التحليلات والإعلانات وطرق موافقتك والتحكم فيها.'
       : 'Learn how Sura Codex uses cookies, including analytics and advertising cookies, and how you can manage your consent and browser settings.',
-    typeof window !== 'undefined' ? window.location.href : undefined,
-  );
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/cookie-policy`,
+    locale,
+    // TODO: Add a dedicated 1200×630 Open Graph image (e.g., /og-cookie-policy.png)
+    //       When available, pass it via openGraph={{ image: { url: '...', alt: '...' } }}
+    //       and twitter={{ image: { url: '...', alt: '...' } }}
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        name: locale === 'ar' ? 'سياسة ملفات تعريف الارتباط | سُرى' : 'Cookie Policy | Sura Codex',
+        description: locale === 'ar'
+          ? 'سياسة ملفات تعريف الارتباط لمنصة سُرى.'
+          : 'Cookie Policy for Sura Codex platform.',
+        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/cookie-policy`,
+        inLanguage: locale === 'ar' ? 'ar' : 'en',
+      },
+    ],
+  });
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 rounded-3xl border border-sura-line bg-sura-canvas p-8">

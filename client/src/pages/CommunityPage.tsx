@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { DiscussionCard } from '../components/DiscussionCard';
 import { DiscussionEditor } from '../components/DiscussionEditor';
-import { usePageMetadata } from '../hooks/usePageMetadata';
+import { useSeoTags } from '../hooks/useSeoTags';
+import { useLocale } from '../context/LocaleContext';
 
 interface Thread {
   id: string;
@@ -19,7 +20,38 @@ interface Thread {
 }
 
 export function CommunityPage() {
+  const { locale } = useLocale();
   const { contentId, contentType } = useParams<{ contentId?: string; contentType?: string }>();
+
+  useSeoTags({
+    title: locale === 'ar' ? 'المجتمع | سُرى' : 'Community | Sura Codex',
+    description: locale === 'ar'
+      ? 'انضم إلى مجتمع سُرى للمناقشات الأدبية والتقنية.'
+      : 'Join the Sura Codex community for literary and technical discussions.',
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/community`,
+    openGraph: {
+      type: 'website',
+      // TODO: Add dedicated 1200×630 OG image when available
+    },
+    twitter: {
+      cardType: 'summary_large_image',
+      // TODO: Add dedicated Twitter image when available
+    },
+    locale,
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        name: locale === 'ar' ? 'المجتمع | سُرى' : 'Community | Sura Codex',
+        description: locale === 'ar'
+          ? 'انضم إلى مجتمع سُرى للمناقشات الأدبية والتقنية.'
+          : 'Join the Sura Codex community for literary and technical discussions.',
+        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/community`,
+        inLanguage: locale === 'ar' ? 'ar' : 'en',
+      },
+    ],
+  });
+
   const [threads, setThreads] = useState<Thread[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -29,8 +61,6 @@ export function CommunityPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showEditor, setShowEditor] = useState(false);
-
-  usePageMetadata('Community', 'Join the discussion');
 
   useEffect(() => {
     fetchCategories();

@@ -25,6 +25,7 @@
     "nodemailer": "^6.9.4",
     "passport": "^0.6.0",
     "passport-google-oauth20": "^2.0.0",
+    "rss": "^1.2.2",
     "socket.io": "^4.7.2",
     "stripe": "^12.18.0"
   },
@@ -38,6 +39,7 @@
     "@types/node": "^20.14.2",
     "@types/nodemailer": "^6.4.8",
     "@types/passport-google-oauth20": "^2.0.10",
+    "@types/rss": "^0.0.32",
     "@types/supertest": "^2.0.12",
     "cross-env": "^7.0.3",
     "prisma": "^6.0.0",

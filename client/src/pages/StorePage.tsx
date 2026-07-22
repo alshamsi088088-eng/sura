@@ -45,6 +45,19 @@ export function StorePage() {
       cardType: 'summary_large_image',
       image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex' },
     },
+    locale,
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: locale === 'ar' ? 'المتجر — سُرى' : 'Store — Sura Codex',
+        description: locale === 'ar'
+          ? 'شراء إصدارات رقمية ومطبوعة مع روابط تنزيل آمنة بعد الشراء.'
+          : 'Purchase digital and physical books with secure download delivery after checkout.',
+        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/store`,
+        inLanguage: locale === 'ar' ? 'ar' : 'en',
+      },
+    ],
   });
 
   const { user } = useAuth();

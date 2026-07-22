@@ -22,6 +22,40 @@ export function HomePage() {
     title: locale === 'ar' ? 'سُرى — مدونة القراءة العميقة' : 'Sura Codex — A Space for Thought & Creativity',
     description: locale === 'ar' ? 'مدونة ومتجر رقمي للقراءة العميقة.' : 'A publishing platform for deep reading.',
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/`,
+    locale,
+    // TODO: Add a dedicated 1200×630 Open Graph image (e.g., /og-default.png)
+    //       When available, pass it via openGraph={{ image: { url: '...', alt: '...' } }}
+    //       and twitter={{ image: { url: '...', alt: '...' } }}
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: 'Sura Codex',
+        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/`,
+        description: locale === 'ar'
+          ? 'منصة للنشر العميق والقراءة المدروسة.'
+          : 'A platform for thoughtful publishing and deep reading.',
+        inLanguage: locale === 'ar' ? 'ar' : 'en',
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/articles?search={search_term_string}`,
+          },
+          'query-input': 'required name=search_term_string',
+        },
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Organization',
+        name: 'Sura Codex',
+        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/`,
+        logo: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`,
+        sameAs: [
+          'https://sura-codex.com',
+        ],
+      },
+    ],
   });
 
   const { user } = useAuth();

@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 export function RegisterPage() {
   const { register } = useAuth();
@@ -12,6 +13,15 @@ export function RegisterPage() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  useSeoTags({
+    title: locale === 'ar' ? 'إنشاء حساب | سُرى' : 'Register | Sura Codex',
+    description: locale === 'ar'
+      ? 'أنشئ حساباً مجانياً في سُرى للوصول إلى المحتوى الحصري ولوحة التحكم.'
+      : 'Create a free Sura Codex account to access exclusive content and your dashboard.',
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/register`,
+    noIndex: true,
+  });
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();

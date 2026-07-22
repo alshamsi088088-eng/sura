@@ -6,8 +6,9 @@ import { ReactionBar } from '../components/ReactionBar';
 import { LikeButton } from '../components/LikeButton';
 import { BookmarkButton } from '../components/BookmarkButton';
 import { RatingStars } from '../components/RatingStars';
-import { usePageMetadata } from '../hooks/usePageMetadata';
+import { useSeoTags } from '../hooks/useSeoTags';
 import { useAuth } from '../context/AuthContext';
+import { useLocale } from '../context/LocaleContext';
 
 interface Author {
   id: string;
@@ -43,7 +44,38 @@ export function CommunityThreadPage() {
   const [loading, setLoading] = useState(true);
   const [showReplyEditor, setShowReplyEditor] = useState(false);
 
-  usePageMetadata(thread?.title || 'Discussion', 'View this discussion');
+  const { locale } = useLocale();
+
+  useSeoTags({
+    title: thread?.title ? `${thread.title} | Sura Codex Community` : 'Discussion | Sura Codex',
+    description: thread?.body?.slice(0, 160) || 'View this discussion on Sura Codex.',
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/community/thread/${id}`,
+    openGraph: {
+      type: 'article',
+      // TODO: Add dedicated 1200×630 OG image when available
+    },
+    twitter: {
+      cardType: 'summary_large_image',
+      // TODO: Add dedicated Twitter image when available
+    },
+    locale,
+    jsonLd: thread ? [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'DiscussionForumPosting',
+        headline: thread.title,
+        description: thread.body?.slice(0, 160) || '',
+        author: {
+          '@type': 'Person',
+          name: thread.author?.name || 'Sura Codex',
+        },
+        datePublished: thread.createdAt || undefined,
+        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/community/thread/${id}`,
+        inLanguage: locale === 'ar' ? 'ar' : 'en',
+        discussionUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/community/thread/${id}`,
+      },
+    ] : [],
+  });
 
   useEffect(() => {
     fetchThread();

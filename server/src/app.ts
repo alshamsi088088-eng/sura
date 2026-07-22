@@ -16,6 +16,7 @@ import { engagementRoutes } from './routes/engagementRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import { communityRoutes } from './routes/communityRoutes.js';
 import { readingProgressRoutes } from './routes/readingProgressRoutes.js';
+import { rssFeed } from './controllers/rssController.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { ALLOWED_ORIGINS_STR } from './services/config.js';
 
@@ -118,5 +119,8 @@ app.use('/api/webhooks', webhookRoutes);
 
 // SEO: robots.txt + sitemap.xml
 app.use('/', seoRouter);
+
+// RSS Feed
+app.get('/api/rss', rssFeed);
 
 app.use(errorHandler);

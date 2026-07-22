@@ -1,16 +1,30 @@
 import { useLocale } from '../context/LocaleContext';
-import { usePageMetadata } from '../hooks/usePageMetadata';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 export function TermsOfServicePage() {
   const { locale } = useLocale();
 
-  usePageMetadata(
-    locale === 'ar' ? 'شروط الخدمة | Sura Codex' : 'Terms of Service | Sura Codex',
-    locale === 'ar'
+  useSeoTags({
+    title: locale === 'ar' ? 'شروط الخدمة | سُرى' : 'Terms of Service | Sura Codex',
+    description: locale === 'ar'
       ? 'اطّلع على شروط استخدام Sura Codex، بما في ذلك الملكية الفكرية والاستخدام المسموح وتعهدات المستخدم وإخلاء المسؤولية وحدود الالتزام.'
       : 'Review the Sura Codex Terms of Service, including intellectual property, permitted use, user responsibilities, disclaimers, and limitation of liability.',
-    typeof window !== 'undefined' ? window.location.href : undefined,
-  );
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/terms-of-service`,
+    locale,
+    // TODO: Add a dedicated 1200×630 Open Graph image (e.g., /og-terms-of-service.png)
+    //       When available, pass it via openGraph={{ image: { url: '...', alt: '...' } }}
+    //       and twitter={{ image: { url: '...', alt: '...' } }}
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        name: locale === 'ar' ? 'شروط الخدمة | سُرى' : 'Terms of Service | Sura Codex',
+        description: locale === 'ar' ? 'شروط خدمة منصة سُرى.' : 'Terms of Service for Sura Codex platform.',
+        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/terms-of-service`,
+        inLanguage: locale === 'ar' ? 'ar' : 'en',
+      },
+    ],
+  });
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 rounded-3xl border border-sura-line bg-sura-canvas p-8">

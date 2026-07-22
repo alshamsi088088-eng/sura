@@ -6,6 +6,7 @@ import { useLocale } from '../context/LocaleContext';
 import { useAuth } from '../context/AuthContext';
 import { LikeShareBar } from '../components/LikeShareBar';
 import { supabase } from '../lib/supabaseClient';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 type TechArticle = {
   id: string;
@@ -23,6 +24,35 @@ type TechArticle = {
 export function TechPage() {
   const { locale } = useLocale();
   const { user } = useAuth();
+
+  useSeoTags({
+    title: locale === 'ar' ? 'مقالات تقنية | سُرى' : 'Tech Articles | Sura Codex',
+    description: locale === 'ar'
+      ? 'مكتبة متنامية من المقالات التقنية مع شروحات وأكواد برمجية.'
+      : 'A growing library of developer narratives and code-rich essays on Sura Codex.',
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/tech`,
+    openGraph: {
+      type: 'website',
+      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex Tech' },
+    },
+    twitter: {
+      cardType: 'summary_large_image',
+      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex Tech' },
+    },
+    locale,
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: locale === 'ar' ? 'مقالات تقنية | سُرى' : 'Tech Articles | Sura Codex',
+        description: locale === 'ar'
+          ? 'مكتبة متنامية من المقالات التقنية مع شروحات وأكواد برمجية.'
+          : 'A growing library of developer narratives and code-rich essays on Sura Codex.',
+        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/tech`,
+        inLanguage: locale === 'ar' ? 'ar' : 'en',
+      },
+    ],
+  });
 
   const [articles, setArticles] = useState<TechArticle[]>([]);
   const [loading, setLoading] = useState(true);

@@ -1,17 +1,38 @@
 
 import { useLocale } from '../context/LocaleContext';
-import { usePageMetadata } from '../hooks/usePageMetadata';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 export function AboutPage() {
   const { locale } = useLocale();
 
-  usePageMetadata(
-    locale === 'ar' ? 'من نحن | Sura Codex' : 'About Sura Codex | Sura Codex',
-    locale === 'ar'
+  useSeoTags({
+    title: locale === 'ar' ? 'من نحن | سُرى' : 'About | Sura Codex',
+    description: locale === 'ar'
       ? 'تعرّف على Sura Codex: منصة ثنائية اللغة للكتب والبرمجة والذكاء الاصطناعي واللغات والتكنولوجيا—بهدف التعلم والمعرفة والكتابة المدروسة.'
       : 'Learn about Sura Codex: a bilingual platform for books, programming, AI, languages, technology, and learning—built for thoughtful writing and better discovery.',
-    typeof window !== 'undefined' ? window.location.href : undefined,
-  );
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/about`,
+    locale,
+    // TODO: Add a dedicated 1200×630 Open Graph image (e.g., /og-about.png)
+    //       When available, pass it via openGraph={{ image: { url: '...', alt: '...' } }}
+    //       and twitter={{ image: { url: '...', alt: '...' } }}
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'AboutPage',
+        name: locale === 'ar' ? 'من نحن | سُرى' : 'About | Sura Codex',
+        description: locale === 'ar'
+          ? 'تعرّف على Sura Codex: منصة لنشر الكتب والمقالات التقنية.'
+          : 'Learn about Sura Codex: a platform for books, programming, and thoughtful writing.',
+        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/about`,
+        inLanguage: locale === 'ar' ? 'ar' : 'en',
+        mainEntity: {
+          '@type': 'Organization',
+          name: 'Sura Codex',
+          url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/about`,
+        },
+      },
+    ],
+  });
 
   return (
     <main className="mx-auto max-w-7xl space-y-6">

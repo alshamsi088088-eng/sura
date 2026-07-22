@@ -1,4 +1,21 @@
 User-agent: *
 Allow: /
-Sitemap: /sitemap.xml
+Disallow: /api/
+Disallow: /auth/
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /profile
+Disallow: /library
+Disallow: /create-post
+Disallow: /create-chapter
+Disallow: /create-novel
+Disallow: /create-tech
+Disallow: /edit-parts
+Disallow: /login
+Disallow: /register
+
+# Sitemaps
+Sitemap: https://sura-codex.com/sitemap.xml
+
+# Crawl-delay: 10
 

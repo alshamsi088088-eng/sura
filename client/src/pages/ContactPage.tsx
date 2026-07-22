@@ -1,20 +1,34 @@
 
 import { useState, FormEvent } from 'react';
 import { useLocale } from '../context/LocaleContext';
-import { usePageMetadata } from '../hooks/usePageMetadata';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 export function ContactPage() {
   const { locale } = useLocale();
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState('');
 
-  usePageMetadata(
-    locale === 'ar' ? 'تواصل معنا | Sura Codex' : 'Contact Us | Sura Codex',
-    locale === 'ar'
+  useSeoTags({
+    title: locale === 'ar' ? 'تواصل معنا | سُرى' : 'Contact Us | Sura Codex',
+    description: locale === 'ar'
       ? 'تواصل مع فريق Sura Codex لطرح الأسئلة أو اقتراح الشراكات أو الدعم. نرد عادةً خلال يوم عمل واحد.'
       : 'Contact the Sura Codex team with questions, partnership ideas, or support requests. We typically respond within one business day.',
-    typeof window !== 'undefined' ? window.location.href : undefined,
-  );
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/contact`,
+    locale,
+    // TODO: Add a dedicated 1200×630 Open Graph image (e.g., /og-contact.png)
+    //       When available, pass it via openGraph={{ image: { url: '...', alt: '...' } }}
+    //       and twitter={{ image: { url: '...', alt: '...' } }}
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'ContactPage',
+        name: locale === 'ar' ? 'تواصل معنا | سُرى' : 'Contact Us | Sura Codex',
+        description: locale === 'ar' ? 'تواصل مع فريق سُرى.' : 'Contact the Sura Codex team.',
+        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/contact`,
+        inLanguage: locale === 'ar' ? 'ar' : 'en',
+      },
+    ],
+  });
 
   const submit = (event: FormEvent) => {
     event.preventDefault();

@@ -1,17 +1,31 @@
 
 import { useLocale } from '../context/LocaleContext';
-import { usePageMetadata } from '../hooks/usePageMetadata';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 export function PrivacyPage() {
   const { locale } = useLocale();
 
-  usePageMetadata(
-    locale === 'ar' ? 'سياسة الخصوصية | Sura Codex' : 'Privacy Policy | Sura Codex',
-    locale === 'ar'
+  useSeoTags({
+    title: locale === 'ar' ? 'سياسة الخصوصية | سُرى' : 'Privacy Policy | Sura Codex',
+    description: locale === 'ar'
       ? 'نوضح كيفية جمع واستخدام وحماية بياناتك في Sura Codex، بما في ذلك خدمات Google (Analytics وSearch Console وAdSense) واستخدام ملفات تعريف الارتباط.'
       : 'Learn how we collect, use, and protect your information on Sura Codex, including Google services (Analytics, Search Console, AdSense) and cookie usage.',
-    typeof window !== 'undefined' ? window.location.href : undefined,
-  );
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/privacy`,
+    locale,
+    // TODO: Add a dedicated 1200×630 Open Graph image (e.g., /og-privacy.png)
+    //       When available, pass it via openGraph={{ image: { url: '...', alt: '...' } }}
+    //       and twitter={{ image: { url: '...', alt: '...' } }}
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        name: locale === 'ar' ? 'سياسة الخصوصية | سُرى' : 'Privacy Policy | Sura Codex',
+        description: locale === 'ar' ? 'سياسة الخصوصية لمنصة سُرى.' : 'Privacy Policy for Sura Codex platform.',
+        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/privacy`,
+        inLanguage: locale === 'ar' ? 'ar' : 'en',
+      },
+    ],
+  });
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 rounded-3xl border border-sura-line bg-sura-canvas p-8">

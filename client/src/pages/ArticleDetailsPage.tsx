@@ -14,7 +14,6 @@ import { QuoteHighlighter } from '../components/QuoteHighlighter';
 import { ReadingProgress } from '../components/ReadingProgress';
 import { ReadingSettings, useReadingSettings } from '../components/ReadingSettings';
 import { useSeoTags } from '../hooks/useSeoTags';
-// تم استيراد مكون التعليقات الجديد
 import { CommentSection } from '../components/CommentSection'; 
 
 interface Article {
@@ -28,14 +27,6 @@ interface Article {
   authorId?: string | null;
 }
 
-/**
- * Defensive guard: `excerpt` is meant to be a plain-text summary, but bad
- * data has slipped in before (HTML from the rich-text editor pasted into
- * the excerpt field by mistake), which rendered as raw "<h1><strong>..."
- * text on the page. This strips any HTML tags before display/SEO use so a
- * bad excerpt degrades gracefully instead of showing broken markup.
- * This does NOT replace fixing the underlying data — see the DB cleanup.
- */
 function stripHtml(value: string | null | undefined): string {
   if (!value) return '';
   return value
@@ -57,7 +48,6 @@ export function ArticleDetailsPage() {
       return slug;
     }
   }, [slug]);
-
 
   const [article, setArticle] = useState<Article | null>(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -86,18 +76,49 @@ export function ArticleDetailsPage() {
     canonicalUrl,
     openGraph: {
       type: 'article',
-      image: {
-        url: article?.coverImage || '/logo.svg',
-        alt: article?.title || 'Sura Codex',
-      },
+      ...(article?.coverImage ? {
+        image: {
+          url: article.coverImage,
+          alt: article.title || 'Sura Codex',
+        },
+      } : {}),
     },
     twitter: {
       cardType: 'summary_large_image',
-      image: {
-        url: article?.coverImage || '/logo.svg',
-        alt: article?.title || 'Sura Codex',
-      },
+      ...(article?.coverImage ? {
+        image: {
+          url: article.coverImage,
+          alt: article.title || 'Sura Codex',
+        },
+      } : {}),
     },
+    locale,
+    jsonLd: article ? [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Article',
+        headline: article.title,
+        description: cleanExcerpt,
+        image: article.coverImage || `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`,
+        author: {
+          '@type': 'Person',
+          name: article.authorName || 'Sura Codex',
+        },
+        datePublished: article.publishedAt || undefined,
+        publisher: {
+          '@type': 'Organization',
+          name: 'Sura Codex',
+          logo: {
+            '@type': 'ImageObject',
+            url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`,
+          },
+        },
+        mainEntityOfPage: {
+          '@type': 'WebPage',
+          '@id': canonicalUrl,
+        },
+      },
+    ] : [],
   });
 
   const navigate = useNavigate();
@@ -169,15 +190,12 @@ export function ArticleDetailsPage() {
     if (!user || !article) return;
     if (!canManageArticle) return;
 
-
     if (!supabase) return;
 
     setEditError('');
 
     const updatedSlug = generateSlug(editTitle);
 
-    // Defensive: strip any HTML that may have been pasted into the excerpt
-    // field (it's meant to be plain text, unlike `content`).
     const payload = {
       title: editTitle.trim(),
       slug: updatedSlug,
@@ -185,7 +203,6 @@ export function ArticleDetailsPage() {
       content: editContent,
       publishedAt: article.publishedAt ? article.publishedAt : new Date().toISOString(),
     };
-
 
     const { error: updateError } = await supabase
       .from('Article')
@@ -202,7 +219,6 @@ export function ArticleDetailsPage() {
 
     navigate(`/articles/${encodeURIComponent(updatedSlug)}`);
   };
-
 
   if (loading) {
     return (
@@ -273,11 +289,6 @@ export function ArticleDetailsPage() {
             contentHtml={article.content}
             authorName={article.authorName}
           />
-          {/*
-            تعديل: عرض المحتوى كـ HTML منسّق بدل نص خام.
-            المحتوى قادم من محرر ReactQuill الموثوق (المسؤول/الكاتب فقط يقدر يعدل المقالة)،
-            لذلك استخدام dangerouslySetInnerHTML هنا آمن.
-          */}
           <div
             className="prose max-w-none text-sura-ivory"
             dangerouslySetInnerHTML={{ __html: article.content }}
@@ -287,21 +298,19 @@ export function ArticleDetailsPage() {
         <ReactionBar contentType="article" contentId={article.id} />
       </article>
 
-      {/* الجزء الجديد: استدعاء مكون التعليقات */}
       <div className="mt-6">
         <CommentSection articleId={article.id} />
       </div>
 
-      {/* نافذة التعديل المنبثقة (Edit Modal) المعاد بناؤها بالكامل */}
       {editOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-2xl rounded-3xl border border-sura-line bg-sura-canvas p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-2xl font-semibold text-white text-right">
               {locale === 'ar' ? 'تعديل المقال' : 'Edit Article'}
             </h2>
-            
+
             {editError && <p className="text-red-500 text-sm text-right">{editError}</p>}
-            
+
             <form onSubmit={handleEditSubmit} className="space-y-4 text-right">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -315,7 +324,7 @@ export function ArticleDetailsPage() {
                   required
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">
                   {locale === 'ar' ? 'المقتطف (الوصف المختصر)' : 'Excerpt'}
@@ -327,14 +336,14 @@ export function ArticleDetailsPage() {
                   required
                 />
               </div>
-              
+
               <div className="text-left">
                 <label className="block text-sm font-medium text-gray-300 mb-1 text-right">
                   {locale === 'ar' ? 'المحتوى' : 'Content'}
                 </label>
                 <ReactQuillEditor value={editContent} onChange={setEditContent} />
               </div>
-              
+
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"

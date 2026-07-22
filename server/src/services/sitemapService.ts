@@ -56,19 +56,45 @@ export async function getNovelsForSitemap(): Promise<SitemapEntry[]> {
     .filter((x) => x.id);
 }
 
+export async function getCommunityThreadsForSitemap(): Promise<Array<{ id: string; slug?: string; changefreq: string; priority: number }>> {
+  try {
+    const rows = await (prisma as unknown as {
+      communityThread?: { findMany: (args: any) => Promise<Array<{ id: unknown; slug?: unknown }>> };
+    }).communityThread?.findMany({
+      select: { id: true, slug: true },
+      where: { deletedAt: null },
+      take: 5000,
+      orderBy: { updatedAt: 'desc' },
+    } as any);
+
+    const safeRows = Array.isArray(rows) ? rows : [];
+    return safeRows
+      .map((r) => ({
+        id: safeId((r as any).id),
+        slug: safeId((r as any).slug) || undefined,
+        changefreq: 'weekly',
+        priority: 0.6,
+      }))
+      .filter((x) => x.id);
+  } catch {
+    return [];
+  }
+}
+
 export async function getStaticPagesForSitemap(): Promise<StaticPageEntry[]> {
   return [
     { path: '/', changefreq: 'daily', priority: 1.0 },
     { path: '/articles', changefreq: 'weekly', priority: 0.8 },
     { path: '/novels', changefreq: 'weekly', priority: 0.75 },
+    { path: '/gallery', changefreq: 'weekly', priority: 0.6 },
     { path: '/store', changefreq: 'weekly', priority: 0.6 },
+    { path: '/tech', changefreq: 'weekly', priority: 0.55 },
+    { path: '/products', changefreq: 'weekly', priority: 0.5 },
+    { path: '/community', changefreq: 'weekly', priority: 0.6 },
     { path: '/about', changefreq: 'monthly', priority: 0.4 },
     { path: '/contact', changefreq: 'monthly', priority: 0.35 },
     { path: '/privacy', changefreq: 'monthly', priority: 0.35 },
     { path: '/terms-of-service', changefreq: 'monthly', priority: 0.35 },
-    { path: '/tech', changefreq: 'weekly', priority: 0.55 },
-    { path: '/products', changefreq: 'weekly', priority: 0.5 },
+    { path: '/cookie-policy', changefreq: 'monthly', priority: 0.3 },
   ];
 }
-
-
