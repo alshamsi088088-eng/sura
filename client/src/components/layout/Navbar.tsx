@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useEffect, useRef, useState } from 'react';
 import { Avatar } from '../AvatarUpload';
 import { NotificationCenter } from '../NotificationCenter';
+import logoImg from '/logo.svg';
 
 const navItems = [
   { path: '/', key: 'home' },
@@ -169,7 +170,7 @@ export function Navbar() {
         {/* Logo */}
         <Link to="/" className="flex items-center gap-3 shrink-0">
           <div className="glass flex h-10 w-10 items-center justify-center rounded-xl !rounded-xl">
-            <img src="/logo.svg" alt="Sura Codex" className="h-6 w-6" />
+            <img src={logoImg} alt="Sura Codex" className="h-6 w-6" />
           </div>
           <div className="hidden sm:block leading-tight">
             <div className="font-serif text-lg font-bold text-sura-ink">
@@ -594,4 +595,3 @@ export function Navbar() {
     </header>
   );
 }
-
