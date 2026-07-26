@@ -426,25 +426,32 @@ export async function updateComment(req: Request, res: Response) {
 }
 
 export async function deleteComment(req: Request, res: Response) {
-  const user = req.user as { id?: string } | null;
+  const user = req.user as { id?: string; role?: string } | null;
   const userId = user?.id;
-  const { id } = req.body as { id: string };
 
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
+
+  const { id } = req.body as { id: string };
 
   if (!id) {
     return res.status(400).json({ error: 'Missing id' });
   }
 
   try {
-    const existing = await prisma.comment.findFirst({
-      where: { id, userId }
+    // Find the comment first
+    const existing = await prisma.comment.findUnique({
+      where: { id }
     });
 
     if (!existing) {
       return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    // Allow deletion if user is the comment owner OR an admin
+    if (existing.userId !== userId && user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized to delete this comment' });
     }
 
     // Delete (cascades to replies)

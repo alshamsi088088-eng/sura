@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import type { ContentType } from './LikeButton';
 import { EMOJI_MAP, EMOJI_KEYS } from './emojis';
 import { getApiBaseUrl } from '../lib/runtimeConfig';
+import { getAuthHeaders } from '../lib/authHeaders';
 
 const API_URL = getApiBaseUrl();
 
@@ -43,9 +44,10 @@ export function ReactionBar({ contentType, contentId, layout = 'horizontal' }: R
     setIsLoading(true);
 
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch(`${API_URL}/api/engagement/reaction`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         credentials: 'include',
         body: JSON.stringify({ contentId, contentType, emoji })
       });

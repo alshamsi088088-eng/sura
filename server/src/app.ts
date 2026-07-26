@@ -98,6 +98,11 @@ app.use((req, res, next) => {
   if (req.path === '/api/webhooks/stripe') {
     return next();
   }
+  // Engagement routes are authenticated via Bearer token (CSRF-safe)
+  // and the client never sends CSRF tokens, so exempt them.
+  if (req.path.startsWith('/api/engagement/')) {
+    return next();
+  }
   return (csrfProtection as any)(req, res, next);
 });
 

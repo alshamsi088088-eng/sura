@@ -1,6 +1,10 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { getAuthHeaders } from '../lib/authHeaders';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
+
+const API_URL = getApiBaseUrl();
 
 // تم تحديث الأسماء لتطابق جدولك تماماً
 type CommentRow = {
@@ -72,22 +76,32 @@ export function CommentSection({ articleId }: { articleId: string }) {
 
   async function handleDeleteComment(commentId: string) {
     if (!user) return;
-    if (!isAdmin && commentId === '') return;
-
-    if (!supabase) {
-      setError('Supabase client is not initialized.');
-      return;
-    }
+    if (!isAdmin && !commentId) return;
 
     setError(null);
 
-    const { error: deleteError } = await supabase
-      .from('Comment')
-      .delete()
-      .eq('id', commentId);
+    try {
+      const authHeaders = await getAuthHeaders();
+      const res = await fetch(`${API_URL}/api/engagement/comment`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        credentials: 'include',
+        body: JSON.stringify({ id: commentId })
+      });
 
-    if (deleteError) {
-      setError(deleteError.message);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: 'Unknown error' }));
+        setError(errData.error || 'Failed to delete comment');
+        return;
+      }
+    } catch {
+      setError('Network error: could not delete comment');
+      return;
+    }
+
+    // Refetch comments after successful delete
+    if (!supabase) {
+      setError('Supabase client is not initialized.');
       return;
     }
 
