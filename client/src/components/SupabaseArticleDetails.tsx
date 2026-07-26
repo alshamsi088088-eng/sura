@@ -12,19 +12,16 @@ type Article = {
   authorId?: string | null;
 };
 
-type SupabaseUserJoin = {
-  name?: string | null;
-};
-
 type SupabaseArticleRow = {
   id: unknown;
   title: unknown;
   excerpt: unknown;
   content?: unknown | null;
   authorId?: unknown | null;
+  authorName?: unknown;
   publishedAt?: unknown | null;
   slug: unknown;
-  User?: SupabaseUserJoin[] | SupabaseUserJoin | null;
+  coverImage?: unknown | null;
 };
 
 
@@ -62,7 +59,7 @@ export function useSupabaseArticleBySlug(slug?: string) {
         const { data, error: fetchError } = await sb
           .from('Article')
           .select(
-            'id,title,excerpt,coverImage,content,authorId,publishedAt,slug,User(name)'
+            'id,title,excerpt,coverImage,content,authorId,authorName,publishedAt,slug'
           )
           .eq('slug', decodedSlug)
           .maybeSingle();
@@ -75,22 +72,16 @@ export function useSupabaseArticleBySlug(slug?: string) {
           setArticle(null);
           setError('Article not found');
         } else {
+          const row = data as SupabaseArticleRow;
           setArticle({
-            id: String(data.id),
-            title: String(data.title ?? ''),
-            excerpt: String(data.excerpt ?? ''),
-            coverImage: (data as any).coverImage ? String((data as any).coverImage) : null,
-            content: String(data.content ?? ''),
-            authorName: (() => {
-              const joined = (data as SupabaseArticleRow | null | undefined)?.User;
-              if (!joined) return '';
-              if (Array.isArray(joined)) {
-                return String((joined[0] as SupabaseUserJoin | undefined)?.name ?? '');
-              }
-              return String((joined as SupabaseUserJoin | null | undefined)?.name ?? '');
-            })(),
-            authorId: data.authorId ? String(data.authorId) : null,
-            publishedAt: data.publishedAt ? String(data.publishedAt) : null,
+            id: String(row.id),
+            title: String(row.title ?? ''),
+            excerpt: String(row.excerpt ?? ''),
+            coverImage: row.coverImage ? String(row.coverImage) : null,
+            content: String(row.content ?? ''),
+            authorName: String(row.authorName ?? ''),
+            authorId: row.authorId ? String(row.authorId) : null,
+            publishedAt: row.publishedAt ? String(row.publishedAt) : null,
           });
         }
       } catch {
