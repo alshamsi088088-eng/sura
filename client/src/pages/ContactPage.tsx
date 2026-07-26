@@ -5,6 +5,8 @@ import { useSeoTags } from '../hooks/useSeoTags';
 
 export function ContactPage() {
   const { locale } = useLocale();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState('');
 
@@ -15,9 +17,6 @@ export function ContactPage() {
       : 'Contact the Sura Codex team with questions, partnership ideas, or support requests. We typically respond within one business day.',
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/contact`,
     locale,
-    // TODO: Add a dedicated 1200×630 Open Graph image (e.g., /og-contact.png)
-    //       When available, pass it via openGraph={{ image: { url: '...', alt: '...' } }}
-    //       and twitter={{ image: { url: '...', alt: '...' } }}
     jsonLd: [
       {
         '@context': 'https://schema.org',
@@ -30,10 +29,27 @@ export function ContactPage() {
     ],
   });
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
-    setStatus(locale === 'ar' ? 'تم إرسال رسالتك. سنعود إليك قريبًا.' : 'Message sent successfully. We will get back to you shortly.');
-    setMessage('');
+    setStatus('');
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, message }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.message || (locale === 'ar' ? 'فشل إرسال الرسالة' : 'Failed to send message'));
+      }
+      setStatus(locale === 'ar' ? 'تم إرسال رسالتك. سنعود إليك قريبًا.' : 'Message sent successfully. We will get back to you shortly.');
+      setName('');
+      setEmail('');
+      setMessage('');
+    } catch (err: unknown) {
+      const error = err as Error;
+      setStatus(error.message || (locale === 'ar' ? 'حدث خطأ أثناء الإرسال' : 'An error occurred while sending'));
+    }
   };
 
   return (
@@ -65,27 +81,47 @@ export function ContactPage() {
 
       <form onSubmit={submit} className="grid gap-6 rounded-3xl border border-sura-line bg-sura-canvas p-8">
         <div className="grid gap-4 sm:grid-cols-2">
-          <input
-            value=""
-            placeholder={locale === 'ar' ? 'الاسم' : 'Name'}
-            className="rounded-3xl border border-sura-line bg-sura-canvas p-4 text-sura-navy"
-            required
-          />
-          <input
-            value=""
-            placeholder={locale === 'ar' ? 'البريد الإلكتروني' : 'Email'}
-            type="email"
-            className="rounded-3xl border border-sura-line bg-sura-canvas p-4 text-sura-navy"
+          <div>
+            <label htmlFor="contact-name" className="sr-only">
+              {locale === 'ar' ? 'الاسم' : 'Name'}
+            </label>
+            <input
+              id="contact-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={locale === 'ar' ? 'الاسم' : 'Name'}
+              className="rounded-3xl border border-sura-line bg-sura-canvas p-4 text-sura-navy"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="contact-email" className="sr-only">
+              {locale === 'ar' ? 'البريد الإلكتروني' : 'Email'}
+            </label>
+            <input
+              id="contact-email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={locale === 'ar' ? 'البريد الإلكتروني' : 'Email'}
+              type="email"
+              className="rounded-3xl border border-sura-line bg-sura-canvas p-4 text-sura-navy"
+              required
+            />
+          </div>
+        </div>
+        <div>
+          <label htmlFor="contact-message" className="sr-only">
+            {locale === 'ar' ? 'رسالتك' : 'Your message'}
+          </label>
+          <textarea
+            id="contact-message"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder={locale === 'ar' ? 'اكتب رسالتك' : 'Write your message'}
+            className="min-h-[220px] rounded-3xl border border-sura-line bg-sura-canvas p-4 text-sura-navy"
             required
           />
         </div>
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder={locale === 'ar' ? 'اكتب رسالتك' : 'Write your message'}
-          className="min-h-[220px] rounded-3xl border border-sura-line bg-sura-canvas p-4 text-sura-navy"
-          required
-        />
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <button
             type="submit"

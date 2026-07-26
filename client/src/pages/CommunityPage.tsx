@@ -31,11 +31,9 @@ export function CommunityPage() {
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/community`,
     openGraph: {
       type: 'website',
-      // TODO: Add dedicated 1200×630 OG image when available
     },
     twitter: {
       cardType: 'summary_large_image',
-      // TODO: Add dedicated Twitter image when available
     },
     locale,
     jsonLd: [

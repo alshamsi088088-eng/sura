@@ -11,9 +11,6 @@ export function CookiePolicyPage() {
       : 'Learn how Sura Codex uses cookies, including analytics and advertising cookies, and how you can manage your consent and browser settings.',
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/cookie-policy`,
     locale,
-    // TODO: Add a dedicated 1200×630 Open Graph image (e.g., /og-cookie-policy.png)
-    //       When available, pass it via openGraph={{ image: { url: '...', alt: '...' } }}
-    //       and twitter={{ image: { url: '...', alt: '...' } }}
     jsonLd: [
       {
         '@context': 'https://schema.org',

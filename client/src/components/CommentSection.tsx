@@ -171,7 +171,11 @@ export function CommentSection({ articleId }: { articleId: string }) {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
+        <label htmlFor="comment-textarea" className="sr-only">
+          Share your thoughts
+        </label>
         <textarea
+          id="comment-textarea"
           value={content}
           onChange={(e) => {
             setContent(e.target.value);

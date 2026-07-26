@@ -41,11 +41,30 @@ function CreateContentDropdown({ locale }: { locale: string }) {
       isActive ? 'bg-white/5' : ''
     }`;
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setOpen(false);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setOpen((v) => !v);
+    }
+  };
+
+  const handleMenuKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setOpen(false);
+    }
+  };
+
   return (
     <div className="relative" ref={ref}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        onKeyDown={handleKeyDown}
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-controls="create-content-menu"
         className="rounded-full px-4 py-2 text-[13.5px] font-medium transition-all glass flex items-center gap-2"
       >
         <span className="text-[12px] font-semibold uppercase tracking-[0.18em] text-sura-ink/45">
@@ -60,13 +79,14 @@ function CreateContentDropdown({ locale }: { locale: string }) {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
+          aria-hidden="true"
         >
           <path d="M6 9l6 6 6-6" />
         </svg>
       </button>
 
       {open && (
-        <div className="glass-card absolute top-[calc(100%+10px)] z-50 w-56 p-2" style={{ left: 0 }}>
+        <div id="create-content-menu" role="menu" className="glass-card absolute top-[calc(100%+10px)] z-50 w-56 p-2" style={{ left: 0 }} onKeyDown={handleMenuKeyDown}>
           {/* Writer actions */}
           <NavLink
             to="/create-post"
@@ -169,7 +189,7 @@ export function Navbar() {
       <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-3 shrink-0">
-          <div className="glass flex h-10 w-10 items-center justify-center rounded-xl !rounded-xl">
+          <div className="glass flex h-10 w-10 items-center justify-center rounded-xl">
             <img src={logoImg} alt="Sura Codex" className="h-6 w-6" />
           </div>
           <div className="hidden sm:block leading-tight">
@@ -204,17 +224,6 @@ export function Navbar() {
               <div className="relative flex items-center gap-2">
                 <CreateContentDropdown locale={locale} />
               </div>
-
-              <NavLink
-                to="/gallery"
-                className={({ isActive }) =>
-                  `rounded-full px-4 py-2 text-[13.5px] font-medium transition-all ${
-                    isActive ? 'glass text-sura-ink' : 'text-sura-ink/55 hover:text-sura-ink'
-                  }`
-                }
-              >
-                {locale === 'ar' ? 'المعرض' : 'Gallery'}
-              </NavLink>
 
               <NavLink
                 to="/dashboard"
@@ -265,23 +274,16 @@ export function Navbar() {
           )}
         </nav>
 
-        {/* Mobile Navigation for accessibility */}
-        <nav aria-hidden="true" className="sr-only">
-          <ul>
-            {navItems.map((item) => (
-              <li key={item.path}>
-                <a href={item.path}>{item.key}</a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
         {/* Right side: floating tools + auth */}
         <div className="flex items-center gap-2">
           {/* Floating tools panel */}
           <div className="relative" ref={toolsRef}>
             <button
               onClick={() => setToolsOpen((v) => !v)}
+              onKeyDown={(e) => { if (e.key === 'Escape') setToolsOpen(false); }}
+              aria-expanded={toolsOpen}
+              aria-haspopup="true"
+              aria-controls="tools-menu"
               className="glass flex h-10 w-10 items-center justify-center rounded-full text-sura-ink/75 transition hover:text-sura-ink"
               aria-label="Display settings"
             >
@@ -302,6 +304,9 @@ export function Navbar() {
 
             {toolsOpen && (
               <div
+                id="tools-menu"
+                role="dialog"
+                aria-label="Display settings"
                 className="glass-card absolute top-[calc(100%+10px)] z-50 w-64 p-4 space-y-4"
                 style={{ [locale === 'ar' ? 'left' : 'right']: 0 }}
               >
@@ -387,6 +392,10 @@ export function Navbar() {
             <div className="relative" ref={notifRef}>
               <button
                 onClick={() => setNotificationsOpen((v) => !v)}
+                onKeyDown={(e) => { if (e.key === 'Escape') setNotificationsOpen(false); }}
+                aria-expanded={notificationsOpen}
+                aria-haspopup="true"
+                aria-controls="notifications-panel"
                 className="relative glass flex h-10 w-10 items-center justify-center rounded-full text-sura-ink/75 transition hover:text-sura-ink"
                 aria-label="Notifications"
               >
@@ -418,13 +427,23 @@ export function Navbar() {
 
           {user && (
             <div className="relative" ref={userMenuRef}>
-              <button onClick={() => setUserMenuOpen((v) => !v)} className="glass flex items-center gap-2 rounded-full p-1 pl-3">
+              <button
+                onClick={() => setUserMenuOpen((v) => !v)}
+                onKeyDown={(e) => { if (e.key === 'Escape') setUserMenuOpen(false); }}
+                aria-expanded={userMenuOpen}
+                aria-haspopup="true"
+                aria-controls="user-menu"
+                className="glass flex items-center gap-2 rounded-full p-1 pl-3"
+              >
                 <span className="hidden sm:inline text-[13px] font-medium text-sura-ink">{user.name?.split(' ')[0]}</span>
                 <Avatar url={user.avatar} name={user.name} size="sm" />
               </button>
 
               {userMenuOpen && (
                 <div
+                  id="user-menu"
+                  role="menu"
+                  aria-label="User menu"
                   className="glass-card absolute top-[calc(100%+10px)] z-50 w-44 p-2"
                   style={{ [locale === 'ar' ? 'left' : 'right']: 0 }}
                 >

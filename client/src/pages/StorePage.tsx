@@ -39,11 +39,9 @@ export function StorePage() {
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/store`,
     openGraph: {
       type: 'website',
-      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex' },
     },
     twitter: {
       cardType: 'summary_large_image',
-      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex' },
     },
     locale,
     jsonLd: [

@@ -17,62 +17,62 @@ function safeId(input: unknown) {
   return String(input);
 }
 
-export async function getArticlesForSitemap(): Promise<Array<{ id: string; slug?: string; changefreq: string; priority: number }>> {
-  const rows = await (prisma as unknown as {
-    article?: { findMany: (args: any) => Promise<Array<{ id: unknown; slug?: unknown }>> };
-  }).article?.findMany({
-    select: { id: true, slug: true },
-    take: 5000,
-    orderBy: { publishedAt: 'desc' },
-  } as any);
-
-  const safeRows = Array.isArray(rows) ? rows : [];
-  return safeRows
-    .map((r) => ({
-      id: safeId((r as any).id),
-      slug: safeId((r as any).slug) || undefined,
-      changefreq: 'weekly',
-      priority: 0.7,
-    }))
-    .filter((x) => x.id);
-}
-
-export async function getNovelsForSitemap(): Promise<SitemapEntry[]> {
-  const rows = await (prisma as unknown as {
-    novel?: { findMany: (args: any) => Promise<Array<{ id: unknown }>> };
-  }).novel?.findMany({
-    select: { id: true },
-    take: 5000,
-    orderBy: { createdAt: 'desc' },
-  } as any);
-
-  const safeRows = Array.isArray(rows) ? rows : [];
-  return safeRows
-    .map((r) => ({
-      id: safeId((r as any).id),
-      changefreq: 'weekly',
-      priority: 0.65,
-    }))
-    .filter((x) => x.id);
-}
-
-export async function getCommunityThreadsForSitemap(): Promise<Array<{ id: string; slug?: string; changefreq: string; priority: number }>> {
+export async function getArticlesForSitemap(): Promise<Array<{ id: string; slug?: string; updatedAt?: string; changefreq: string; priority: number }>> {
   try {
-    const rows = await (prisma as unknown as {
-      communityThread?: { findMany: (args: any) => Promise<Array<{ id: unknown; slug?: unknown }>> };
-    }).communityThread?.findMany({
-      select: { id: true, slug: true },
-      where: { deletedAt: null },
+    const rows = await prisma.article.findMany({
+      select: { id: true, slug: true, updatedAt: true, createdAt: true, publishedAt: true },
+      take: 5000,
+      orderBy: { publishedAt: 'desc' },
+    });
+
+    return rows
+      .map((r) => ({
+        id: safeId(r.id),
+        slug: r.slug || undefined,
+        updatedAt: (r.updatedAt || r.createdAt || r.publishedAt)?.toISOString?.() || undefined,
+        changefreq: 'weekly' as const,
+        priority: 0.7,
+      }))
+      .filter((x) => x.id);
+  } catch {
+    return [];
+  }
+}
+
+export async function getNovelsForSitemap(): Promise<Array<{ id: string; updatedAt?: string; changefreq: string; priority: number }>> {
+  try {
+    const rows = await prisma.novel.findMany({
+      select: { id: true, updatedAt: true, createdAt: true },
+      take: 5000,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return rows
+      .map((r) => ({
+        id: safeId(r.id),
+        updatedAt: (r.updatedAt || r.createdAt)?.toISOString?.() || undefined,
+        changefreq: 'weekly' as const,
+        priority: 0.65,
+      }))
+      .filter((x) => x.id);
+  } catch {
+    return [];
+  }
+}
+
+export async function getCommunityThreadsForSitemap(): Promise<Array<{ id: string; updatedAt?: string; changefreq: string; priority: number }>> {
+  try {
+    const rows = await prisma.communityThread.findMany({
+      select: { id: true, updatedAt: true, createdAt: true },
       take: 5000,
       orderBy: { updatedAt: 'desc' },
-    } as any);
+    });
 
-    const safeRows = Array.isArray(rows) ? rows : [];
-    return safeRows
+    return rows
       .map((r) => ({
-        id: safeId((r as any).id),
-        slug: safeId((r as any).slug) || undefined,
-        changefreq: 'weekly',
+        id: safeId(r.id),
+        updatedAt: (r.updatedAt || r.createdAt)?.toISOString?.() || undefined,
+        changefreq: 'weekly' as const,
         priority: 0.6,
       }))
       .filter((x) => x.id);

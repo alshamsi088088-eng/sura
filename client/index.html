@@ -1,28 +1,35 @@
 
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html lang="en" class="scroll-smooth" data-dynamic-lang>
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Sura Codex – A Space for Thought & Creativity" />
-    <link rel="canonical" href="https://sura-codex.com/" />
+    <meta name="google-site-verification" content="YOUR_GSC_VERIFICATION_CODE" />
+    <link rel="canonical" href="https://sura-codex.com" />
 
-    <!-- Open Graph / Twitter (populated dynamically by React routes) -->
-    <meta property="og:title" content="Sura Codex" />
-    <meta property="og:description" content="Sura Codex – A Space for Thought & Creativity" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://sura-codex.com/" />
+    <!-- Open Graph base (dynamic tags injected by React) -->
     <meta property="og:site_name" content="Sura Codex" />
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Sura Codex" />
-    <meta name="twitter:description" content="Sura Codex – A Space for Thought & Creativity" />
-    <meta name="twitter:url" content="https://sura-codex.com/" />
-
     <meta name="theme-color" content="#0f172a" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
+
+    <!-- Preconnect to critical origins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+    <link rel="preconnect" href="https://www.google-analytics.com" crossorigin />
+
+    <!-- Preload critical fonts (swap-display prevents invisible text) -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" as="style" />
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,500&display=swap" as="style" />
+
+    <!-- Optimized font loading with display=swap to avoid FOIT -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet" />
+    </noscript>
 
     <link rel="icon" href="/logo.svg" type="image/svg+xml" />
     <link rel="shortcut icon" href="/logo.svg" />
@@ -31,13 +38,27 @@
 
     <title>Sura Codex</title>
 
-    <!-- Google Analytics (GA4) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-W3FEHS40P3"></script>
+    <!-- Google Analytics (GA4) — Deferred with requestIdleCallback -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-W3FEHS40P3');
+      gtag('config', 'G-W3FEHS40P3', { send_page_view: false, anonymize_ip: true });
+      
+      // Defer analytics load until idle
+      const loadGA = () => {
+        const script = document.createElement('script');
+        script.src = 'https://www.googletagmanager.com/gtag/js?id=G-W3FEHS40P3';
+        script.async = true;
+        document.head.appendChild(script);
+        // Send initial pageview after GA loads
+        script.onload = () => { gtag('event', 'page_view'); };
+      };
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(loadGA, { timeout: 2000 });
+      } else {
+        setTimeout(loadGA, 1000);
+      }
     </script>
   </head>
   <body class="bg-sura-dark text-sura-ivory transition-colors duration-300">
@@ -45,3 +66,4 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+

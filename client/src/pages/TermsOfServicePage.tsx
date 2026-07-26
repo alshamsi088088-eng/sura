@@ -11,9 +11,6 @@ export function TermsOfServicePage() {
       : 'Review the Sura Codex Terms of Service, including intellectual property, permitted use, user responsibilities, disclaimers, and limitation of liability.',
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/terms-of-service`,
     locale,
-    // TODO: Add a dedicated 1200×630 Open Graph image (e.g., /og-terms-of-service.png)
-    //       When available, pass it via openGraph={{ image: { url: '...', alt: '...' } }}
-    //       and twitter={{ image: { url: '...', alt: '...' } }}
     jsonLd: [
       {
         '@context': 'https://schema.org',

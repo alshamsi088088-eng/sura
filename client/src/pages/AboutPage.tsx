@@ -12,9 +12,6 @@ export function AboutPage() {
       : 'Learn about Sura Codex: a bilingual platform for books, programming, AI, languages, technology, and learning—built for thoughtful writing and better discovery.',
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/about`,
     locale,
-    // TODO: Add a dedicated 1200×630 Open Graph image (e.g., /og-about.png)
-    //       When available, pass it via openGraph={{ image: { url: '...', alt: '...' } }}
-    //       and twitter={{ image: { url: '...', alt: '...' } }}
     jsonLd: [
       {
         '@context': 'https://schema.org',

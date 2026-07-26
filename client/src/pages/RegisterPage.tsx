@@ -48,37 +48,61 @@ export function RegisterPage() {
     <div className="mx-auto max-w-md space-y-6 rounded-3xl border border-sura-line bg-sura-canvas p-8">
       <h1 className="text-3xl font-semibold">{locale === 'ar' ? 'إنشاء حساب' : 'Register'}</h1>
       <form onSubmit={submit} className="space-y-4">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={locale === 'ar' ? 'الاسم الكامل' : 'Full name'}
-          className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
-          required
-        />
-        <input
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          type="email"
-          placeholder={locale === 'ar' ? 'البريد الإلكتروني' : 'Email'}
-          className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
-          required
-        />
-        <input
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          type="password"
-          placeholder={locale === 'ar' ? 'كلمة المرور' : 'Password'}
-          className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
-          required
-        />
-        <input
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          type="password"
-          placeholder={locale === 'ar' ? 'تأكيد كلمة المرور' : 'Confirm password'}
-          className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
-          required
-        />
+        <div>
+          <label htmlFor="reg-name" className="sr-only">
+            {locale === 'ar' ? 'الاسم الكامل' : 'Full name'}
+          </label>
+          <input
+            id="reg-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={locale === 'ar' ? 'الاسم الكامل' : 'Full name'}
+            className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="reg-email" className="sr-only">
+            {locale === 'ar' ? 'البريد الإلكتروني' : 'Email'}
+          </label>
+          <input
+            id="reg-email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            type="email"
+            placeholder={locale === 'ar' ? 'البريد الإلكتروني' : 'Email'}
+            className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="reg-password" className="sr-only">
+            {locale === 'ar' ? 'كلمة المرور' : 'Password'}
+          </label>
+          <input
+            id="reg-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            type="password"
+            placeholder={locale === 'ar' ? 'كلمة المرور' : 'Password'}
+            className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="reg-confirm" className="sr-only">
+            {locale === 'ar' ? 'تأكيد كلمة المرور' : 'Confirm password'}
+          </label>
+          <input
+            id="reg-confirm"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            type="password"
+            placeholder={locale === 'ar' ? 'تأكيد كلمة المرور' : 'Confirm password'}
+            className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
+            required
+          />
+        </div>
         <button type="submit" className="w-full rounded-full bg-sura-gold px-4 py-3 text-sm font-semibold text-sura-dark">
           {locale === 'ar' ? 'سجل' : 'Create account'}
         </button>

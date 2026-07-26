@@ -101,21 +101,55 @@ export function useSeoTags(input: SeoTagsInput) {
     });
     ogSiteName.setAttribute('content', 'Sura Codex');
 
-    const ogImageUrl = input.openGraph?.image?.url;
-    if (ogImageUrl) {
+    // og:locale
+    if (input.locale) {
+      const ogLocale = ensureMetaTag('meta[property="og:locale"]', () => {
+        const meta = document.createElement('meta');
+        meta.setAttribute('property', 'og:locale');
+        return meta;
+      });
+      ogLocale.setAttribute('content', input.locale === 'ar' ? 'ar_AR' : 'en_US');
+    }
+
+    // Clear all existing og:image and twitter:image meta tags first
+    // This prevents stale images from previous page navigations
+    document.querySelectorAll('meta[property="og:image"]').forEach(el => el.remove());
+    document.querySelectorAll('meta[property="og:image:alt"]').forEach(el => el.remove());
+    document.querySelectorAll('meta[property="og:image:width"]').forEach(el => el.remove());
+    document.querySelectorAll('meta[property="og:image:height"]').forEach(el => el.remove());
+    const twImgEl = document.querySelector('meta[name="twitter:image"]');
+    if (twImgEl) twImgEl.remove();
+
+    // og:image - only set if explicitly provided
+    if (input.openGraph?.image?.url) {
       const ogImage = ensureMetaTag('meta[property="og:image"]', () => {
         const meta = document.createElement('meta');
         meta.setAttribute('property', 'og:image');
         return meta;
       });
-      ogImage.setAttribute('content', ogImageUrl);
+      ogImage.setAttribute('content', input.openGraph.image.url);
 
       const ogImageAlt = ensureMetaTag('meta[property="og:image:alt"]', () => {
         const meta = document.createElement('meta');
         meta.setAttribute('property', 'og:image:alt');
         return meta;
       });
-      ogImageAlt.setAttribute('content', input.openGraph?.image?.alt ?? title);
+      ogImageAlt.setAttribute('content', input.openGraph.image.alt ?? title);
+
+      // Set image dimensions (default 1200x630 for optimal social sharing)
+      const ogWidth = ensureMetaTag('meta[property="og:image:width"]', () => {
+        const meta = document.createElement('meta');
+        meta.setAttribute('property', 'og:image:width');
+        return meta;
+      });
+      ogWidth.setAttribute('content', '1200');
+
+      const ogHeight = ensureMetaTag('meta[property="og:image:height"]', () => {
+        const meta = document.createElement('meta');
+        meta.setAttribute('property', 'og:image:height');
+        return meta;
+      });
+      ogHeight.setAttribute('content', '630');
     }
 
     // Twitter
@@ -147,14 +181,17 @@ export function useSeoTags(input: SeoTagsInput) {
     });
     twUrl.setAttribute('content', canonicalUrl);
 
-    const twImageUrl = input.twitter?.image?.url;
-    if (twImageUrl) {
+    // twitter:image - only set if explicitly provided
+    if (input.twitter?.image?.url) {
       const twImage = ensureMetaTag('meta[name="twitter:image"]', () => {
         const meta = document.createElement('meta');
         meta.setAttribute('name', 'twitter:image');
         return meta;
       });
-      twImage.setAttribute('content', twImageUrl);
+      twImage.setAttribute('content', input.twitter.image.url);
+    } else {
+      const existingTwImage = document.querySelector('meta[name="twitter:image"]');
+      if (existingTwImage) existingTwImage.remove();
     }
 
     // NoIndex / NoFollow

@@ -26,6 +26,7 @@ export function Footer() {
     { to: '/contact', label: strings.contact || 'Contact' },
     { to: '/privacy', label: strings.privacy || 'Privacy' },
     { to: '/terms-of-service', label: strings.terms || (locale === 'ar' ? 'شروط الخدمة' : 'Terms of Service') },
+    { to: '/cookie-policy', label: locale === 'ar' ? 'سياسة ملفات تعريف الارتباط' : 'Cookie Policy' },
   ];
 
   return (
@@ -101,9 +102,10 @@ export function Footer() {
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
             <a
-              href="#"
+              href="https://x.com/suracodex"
               target="_blank"
               rel="noreferrer"
+              aria-label={locale === 'ar' ? 'X / تويتر' : 'X / Twitter'}
               style={{
                 color: c.muted,
                 textDecoration: 'none',
@@ -120,9 +122,10 @@ export function Footer() {
               {locale === 'ar' ? 'X / تويتر' : 'X / Twitter'}
             </a>
             <a
-              href="#"
+              href="https://github.com/sura-codex"
               target="_blank"
               rel="noreferrer"
+              aria-label="GitHub"
               style={{
                 color: c.muted,
                 textDecoration: 'none',
@@ -139,9 +142,10 @@ export function Footer() {
               GitHub
             </a>
             <a
-              href="#"
+              href="/contact"
               target="_blank"
               rel="noreferrer"
+              aria-label={locale === 'ar' ? 'إنستغرام' : 'Instagram'}
               style={{
                 color: c.muted,
                 textDecoration: 'none',
@@ -155,12 +159,13 @@ export function Footer() {
               onMouseEnter={(e) => ((e.currentTarget.style.color = c.teal), (e.currentTarget.style.borderColor = c.teal))}
               onMouseLeave={(e) => ((e.currentTarget.style.color = c.muted), (e.currentTarget.style.borderColor = c.border))}
             >
-              {locale === 'ar' ? 'Instagram' : 'Instagram'}
+              {locale === 'ar' ? 'إنستغرام' : 'Instagram'}
             </a>
             <a
-              href="#"
+              href="/contact"
               target="_blank"
               rel="noreferrer"
+              aria-label="YouTube"
               style={{
                 color: c.muted,
                 textDecoration: 'none',

@@ -23,11 +23,9 @@ export function ProductsPage() {
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/products`,
     openGraph: {
       type: 'website',
-      // TODO: Add dedicated 1200×630 OG image when available
     },
     twitter: {
       cardType: 'summary_large_image',
-      // TODO: Add dedicated Twitter image when available
     },
     locale,
     jsonLd: [

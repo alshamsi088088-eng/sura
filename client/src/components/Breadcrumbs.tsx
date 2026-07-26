@@ -12,6 +12,8 @@ const pathNames: Record<string, string> = {
   about: 'About',
   contact: 'Contact',
   privacy: 'Privacy',
+  'terms-of-service': 'Terms of Service',
+  'cookie-policy': 'Cookie Policy',
   dashboard: 'Dashboard',
   profile: 'Profile',
   admin: 'Admin',

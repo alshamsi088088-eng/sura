@@ -247,6 +247,16 @@ export function ArticleDetailsPage() {
       />
 
       <article className="rounded-3xl border border-sura-line bg-sura-canvas p-8">
+        {article.coverImage && (
+          <div className="mb-6 overflow-hidden rounded-2xl">
+            <img
+              src={article.coverImage}
+              alt={article.title}
+              className="h-64 w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        )}
         <header className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-2">

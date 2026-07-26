@@ -59,12 +59,10 @@ export function useSupabaseArticleBySlug(slug?: string) {
           decodedSlug = slug;
         }
 
-        // NOTE: 'coverImage' column does not exist on the Article table,
-        // so it was removed from the select list to avoid a 400 Bad Request.
         const { data, error: fetchError } = await sb
           .from('Article')
           .select(
-            'id,title,excerpt,content,authorId,publishedAt,slug,User(name)'
+            'id,title,excerpt,coverImage,content,authorId,publishedAt,slug,User(name)'
           )
           .eq('slug', decodedSlug)
           .maybeSingle();
@@ -81,7 +79,7 @@ export function useSupabaseArticleBySlug(slug?: string) {
             id: String(data.id),
             title: String(data.title ?? ''),
             excerpt: String(data.excerpt ?? ''),
-            coverImage: null,
+            coverImage: (data as any).coverImage ? String((data as any).coverImage) : null,
             content: String(data.content ?? ''),
             authorName: (() => {
               const joined = (data as SupabaseArticleRow | null | undefined)?.User;

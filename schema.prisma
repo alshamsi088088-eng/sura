@@ -51,6 +51,7 @@ model Article {
   language    String
   readingTime String
   authorName  String
+  coverImage  String?
   views       Int        @default(0)
   claps       Int        @default(0)
   featured    Boolean    @default(false)

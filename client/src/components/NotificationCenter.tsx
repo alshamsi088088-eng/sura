@@ -411,6 +411,9 @@ function NotificationSettingsForm({ onClose }: { onClose: () => void }) {
               {labels[key as keyof typeof labels]}
             </span>
             <button
+              type="button"
+              role="switch"
+              aria-checked={value}
               onClick={() => toggleSetting(key as keyof typeof settings)}
               className={`relative h-5 w-9 rounded-full transition ${
                 value ? 'bg-pink-500' : 'bg-white/20'
@@ -421,6 +424,7 @@ function NotificationSettingsForm({ onClose }: { onClose: () => void }) {
                   value ? 'left-4.5' : 'left-0.5'
                 }`}
               />
+              <span className="sr-only">{value ? 'On' : 'Off'}</span>
             </button>
           </label>
         ))}

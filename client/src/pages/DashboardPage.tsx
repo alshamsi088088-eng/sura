@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
 import { supabase } from '../lib/supabaseClient';
 import { AvatarUpload } from '../components/AvatarUpload';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 interface WeeklyData {
   articles: number;
@@ -122,6 +123,13 @@ function generateWeeklyChartData(localeValue: string): { day: string; articles: 
 export function DashboardPage() {
   const { user } = useAuth();
   const { locale } = useLocale();
+
+  useSeoTags({
+    title: locale === 'ar' ? 'لوحة التحكم | سُرى' : 'Dashboard | Sura Codex',
+    description: locale === 'ar' ? 'لوحة تحكم المستخدم في سُرى.' : 'Your Sura Codex member dashboard.',
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/dashboard`,
+    noIndex: true,
+  });
 
   const [history] = useState<string[]>([]); // kept for UI compatibility (previously from /api/dashboard)
 

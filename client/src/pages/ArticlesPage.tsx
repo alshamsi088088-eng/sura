@@ -84,11 +84,9 @@ export function ArticlesPage() {
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/articles`,
     openGraph: {
       type: 'website',
-      // TODO: Add dedicated 1200×630 OG image when available
     },
     twitter: {
       cardType: 'summary_large_image',
-      // TODO: Add dedicated Twitter image when available
     },
     locale,
     jsonLd: [
@@ -310,28 +308,44 @@ export function ArticlesPage() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={locale === 'ar' ? 'ابحث في المقالات...' : 'Search title/content...'}
-            className="rounded-full border border-sura-line bg-sura-canvas px-4 py-2 text-sm text-sura-navy outline-none focus:border-sura-gold"
-          />
+          <div>
+            <label htmlFor="articles-search" className="sr-only">
+              {locale === 'ar' ? 'ابحث في المقالات' : 'Search articles'}
+            </label>
+            <input
+              id="articles-search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={locale === 'ar' ? 'ابحث في المقالات...' : 'Search title/content...'}
+              className="w-full rounded-full border border-sura-line bg-sura-canvas px-4 py-2 text-sm text-sura-navy outline-none focus:border-sura-gold"
+            />
+          </div>
 
-          <select value={authorFilter} onChange={(e) => setAuthorFilter(e.target.value)} className="rounded-full border border-sura-line bg-sura-canvas px-4 py-2 text-sm">
-            {authors.map((author) => (
-              <option key={author} value={author}>
-                {author}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label htmlFor="articles-author" className="sr-only">
+              {locale === 'ar' ? 'تصفية حسب المؤلف' : 'Filter by author'}
+            </label>
+            <select id="articles-author" value={authorFilter} onChange={(e) => setAuthorFilter(e.target.value)} className="w-full rounded-full border border-sura-line bg-sura-canvas px-4 py-2 text-sm">
+              {authors.map((author) => (
+                <option key={author} value={author}>
+                  {author}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="rounded-full border border-sura-line bg-sura-canvas px-4 py-2 text-sm">
-            {allTags.map((tag) => (
-              <option key={tag} value={tag}>
-                {tag}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label htmlFor="articles-tag" className="sr-only">
+              {locale === 'ar' ? 'تصفية حسب الوسم' : 'Filter by tag'}
+            </label>
+            <select id="articles-tag" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="w-full rounded-full border border-sura-line bg-sura-canvas px-4 py-2 text-sm">
+              {allTags.map((tag) => (
+                <option key={tag} value={tag}>
+                  {tag}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div className="flex items-center gap-3 text-sm text-sura-navy/80">
             <button

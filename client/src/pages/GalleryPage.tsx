@@ -102,7 +102,7 @@ export function GalleryPage() {
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/gallery`,
     openGraph: {
       type: 'website',
-      },
+    },
     twitter: {
       cardType: 'summary_large_image',
     },
@@ -242,26 +242,44 @@ export function GalleryPage() {
         <div id="upload-form" className="rounded-3xl border border-sura-line bg-sura-canvas p-6 space-y-4">
           <h3 className="text-lg font-semibold">{locale === 'ar' ? 'رفع صور جديدة' : 'Upload New Images'}</h3>
           <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label htmlFor="gallery-title" className="sr-only">
+                {locale === 'ar' ? 'عنوان الصورة' : 'Image title'}
+              </label>
+              <input
+                id="gallery-title"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder={locale === 'ar' ? 'عنوان الصورة' : 'Image title'}
+                className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
+              />
+            </div>
+            <div>
+              <label htmlFor="gallery-description" className="sr-only">
+                {locale === 'ar' ? 'الوصف' : 'Description'}
+              </label>
+              <input
+                id="gallery-description"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder={locale === 'ar' ? 'الوصف (اختياري)' : 'Description (optional)'}
+                className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
+              />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="gallery-files" className="sr-only">
+              {locale === 'ar' ? 'اختر صوراً للرفع' : 'Select images to upload'}
+            </label>
             <input
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              placeholder={locale === 'ar' ? 'عنوان الصورة' : 'Image title'}
-              className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
-            />
-            <input
-              value={newDescription}
-              onChange={(e) => setNewDescription(e.target.value)}
-              placeholder={locale === 'ar' ? 'الوصف (اختياري)' : 'Description (optional)'}
-              className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
+              id="gallery-files"
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={(e) => setSelectedFiles(e.target.files)}
+              className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy file:mr-4 file:rounded-full file:border-0 file:bg-sura-teal file:px-4 file:py-1 file:text-sm file:font-semibold file:text-white"
             />
           </div>
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={(e) => setSelectedFiles(e.target.files)}
-            className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy file:mr-4 file:rounded-full file:border-0 file:bg-sura-teal file:px-4 file:py-1 file:text-sm file:font-semibold file:text-white"
-          />
           <button
             onClick={handleUpload}
             disabled={uploading || !selectedFiles?.length || !newTitle.trim()}
@@ -313,9 +331,9 @@ export function GalleryPage() {
 
       {/* Lightbox */}
       {active && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6" onClick={() => setActive(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6" onClick={() => setActive(null)} onKeyDown={(e) => { if (e.key === 'Escape') setActive(null); }} role="dialog" aria-modal="true" aria-label={active.title} tabIndex={-1}>
           <div className="relative max-w-4xl overflow-hidden rounded-3xl bg-sura-beige p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setActive(null)} className="absolute right-4 top-4 rounded-full border border-sura-line px-3 py-2 text-sm">Close</button>
+            <button onClick={() => setActive(null)} aria-label="Close lightbox" className="absolute right-4 top-4 rounded-full border border-sura-line px-3 py-2 text-sm">Close</button>
             <GalleryErrorBoundary>
               <GalleryImage src={active.image} alt={active.title} className="h-[520px] w-full object-cover" />
             </GalleryErrorBoundary>

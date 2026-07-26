@@ -2,11 +2,23 @@ import { Request, Response } from 'express';
 import RSS from 'rss';
 import { prisma } from '../services/prisma.js';
 
+/** Runtime type for RSS article rows to handle Prisma generated types safely */
+type RssArticleRow = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  publishedAt: Date | null;
+  authorName: string;
+  coverImage: string | null;
+};
+
 export async function rssFeed(req: Request, res: Response) {
   try {
     const baseUrl = (process.env.PUBLIC_BASE_URL || 'https://sura-codex.com').replace(/\/$/, '');
 
-    const articles = await prisma.article.findMany({
+    const rawArticles = await prisma.article.findMany({
       where: { publishedAt: { not: null } },
       orderBy: { publishedAt: 'desc' },
       take: 50,
@@ -18,8 +30,11 @@ export async function rssFeed(req: Request, res: Response) {
         content: true,
         publishedAt: true,
         authorName: true,
+        coverImage: true,
       },
     });
+
+    const articles = rawArticles as RssArticleRow[];
 
     const feed = new RSS({
       title: 'Sura Codex',
@@ -37,6 +52,29 @@ export async function rssFeed(req: Request, res: Response) {
 
     for (const article of articles) {
       const articleUrl = `${baseUrl}/articles/${encodeURIComponent(article.slug || article.id)}`;
+      const customElements: Record<string, unknown>[] = [
+        { 'content:encoded': { _cdata: article.content || '' } },
+        { 'dc:creator': article.authorName || 'Sura Codex' },
+      ];
+
+      // Add coverImage as an RSS enclosure if available
+      const coverImageUrl: string | null = article.coverImage;
+      if (coverImageUrl) {
+        const imageExt = coverImageUrl.split('.').pop()?.toLowerCase() || '';
+        const mimeType = ['png', 'gif', 'webp', 'svg'].includes(imageExt)
+          ? `image/${imageExt === 'svg' ? 'svg+xml' : imageExt}`
+          : 'image/jpeg';
+        customElements.push({
+          enclosure: {
+            _attr: {
+              url: coverImageUrl,
+              length: 0,
+              type: mimeType,
+            },
+          },
+        });
+      }
+
       feed.item({
         title: article.title,
         description: article.excerpt || article.content?.slice(0, 300) || '',
@@ -45,11 +83,7 @@ export async function rssFeed(req: Request, res: Response) {
         date: article.publishedAt?.toISOString() || new Date().toISOString(),
         author: article.authorName || 'Sura Codex',
         categories: ['Article'],
-        custom_elements: [
-          { 'content:encoded': { _cdata: article.content || '' } },
-          { 'dc:creator': article.authorName || 'Sura Codex' },
-        ],
-        // TODO: Add enclosure with coverImage when the Article model includes a coverImage field
+        custom_elements: customElements,
       });
     }
 
@@ -59,3 +93,4 @@ export async function rssFeed(req: Request, res: Response) {
     res.status(500).json({ error: 'Failed to generate RSS feed' });
   }
 }
+

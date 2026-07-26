@@ -130,33 +130,51 @@ export function LoginPage() {
 
       <form onSubmit={submit} className="space-y-4">
         {mode === 'register' && (
+          <div>
+            <label htmlFor="login-name" className="sr-only">
+              {locale === 'ar' ? 'الاسم' : 'Name'}
+            </label>
+            <input
+              id="login-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              type="text"
+              placeholder={locale === 'ar' ? 'الاسم' : 'Name'}
+              className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
+              required
+            />
+          </div>
+        )}
+
+        <div>
+          <label htmlFor="login-email" className="sr-only">
+            {locale === 'ar' ? 'البريد الإلكتروني' : 'Email'}
+          </label>
           <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            type="text"
-            placeholder={locale === 'ar' ? 'الاسم' : 'Name'}
+            id="login-email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            type="email"
+            placeholder={locale === 'ar' ? 'البريد الإلكتروني' : 'Email'}
             className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
             required
           />
-        )}
+        </div>
 
-        <input
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          type="email"
-          placeholder={locale === 'ar' ? 'البريد الإلكتروني' : 'Email'}
-          className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
-          required
-        />
-
-        <input
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          type="password"
-          placeholder={locale === 'ar' ? 'كلمة المرور' : 'Password'}
-          className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
-          required
-        />
+        <div>
+          <label htmlFor="login-password" className="sr-only">
+            {locale === 'ar' ? 'كلمة المرور' : 'Password'}
+          </label>
+          <input
+            id="login-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            type="password"
+            placeholder={locale === 'ar' ? 'كلمة المرور' : 'Password'}
+            className="w-full rounded-3xl border border-sura-line bg-sura-canvas px-4 py-3 text-sura-navy"
+            required
+          />
+        </div>
 
         <button
           type="submit"

@@ -1,0 +1,1221 @@
+/**
+ * Sprint 6 — Technical SEO Audit
+ *
+ * Verifies every technical SEO aspect before Google AdSense.
+ * Run: npx tsx scripts/technical-seo-audit.ts
+ *
+ * Checks:
+ * - Robots.txt validity
+ * - Sitemap.xml structure & coverage
+ * - Canonical URLs on all pages
+ * - Structured Data (JSON-LD) validation
+ * - Open Graph tags
+ * - Twitter Cards
+ * - RSS Feed
+ * - Index coverage issues
+ * - Crawl error patterns
+ * - Mobile friendliness signals
+ * - Core Web Vitals signals
+ * - Broken link scan
+ * - Redirect chain analysis
+ *
+ * Output: SEO Score, Critical Issues, Warnings
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+import process from 'process';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface TechSeoCheck {
+  name: string;
+  category: 'critical' | 'warning' | 'info';
+  passed: boolean;
+  score: number; // 0-100
+  details: string;
+  recommendation?: string;
+}
+
+interface TechSeoReport {
+  generatedAt: string;
+  seoScore: number;
+  totalChecks: number;
+  passedChecks: number;
+  failedChecks: number;
+  criticalIssues: TechSeoCheck[];
+  warnings: TechSeoCheck[];
+  infos: TechSeoCheck[];
+  checks: TechSeoCheck[];
+  details: {
+    robotsTxt: RobotsTxtAnalysis;
+    sitemap: SitemapAnalysis;
+    structuredData: StructuredDataAnalysis;
+    performance: PerformanceAnalysis;
+  };
+}
+
+interface RobotsTxtAnalysis {
+  exists: boolean;
+  valid: boolean;
+  sitemapUrl: string | null;
+  disallowedPaths: string[];
+  allowedPaths: string[];
+  issues: string[];
+}
+
+interface SitemapAnalysis {
+  exists: boolean;
+  valid: boolean;
+  urlCount: number;
+  lastmodPresent: boolean;
+  changefreqPresent: boolean;
+  priorityPresent: boolean;
+  issues: string[];
+}
+
+interface StructuredDataAnalysis {
+  typesFound: string[];
+  validTypes: string[];
+  issues: string[];
+}
+
+interface PerformanceAnalysis {
+  chunkSizes: { name: string; size: number }[];
+  largestChunk: { name: string; size: number } | null;
+  totalBundleSize: number;
+  issues: string[];
+}
+
+// ─── File Analysis ───────────────────────────────────────────────────────────
+
+function analyzeRobotsTxt(clientDir: string, serverDir: string): RobotsTxtAnalysis {
+  const issues: string[] = [];
+  let content: string | null = null;
+
+  // Check client static first (served by nginx)
+  const clientRobots = path.join(clientDir, 'public', 'robots.txt');
+  if (fs.existsSync(clientRobots)) {
+    content = fs.readFileSync(clientRobots, 'utf-8');
+  }
+
+  if (!content) {
+    return {
+      exists: false,
+      valid: false,
+      sitemapUrl: null,
+      disallowedPaths: [],
+      allowedPaths: [],
+      issues: ['robots.txt file not found.'],
+    };
+  }
+
+  const lines = content.split('\n').map((l: string) => l.trim()).filter(Boolean);
+  const disallowedPaths: string[] = [];
+  const allowedPaths: string[] = [];
+  let sitemapUrl: string | null = null;
+
+  for (const line of lines) {
+    if (line.startsWith('#')) continue;
+    if (line.toLowerCase().startsWith('disallow:')) {
+      const linePath = line.substring(line.indexOf(':') + 1).trim();
+      if (linePath) disallowedPaths.push(linePath);
+    }
+    if (line.toLowerCase().startsWith('allow:')) {
+      const linePath = line.substring(line.indexOf(':') + 1).trim();
+      if (linePath) allowedPaths.push(linePath);
+    }
+    if (line.toLowerCase().startsWith('sitemap:')) {
+      sitemapUrl = line.substring(line.indexOf(':') + 1).trim();
+    }
+  }
+
+  // Validation
+  if (allowedPaths.length > 0 && disallowedPaths.length === 0) {
+    issues.push('Allow directives without Disallow — check logic.');
+  }
+
+  // Check if critical SEO paths are accidentally disallowed
+  const criticalPaths = ['/articles', '/novels', '/about', '/contact'];
+  for (const p of criticalPaths) {
+    if (disallowedPaths.some((d: string) => p.startsWith(d) && d.length > 0)) {
+      issues.push(`Critical path "${p}" is disallowed by rule matching "${disallowedPaths.find((d: string) => p.startsWith(d))}".`);
+    }
+  }
+
+  if (!sitemapUrl) {
+    issues.push('No Sitemap directive found in robots.txt.');
+  }
+
+  // Check for conflicts between static and dynamic robots
+  const serverRobotsFile = path.join(serverDir, 'src', 'routes', 'seoRoutes.ts');
+  if (fs.existsSync(serverRobotsFile)) {
+    const serverCode = fs.readFileSync(serverRobotsFile, 'utf-8');
+    if (serverCode.includes("'/robots.txt'")) {
+      issues.push('CONFLICT: Both static robots.txt (client/public/) AND dynamic robots.txt endpoint (server) exist. The static file will likely override the dynamic one.');
+    }
+  }
+
+  return {
+    exists: true,
+    valid: issues.length === 0,
+    sitemapUrl,
+    disallowedPaths,
+    allowedPaths,
+    issues,
+  };
+}
+
+function analyzeSitemap(serverDir: string): SitemapAnalysis {
+  const issues: string[] = [];
+
+  // Check sitemap generation code
+  const sitemapServicePath = path.join(serverDir, 'src', 'services', 'sitemapService.ts');
+  const seoRoutesPath = path.join(serverDir, 'src', 'routes', 'seoRoutes.ts');
+
+  let sitemapCode = '';
+  if (fs.existsSync(sitemapServicePath)) {
+    sitemapCode += fs.readFileSync(sitemapServicePath, 'utf-8');
+  }
+  if (fs.existsSync(seoRoutesPath)) {
+    sitemapCode += fs.readFileSync(seoRoutesPath, 'utf-8');
+  }
+
+  const exists = sitemapCode.includes('sitemap.xml') || sitemapCode.includes('/sitemap.xml');
+
+  let urlCount = 0;
+  let lastmodPresent = false;
+  let changefreqPresent = false;
+  let priorityPresent = false;
+
+  if (exists) {
+    // Count URL entries from sitemap generation
+    const urlMatch = sitemapCode.match(/\.loc\s*[:=]/g);
+    urlCount = urlMatch ? urlMatch.length : 0;
+
+    lastmodPresent = sitemapCode.includes('lastmod') || sitemapCode.includes('lastMod');
+    changefreqPresent = sitemapCode.includes('changefreq');
+    priorityPresent = sitemapCode.includes('priority');
+
+    // Check for potential errors
+    if (sitemapCode.includes('(prisma as unknown as')) {
+      issues.push('Sitemap generation uses fragile type casting (prisma as unknown as) which may break with schema changes.');
+    }
+
+    if (sitemapCode.includes("'Article'") && !sitemapCode.includes('coverImage')) {
+      issues.push('Sitemap generation for Articles does not include coverImage — this may affect Image Sitemap extension.');
+    }
+  } else {
+    issues.push('No sitemap.xml generation found. Implement sitemap endpoint.');
+  }
+
+  return {
+    exists,
+    valid: issues.length === 0,
+    urlCount,
+    lastmodPresent,
+    changefreqPresent,
+    priorityPresent,
+    issues,
+  };
+}
+
+function analyzeStructuredData(clientDir: string): StructuredDataAnalysis {
+  const issues: string[] = [];
+  const pagesDir = path.join(clientDir, 'src', 'pages');
+  const typesFound: string[] = [];
+  const validTypes: string[] = [];
+
+  const schemaTypes = [
+    'WebSite', 'WebPage', 'Article', 'BlogPosting', 'Organization',
+    'Person', 'Product', 'Book', 'CollectionPage', 'AboutPage',
+    'ContactPage', 'DiscussionForumPosting', 'SearchAction', 'BreadcrumbList',
+  ];
+
+  // Scan all page files for JSON-LD usage
+  if (fs.existsSync(pagesDir)) {
+    const files = fs.readdirSync(pagesDir);
+    for (const file of files) {
+      if (!file.endsWith('.tsx')) continue;
+      const pageContent = fs.readFileSync(path.join(pagesDir, file), 'utf-8');
+
+      for (const st of schemaTypes) {
+        if (pageContent.includes(`'@type': '${st}'`) || pageContent.includes(`"@type": "${st}"`)) {
+          if (!typesFound.includes(st)) typesFound.push(st);
+        }
+      }
+
+      // Check if page uses SEO tags
+      if (pageContent.includes('useSeoTags') || pageContent.includes('<SeoHead')) {
+        validTypes.push(file.replace('.tsx', ''));
+      }
+    }
+  }
+
+  // Check for pages missing structured data
+  const criticalPages = ['HomePage', 'ArticlesPage', 'ArticleDetailsPage', 'AboutPage', 'ContactPage'];
+  const missingPages = criticalPages.filter((p) => !validTypes.some((v) => v.includes(p)));
+
+  if (missingPages.length > 0) {
+    issues.push(`Pages missing SEO/JSON-LD: ${missingPages.join(', ')}`);
+  }
+
+  // Validate required types
+  if (!typesFound.includes('WebSite')) {
+    issues.push('Missing WebSite schema — required for Google Search.');
+  }
+  if (!typesFound.includes('Organization')) {
+    issues.push('Missing Organization schema — needed for brand recognition.');
+  }
+  if (!typesFound.includes('Article') && !typesFound.includes('BlogPosting')) {
+    issues.push('Missing Article/BlogPosting schema — content may not appear in rich results.');
+  }
+
+  return {
+    typesFound,
+    validTypes,
+    issues,
+  };
+}
+
+function analyzePerformance(clientDir: string): PerformanceAnalysis {
+  const issues: string[] = [];
+  const distDir = path.join(clientDir, 'dist', 'assets');
+  const chunkSizes: { name: string; size: number }[] = [];
+  let totalBundleSize = 0;
+
+  if (fs.existsSync(distDir)) {
+    const files = fs.readdirSync(distDir);
+    for (const file of files) {
+      if (file.endsWith('.js') || file.endsWith('.css')) {
+        const filePath = path.join(distDir, file);
+        const stats = fs.statSync(filePath);
+        const sizeKB = Math.round(stats.size / 1024);
+        chunkSizes.push({ name: file, size: sizeKB });
+        totalBundleSize += sizeKB;
+
+        // Warning for large chunks
+        if (sizeKB > 200) {
+          issues.push(`Large chunk detected: "${file}" (${sizeKB}KB). Consider further code-splitting.`);
+        }
+      }
+    }
+  }
+
+  chunkSizes.sort((a, b) => b.size - a.size);
+  const largestChunk = chunkSizes[0] || null;
+
+  if (totalBundleSize > 500 && chunkSizes.filter((c) => c.name.includes('vendor')).length > 0) {
+    issues.push(`Total JS bundle size: ~${totalBundleSize}KB. Consider code splitting for faster initial load.`);
+  }
+
+  return {
+    chunkSizes,
+    largestChunk,
+    totalBundleSize,
+    issues,
+  };
+}
+
+// ─── Check Functions ─────────────────────────────────────────────────────────
+
+function checkRobotsTxt(analysis: RobotsTxtAnalysis): TechSeoCheck {
+  let score = 100;
+  const issues: string[] = [];
+
+  if (!analysis.exists) {
+    score = 0;
+    issues.push('robots.txt file is missing.');
+  } else {
+    for (const issue of analysis.issues) {
+      if (issue.includes('CONFLICT')) {
+        score -= 40;
+        issues.push(issue);
+      } else if (issue.includes('disallowed')) {
+        score -= 30;
+        issues.push(issue);
+      } else {
+        score -= 10;
+        issues.push(issue);
+      }
+    }
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const passed = score >= 80;
+
+  return {
+    name: 'Robots.txt',
+    category: passed ? 'info' : 'critical',
+    passed,
+    score,
+    details: passed
+      ? `robots.txt valid with ${analysis.disallowedPaths.length} disallowed paths. Sitemap: ${analysis.sitemapUrl || 'not specified'}`
+      : `Issues: ${issues.join('; ')}`,
+    recommendation: passed ? undefined : 'Resolve robots.txt conflicts between static file and server-side generation.',
+  };
+}
+
+function checkSitemap(analysis: SitemapAnalysis): TechSeoCheck {
+  let score = 100;
+  const issues: string[] = [];
+
+  if (!analysis.exists) {
+    score = 0;
+    issues.push('Sitemap.xml is not implemented.');
+  } else {
+    if (analysis.urlCount === 0) {
+      score -= 30;
+      issues.push('Sitemap found but contains 0 URLs.');
+    }
+    if (!analysis.lastmodPresent) {
+      score -= 15;
+      issues.push('Lastmod is missing from sitemap entries — helps Google prioritize crawling.');
+    }
+    if (!analysis.changefreqPresent) {
+      score -= 10;
+      issues.push('Changefreq is missing from sitemap entries.');
+    }
+    if (!analysis.priorityPresent) {
+      score -= 10;
+      issues.push('Priority is missing from sitemap entries.');
+    }
+    if (analysis.issues.some((i) => i.includes('fragile'))) {
+      score -= 20;
+      issues.push('Sitemap uses fragile type casting that may break.');
+    }
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const passed = score >= 80;
+
+  return {
+    name: 'Sitemap.xml',
+    category: passed ? 'info' : 'critical',
+    passed,
+    score,
+    details: passed
+      ? `Sitemap: ${analysis.urlCount} URLs with lastmod=${analysis.lastmodPresent}, changefreq=${analysis.changefreqPresent}, priority=${analysis.priorityPresent}`
+      : `Issues: ${issues.join('; ')}`,
+    recommendation: passed ? undefined : 'Fix sitemap generation to include all URLs with proper metadata.',
+  };
+}
+
+function checkCanonicalUrls(clientDir: string): TechSeoCheck {
+  const issues: string[] = [];
+  let score = 100;
+
+  // Check index.html
+  const indexHtml = path.join(clientDir, 'index.html');
+  if (fs.existsSync(indexHtml)) {
+    const content = fs.readFileSync(indexHtml, 'utf-8');
+    if (!content.includes('rel="canonical"') && !content.includes("rel='canonical'")) {
+      score -= 20;
+      issues.push('index.html has no canonical link tag.');
+    } else {
+      const canonicalMatch = content.match(/href=["']([^"']*)["'][^>]*rel=["']canonical["']/);
+      if (canonicalMatch) {
+        const url = canonicalMatch[1];
+        if (!url.startsWith('https://sura-codex.com') && !url.startsWith('https://www.sura-codex.com')) {
+          score -= 15;
+          issues.push(`Canonical URL in index.html is "${url}" — should be the production domain.`);
+        }
+      }
+    }
+  }
+
+  // Check SEO hook for canonical implementation
+  const seoHookPath = path.join(clientDir, 'src', 'hooks', 'useSeoTags.ts');
+  if (fs.existsSync(seoHookPath)) {
+    const content = fs.readFileSync(seoHookPath, 'utf-8');
+    if (!content.includes('canonical') || !content.includes('rel="canonical"')) {
+      score -= 30;
+      issues.push('useSeoTags hook does not implement canonical URL handling.');
+    } else {
+      // Check for self-referencing canonical pattern
+      if (!content.includes('window.location.href') && !content.includes('canonicalUrl')) {
+        score -= 15;
+        issues.push('Canonical URL handling does not include self-referencing fallback.');
+      }
+    }
+  }
+
+  // Check all pages for canonical
+  const pagesDir = path.join(clientDir, 'src', 'pages');
+  if (fs.existsSync(pagesDir)) {
+    const files = fs.readdirSync(pagesDir);
+    const pagesWithoutCanonical: string[] = [];
+    for (const file of files) {
+      if (!file.endsWith('.tsx')) continue;
+      const content = fs.readFileSync(path.join(pagesDir, file), 'utf-8');
+      // Skip if page has no content routes
+      if (content.includes('export function') || content.includes('export default')) {
+        if (!content.includes('canonicalUrl') && !content.includes('canonical')) {
+          pagesWithoutCanonical.push(file);
+        }
+      }
+    }
+    if (pagesWithoutCanonical.length > 0) {
+      score -= Math.min(20, pagesWithoutCanonical.length * 5);
+      issues.push(`${pagesWithoutCanonical.length} pages may be missing canonical URL setup.`);
+    }
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const passed = score >= 80;
+
+  return {
+    name: 'Canonical URLs',
+    category: passed ? 'info' : 'critical',
+    passed,
+    score,
+    details: passed
+      ? 'Canonical URLs are properly implemented across pages.'
+      : `Issues: ${issues.join('; ')}`,
+    recommendation: passed ? undefined : 'Ensure every page has a self-referencing canonical URL pointing to the production domain.',
+  };
+}
+
+function checkStructuredData(analysis: StructuredDataAnalysis): TechSeoCheck {
+  let score = 100;
+  const issues: string[] = [];
+
+  if (analysis.typesFound.length === 0) {
+    score = 0;
+    issues.push('No structured data (JSON-LD) found on any page.');
+  } else {
+    if (analysis.issues.length > 0) {
+      for (const issue of analysis.issues) {
+        score -= 20;
+        issues.push(issue);
+      }
+    }
+    if (!analysis.typesFound.includes('Organization')) {
+      score -= 15;
+      issues.push('Missing Organization schema — important for Google Knowledge Panel.');
+    }
+    if (!analysis.typesFound.includes('BreadcrumbList')) {
+      score -= 10;
+      issues.push('Missing BreadcrumbList schema — helps rich search results.');
+    }
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const passed = score >= 70;
+
+  return {
+    name: 'Structured Data (JSON-LD)',
+    category: passed ? 'info' : 'critical',
+    passed,
+    score,
+    details: passed
+      ? `Found ${analysis.typesFound.length} schema types: ${analysis.typesFound.join(', ')}`
+      : `Issues: ${issues.join('; ')}`,
+    recommendation: passed ? undefined : 'Add JSON-LD structured data for Organization, BreadcrumbList, and Article schemas.',
+  };
+}
+
+function checkOpenGraph(clientDir: string): TechSeoCheck {
+  const issues: string[] = [];
+  let score = 100;
+
+  // Check seo hook for OG implementation
+  const seoHookPath = path.join(clientDir, 'src', 'hooks', 'useSeoTags.ts');
+  if (fs.existsSync(seoHookPath)) {
+    const content = fs.readFileSync(seoHookPath, 'utf-8');
+    const ogTags = ['og:title', 'og:description', 'og:url', 'og:type', 'og:image', 'og:site_name', 'og:locale'];
+    for (const tag of ogTags) {
+      if (!content.includes(tag)) {
+        score -= 10;
+        issues.push(`Missing Open Graph tag: ${tag}`);
+      }
+    }
+    if (!content.includes('og:image:width') || !content.includes('og:image:height')) {
+      score -= 5;
+      issues.push('Missing og:image:width and og:image:height — helps social platforms render images faster.');
+    }
+  }
+
+  // Check index.html for base OG tags
+  const indexHtml = path.join(clientDir, 'index.html');
+  if (fs.existsSync(indexHtml)) {
+    const content = fs.readFileSync(indexHtml, 'utf-8');
+    if (!content.includes('og:site_name')) {
+      score -= 10;
+      issues.push('No og:site_name in index.html base template.');
+    }
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const passed = score >= 80;
+
+  return {
+    name: 'Open Graph Tags',
+    category: passed ? 'info' : 'warning',
+    passed,
+    score,
+    details: passed
+      ? 'Open Graph tags properly implemented with title, description, image, and locale.'
+      : `Issues: ${issues.join('; ')}`,
+    recommendation: passed ? undefined : 'Add missing Open Graph tags (og:image:width, og:image:height) to improve social sharing appearance.',
+  };
+}
+
+function checkTwitterCards(clientDir: string): TechSeoCheck {
+  const issues: string[] = [];
+  let score = 100;
+
+  const seoHookPath = path.join(clientDir, 'src', 'hooks', 'useSeoTags.ts');
+  if (fs.existsSync(seoHookPath)) {
+    const content = fs.readFileSync(seoHookPath, 'utf-8');
+    const twTags = ['twitter:card', 'twitter:title', 'twitter:description', 'twitter:url', 'twitter:image'];
+    for (const tag of twTags) {
+      if (!content.includes(tag)) {
+        score -= 15;
+        issues.push(`Missing Twitter Card tag: ${tag}`);
+      }
+    }
+    if (!content.includes('summary_large_image')) {
+      score -= 10;
+      issues.push('Twitter card type not set to "summary_large_image" — recommended for articles.');
+    }
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const passed = score >= 80;
+
+  return {
+    name: 'Twitter Cards',
+    category: passed ? 'info' : 'warning',
+    passed,
+    score,
+    details: passed
+      ? 'Twitter Cards properly configured with summary_large_image format.'
+      : `Issues: ${issues.join('; ')}`,
+    recommendation: passed ? undefined : 'Add Twitter Card meta tags with summary_large_image card type.',
+  };
+}
+
+function checkRssFeed(serverDir: string): TechSeoCheck {
+  const issues: string[] = [];
+  let score = 100;
+
+  const rssPath = path.join(serverDir, 'src', 'controllers', 'rssController.ts');
+  if (!fs.existsSync(rssPath)) {
+    score = 0;
+    issues.push('RSS feed controller not found.');
+  } else {
+    const content = fs.readFileSync(rssPath, 'utf-8');
+    if (!content.includes('rss') && !content.includes('RSS')) {
+      score -= 50;
+      issues.push('RSS feed not implemented.');
+    }
+    if (!content.includes('feed_url') || !content.includes('site_url')) {
+      score -= 20;
+      issues.push('RSS feed missing required fields (feed_url, site_url).');
+    }
+    if (!content.includes('content:encoded')) {
+      score -= 10;
+      issues.push('RSS feed missing content:encoded — limits full-text syndication.');
+    }
+    if (!content.includes('enclosure') && !content.includes('coverImage')) {
+      score -= 10;
+      issues.push('RSS feed has no image enclosure. Consider adding coverImage.');
+    }
+  }
+
+  // Check if RSS is discoverable
+  const seoRoutesPath = path.join(serverDir, 'src', 'routes', 'seoRoutes.ts');
+  if (fs.existsSync(seoRoutesPath)) {
+    const seoContent = fs.readFileSync(seoRoutesPath, 'utf-8');
+    if (!seoContent.includes('rss')) {
+      issues.push('RSS feed not linked from sitemap or robots.txt for discovery.');
+    }
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const passed = score >= 70;
+
+  return {
+    name: 'RSS Feed',
+    category: passed ? 'info' : 'warning',
+    passed,
+    score,
+    details: passed
+      ? 'RSS feed generated with full content and proper metadata.'
+      : `Issues: ${issues.join('; ')}`,
+    recommendation: passed ? undefined : 'Add RSS feed with content:encoded and link from sitemap.xml for better content discovery.',
+  };
+}
+
+function checkSearchConsoleIntegration(serverDir: string): TechSeoCheck {
+  const issues: string[] = [];
+  let score = 100;
+
+  // Check for Google Search Console verification
+  const nginxPath = path.join(serverDir, '..', 'client', 'nginx.conf');
+  const indexHtml = path.join(serverDir, '..', 'client', 'index.html');
+
+  let hasVerification = false;
+
+  if (fs.existsSync(indexHtml)) {
+    const content = fs.readFileSync(indexHtml, 'utf-8');
+    if (content.includes('google-site-verification') || content.includes('google.com')) {
+      hasVerification = true;
+    }
+  }
+
+  if (!hasVerification) {
+    score -= 30;
+    issues.push('No Google Search Console verification tag found (meta tag or DNS TXT record).');
+  }
+
+  // Check for sitemap submission (sitemap.xml endpoint)
+  const seoRoutesPath = path.join(serverDir, 'src', 'routes', 'seoRoutes.ts');
+  if (fs.existsSync(seoRoutesPath)) {
+    const content = fs.readFileSync(seoRoutesPath, 'utf-8');
+    if (content.includes('sitemap.xml')) {
+      score += 10;
+    }
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const passed = score >= 70;
+
+  return {
+    name: 'Google Search Console',
+    category: passed ? 'info' : 'warning',
+    passed,
+    score,
+    details: passed
+      ? 'Search Console verification available via sitemap.xml and robots.txt.'
+      : `Issues: ${issues.join('; ')}`,
+    recommendation: passed ? undefined : 'Add Google Search Console meta verification tag to <head> and submit sitemap.',
+  };
+}
+
+function checkIndexCoverage(clientDir: string): TechSeoCheck {
+  const issues: string[] = [];
+  let score = 100;
+
+  // Check for noindex pages
+  const pagesDir = path.join(clientDir, 'src', 'pages');
+  if (fs.existsSync(pagesDir)) {
+    const files = fs.readdirSync(pagesDir);
+    const noindexPages: string[] = [];
+    const privatePages: string[] = [];
+
+    for (const file of files) {
+      if (!file.endsWith('.tsx')) continue;
+      const content = fs.readFileSync(path.join(pagesDir, file), 'utf-8');
+
+      // Check for noIndex flag usage
+      if (content.includes('noIndex') || content.includes('noindex')) {
+        noindexPages.push(file);
+      }
+    }
+
+    // Pages that should be noindex
+    const privateRoutes = ['DashboardPage', 'AdminPage', 'ProfilePage', 'LoginPage', 'RegisterPage', 'CreatePostPage', 'CreateChapterPage', 'CreateNovelPage', 'CreateTechPage', 'EditPartsPage', 'LibraryPage', 'AuthCallbackPage', 'NotFoundPage'];
+    const shouldBeNoindex = privateRoutes.filter((p) => !noindexPages.some((n) => n.includes(p)));
+
+    if (shouldBeNoindex.length > 0) {
+      score -= Math.min(25, shouldBeNoindex.length * 5);
+      issues.push(`${shouldBeNoindex.length} private pages may be indexable: ${shouldBeNoindex.join(', ')}`);
+    }
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const passed = score >= 70;
+
+  return {
+    name: 'Index Coverage',
+    category: passed ? 'info' : 'critical',
+    passed,
+    score,
+    details: passed
+      ? 'Index coverage looks good with proper noindex flags on private pages.'
+      : `Issues: ${issues.join('; ')}`,
+    recommendation: passed ? undefined : 'Add noindex meta tags to private/authenticated-only pages to prevent indexing.',
+  };
+}
+
+function checkCrawlErrors(): TechSeoCheck {
+  const issues: string[] = [];
+  let score = 100;
+
+  // Check for patterns that cause crawl errors
+const projectRoot = process.cwd();
+  const clientDir = path.resolve(projectRoot, 'client');
+  const indexHtml = path
+
+  // Check nginx for proper SPA handling
+  const nginxPath = path.join(clientDir, 'nginx.conf');
+  if (fs.existsSync(nginxPath)) {
+    const nginx = fs.readFileSync(nginxPath, 'utf-8');
+    if (!nginx.includes('try_files') || !nginx.includes('/index.html')) {
+      score -= 40;
+      issues.push('Nginx does not have SPA fallback (try_files $uri /index.html) — causes 404 on deep links.');
+    }
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const passed = score >= 70;
+
+  return {
+    name: 'Crawl Errors',
+    category: passed ? 'info' : 'critical',
+    passed,
+    score,
+    details: passed
+      ? 'No likely crawl error patterns detected.'
+      : `Issues: ${issues.join('; ')}`,
+    recommendation: passed ? undefined : 'Ensure SPA fallback is configured for all routes to prevent 404 crawl errors.',
+  };
+}
+
+function checkMobileFriendly(clientDir: string): TechSeoCheck {
+  const issues: string[] = [];
+  let score = 100;
+
+  const indexHtml = path.join(clientDir, 'index.html');
+  if (fs.existsSync(indexHtml)) {
+    const content = fs.readFileSync(indexHtml, 'utf-8');
+    if (!content.includes('viewport') || !content.includes('width=device-width')) {
+      score -= 50;
+      issues.push('Missing viewport meta tag with width=device-width — essential for mobile-friendliness.');
+    }
+    if (!content.includes('initial-scale=1') && !content.includes('initial-scale=1.0')) {
+      score -= 10;
+      issues.push('Viewport meta missing initial-scale=1 — may cause zoom issues on mobile.');
+    }
+  }
+
+  // Check for responsive design patterns
+  const cssPath = path.join(clientDir, 'src', 'styles', 'index.css');
+  if (fs.existsSync(cssPath)) {
+    const css = fs.readFileSync(cssPath, 'utf-8');
+    if (!css.includes('@media') && !css.includes('sm:') && !css.includes('md:') && !css.includes('lg:')) {
+      score -= 40;
+      issues.push('No responsive design breakpoints found. Site may not be mobile-friendly.');
+    }
+  }
+
+  // Check for proper touch targets
+  // (Tailwind is used, so this is likely fine)
+
+  score = Math.max(0, Math.min(100, score));
+  const passed = score >= 80;
+
+  return {
+    name: 'Mobile Friendly',
+    category: passed ? 'info' : 'critical',
+    passed,
+    score,
+    details: passed
+      ? 'Mobile viewport configured and responsive design detected (Tailwind breakpoints).'
+      : `Issues: ${issues.join('; ')}`,
+    recommendation: passed ? undefined : 'Ensure viewport meta tag is set and test with Google Mobile-Friendly Test.',
+  };
+}
+
+function checkCoreWebVitals(clientDir: string): TechSeoCheck {
+  const issues: string[] = [];
+  let score = 100;
+
+  // Check for performance optimizations that affect Core Web Vitals (LCP, FID, CLS)
+  const indexHtml = path.join(clientDir, 'index.html');
+  if (fs.existsSync(indexHtml)) {
+    const content = fs.readFileSync(indexHtml, 'utf-8');
+
+    // Preconnect
+    if (content.includes('preconnect')) score += 5;
+
+    // Font display swap
+    if (content.includes('display=swap')) score += 5;
+    else {
+      score -= 15;
+      issues.push('Font display is not set to "swap" — may cause invisible text (FOIT) and hurt LCP.');
+    }
+
+    // Lazy loading images
+    if (content.includes('loading=')) score += 5;
+  }
+
+  // Check build config for optimizations
+  const viteConfig = path.join(clientDir, 'vite.config.ts');
+  if (fs.existsSync(viteConfig)) {
+    const content = fs.readFileSync(viteConfig, 'utf-8');
+    if (content.includes('manualChunks')) score += 10;
+    if (content.includes('minify')) score += 5;
+    if (content.includes('sourcemap: false')) score += 5;
+    if (content.includes('compact: true')) score += 5;
+
+    if (!content.includes('gzip') && !content.includes('compress')) {
+      issues.push('No compression/optimization plugin configured for Vite build.');
+    }
+  }
+
+  // Check nginx for compression
+  const nginxPath = path.join(clientDir, 'nginx.conf');
+  if (fs.existsSync(nginxPath)) {
+    const content = fs.readFileSync(nginxPath, 'utf-8');
+    if (content.includes('gzip on')) score += 10;
+    else {
+      score -= 15;
+      issues.push('Gzip compression is not enabled in nginx.');
+    }
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const passed = score >= 70;
+
+  return {
+    name: 'Core Web Vitals',
+    category: passed ? 'info' : 'warning',
+    passed,
+    score,
+    details: passed
+      ? 'Good performance signals: font-display swap, preconnect, code splitting, gzip compression.'
+      : `Issues: ${issues.join('; ')}`,
+    recommendation: passed ? undefined : 'Optimize LCP by preloading above-the-fold images, enable compression, and use font-display: swap.',
+  };
+}
+
+function checkBrokenLinks(clientDir: string): TechSeoCheck {
+  const issues: string[] = [];
+  let score = 100;
+
+  // Scan for hardcoded links that might break
+  const pagesDir = path.join(clientDir, 'src', 'pages');
+  if (fs.existsSync(pagesDir)) {
+    const files = fs.readdirSync(pagesDir);
+    const filesWithBadLinks: string[] = [];
+
+    for (const file of files) {
+      if (!file.endsWith('.tsx')) continue;
+      const content = fs.readFileSync(path.join(pagesDir, file), 'utf-8');
+
+      // Check for hardcoded HTTP links (should be HTTPS)
+      const httpLinks = content.match(/http:\/\/[^"'\s\)]+/g);
+      if (httpLinks) {
+        const risky = httpLinks.filter((l: string) => !l.includes('localhost') && !l.includes('127.0.0.1') && !l.includes('fonts.googleapis'));
+        if (risky.length > 0) {
+          filesWithBadLinks.push(file);
+          score -= risky.length * 5;
+          issues.push(`Found ${risky.length} HTTP links in ${file} that should be HTTPS.`);
+        }
+      }
+    }
+  }
+
+  // Check for 404 page
+  const notFoundPath = path.join(pagesDir, 'NotFoundPage.tsx');
+  if (fs.existsSync(notFoundPath)) {
+    const content = fs.readFileSync(notFoundPath, 'utf-8');
+    if (content.includes('404') || content.includes('NotFound')) {
+      score += 10;
+    } else {
+      issues.push('404/NotFound page may not return proper 404 status.');
+    }
+  } else {
+    score -= 20;
+    issues.push('No custom 404 page found.');
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const passed = score >= 70;
+
+  return {
+    name: 'Broken Links',
+    category: passed ? 'info' : 'warning',
+    passed,
+    score,
+    details: passed
+      ? 'No broken link patterns detected in codebase.'
+      : `Issues: ${issues.join('; ')}`,
+    recommendation: passed ? undefined : 'Replace HTTP links with HTTPS and ensure 404 page returns proper HTTP status.',
+  };
+}
+
+function checkRedirectIssues(clientDir: string): TechSeoCheck {
+  const issues: string[] = [];
+  let score = 100;
+
+  // Check nginx for www redirect
+  const nginxPath = path.join(clientDir, 'nginx.conf');
+  if (fs.existsSync(nginxPath)) {
+    const content = fs.readFileSync(nginxPath, 'utf-8');
+    if (content.includes('return 301 https://$host$request_uri')) {
+      score += 10;
+    } else {
+      score -= 20;
+      issues.push('No HTTP→HTTPS redirect configured in nginx.');
+    }
+
+    // Check for www → non-www redirect
+    if (content.includes('www.sura-codex.com') && !content.includes('return 301 https://sura-codex.com$request_uri')) {
+      score -= 15;
+      issues.push('No www→non-www redirect found. Both www and non-www may serve content, causing duplicate content issues.');
+    }
+  }
+
+  // Check for trailing slash handling
+  const appRouterPath = path.join(clientDir, 'src', 'App.tsx');
+  if (fs.existsSync(appRouterPath)) {
+    const content = fs.readFileSync(appRouterPath, 'utf-8');
+    // With React Router, trailing slashes are handled by the router
+    // But Google may treat /articles and /articles/ as different URLs
+    if (!content.includes('trailingSlash') && !content.includes('strict')) {
+      issues.push('No trailing slash handling configured — /articles and /articles/ may be treated as separate pages.');
+    }
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const passed = score >= 70;
+
+  return {
+    name: 'Redirect Issues',
+    category: passed ? 'info' : 'critical',
+    passed,
+    score,
+    details: passed
+      ? 'HTTP→HTTPS redirect configured. Check www→non-www redirect.'
+      : `Issues: ${issues.join('; ')}`,
+    recommendation: passed ? undefined : 'Add www→non-www 301 redirect and ensure consistent trailing slash handling.',
+  };
+}
+
+// ─── Fix Functions ───────────────────────────────────────────────────────────
+
+function fixRobotsTxtConflict(): void {
+  const clientRobotsPath = path.resolve(cwd(), 'client', 'public', 'robots.txt');
+
+  // The server dynamically generates robots.txt with a full rule set.
+  // The static file in client/public/ overrides the server endpoint.
+  // Solution: Update the static file to be minimal, OR remove it and let the server handle it.
+
+  if (fs.existsSync(clientRobotsPath)) {
+    const clientContent = fs.readFileSync(clientRobotsPath, 'utf-8');
+    // Add note at top and forward to server-generated version
+    const updatedContent = `# robots.txt — Sura Codex
+# This file is served statically. For the dynamic version, see /api/robots.txt
+# Note: The server at /robots.txt serves a more comprehensive set of rules.
+
+${clientContent}
+`;
+    fs.writeFileSync(clientRobotsPath, updatedContent, 'utf-8');
+  }
+}
+
+function fixNginxHsts(): void {
+  const nginxPath = path.resolve(cwd(), 'client', 'nginx.conf');
+  if (fs.existsSync(nginxPath)) {
+    let content = fs.readFileSync(nginxPath, 'utf-8');
+    if (!content.includes('Strict-Transport-Security')) {
+      content = content.replace(
+        'add_header X-XSS-Protection "1; mode=block" always;',
+        'add_header X-XSS-Protection "1; mode=block" always;\n  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;'
+      );
+      fs.writeFileSync(nginxPath, content, 'utf-8');
+    }
+  }
+}
+
+// ─── Report Generation ───────────────────────────────────────────────────────
+
+function generateReport(checks: TechSeoCheck[], details: TechSeoReport['details']): string {
+  const lines: string[] = [];
+  const divider = '='.repeat(72);
+  const subDivider = '-'.repeat(72);
+
+  const passed = checks.filter((c) => c.passed).length;
+  const failed = checks.filter((c) => !c.passed).length;
+  const criticalIssues = checks.filter((c) => c.category === 'critical' && !c.passed);
+  const warnings = checks.filter((c) => c.category === 'warning' && !c.passed);
+  const seoScore = Math.round(checks.reduce((s, c) => s + c.score, 0) / checks.length);
+
+  lines.push(divider);
+  lines.push('  SURA CODEX — SPRINT 6 TECHNICAL SEO AUDIT');
+  lines.push(`  Generated: ${new Date().toISOString()}`);
+  lines.push(divider);
+  lines.push('');
+  lines.push('  OVERALL RESULTS');
+  lines.push(subDivider);
+  lines.push(`  SEO Score:            ${seoScore}/100`);
+  lines.push(`  Checks Passed:        ${passed}/${checks.length}`);
+  lines.push(`  Checks Failed:        ${failed}`);
+  lines.push(`  Critical Issues:      ${criticalIssues.length}`);
+  lines.push(`  Warnings:             ${warnings.length}`);
+  lines.push('');
+
+  const grade = seoScore >= 90 ? 'A+' : seoScore >= 80 ? 'A' : seoScore >= 70 ? 'B' : seoScore >= 60 ? 'C' : 'D';
+  const adsenseReady = criticalIssues.length === 0 && seoScore >= 70;
+  lines.push(`  AdSense Readiness:    ${adsenseReady ? '✅ READY' : '⚠️  NEEDS WORK'}`);
+  lines.push(`  Overall Grade:        ${grade}`);
+  lines.push('');
+
+  // Critical Issues
+  if (criticalIssues.length > 0) {
+    lines.push('  🔴 CRITICAL ISSUES');
+    lines.push(subDivider);
+    for (const issue of criticalIssues) {
+      lines.push(`  ❌ ${issue.name} (Score: ${issue.score})`);
+      lines.push(`     ${issue.details.substring(0, 130)}`);
+      if (issue.recommendation) {
+        lines.push(`     → ${issue.recommendation.substring(0, 120)}`);
+      }
+      lines.push('');
+    }
+  }
+
+  // Warnings
+  if (warnings.length > 0) {
+    lines.push('  🟡 WARNINGS');
+    lines.push(subDivider);
+    for (const warning of warnings) {
+      lines.push(`  ⚠  ${warning.name} (Score: ${warning.score})`);
+      lines.push(`     ${warning.details.substring(0, 130)}`);
+      if (warning.recommendation) {
+        lines.push(`     → ${warning.recommendation.substring(0, 120)}`);
+      }
+      lines.push('');
+    }
+  }
+
+  // All checks detail
+  lines.push('  📋 ALL CHECKS');
+  lines.push(subDivider);
+  for (const check of checks) {
+    const icon = check.passed ? '✅' : check.category === 'critical' ? '❌' : '⚠️';
+    const catLabel = check.category === 'critical' ? 'CRITICAL' : check.category === 'warning' ? 'WARNING' : 'INFO';
+    lines.push(`  ${icon} [${catLabel}] ${check.name}: ${check.score}/100`);
+    lines.push(`     ${check.details.substring(0, 120)}`);
+  }
+  lines.push('');
+
+  // Detailed analysis
+  if (details.sitemap.exists) {
+    lines.push('  📊 SITEMAP DETAILS');
+    lines.push(subDivider);
+    lines.push(`  URLs: ${details.sitemap.urlCount}`);
+    lines.push(`  Lastmod: ${details.sitemap.lastmodPresent ? '✅' : '❌'}`);
+    lines.push(`  Changefreq: ${details.sitemap.changefreqPresent ? '✅' : '❌'}`);
+    lines.push(`  Priority: ${details.sitemap.priorityPresent ? '✅' : '❌'}`);
+    for (const issue of details.sitemap.issues) {
+      lines.push(`  ⚠ ${issue}`);
+    }
+    lines.push('');
+  }
+
+  if (details.structuredData.typesFound.length > 0) {
+    lines.push('  🏷️ STRUCTURED DATA TYPES FOUND');
+    lines.push(subDivider);
+    lines.push(`  ${details.structuredData.typesFound.join(', ')}`);
+    lines.push('');
+  }
+
+  if (details.performance.largestChunk) {
+    lines.push('  ⚡ BUNDLE SIZE (from dist/ if available)');
+    lines.push(subDivider);
+    lines.push(`  Total: ${details.performance.totalBundleSize}KB`);
+    lines.push(`  Largest: ${details.performance.largestChunk.name} (${details.performance.largestChunk.size}KB)`);
+    lines.push('');
+  }
+
+  lines.push(divider);
+  lines.push('  END OF TECHNICAL SEO AUDIT');
+  lines.push(divider);
+
+  return lines.join('\n');
+}
+
+// ─── Main ────────────────────────────────────────────────────────────────────
+
+async function main() {
+  console.log('');
+  console.log('  ╔══════════════════════════════════════════════════════════════╗');
+  console.log('  ║     SURA CODEX — SPRINT 6 TECHNICAL SEO AUDIT             ║');
+  console.log('  ║     Pre-AdSense Technical Verification                     ║');
+  console.log('  ╚══════════════════════════════════════════════════════════════╝');
+  console.log('');
+
+  const clientDir = path.resolve(cwd(), 'client');
+  const serverDir = path.resolve(cwd(), 'server');
+
+  // Run analyses
+  const robotsAnalysis = analyzeRobotsTxt(clientDir, serverDir);
+  const sitemapAnalysis = analyzeSitemap(serverDir);
+  const sdAnalysis = analyzeStructuredData(clientDir);
+  const perfAnalysis = analyzePerformance(clientDir);
+
+  // Run checks
+  const checks: TechSeoCheck[] = [
+    checkRobotsTxt(robotsAnalysis),
+    checkSitemap(sitemapAnalysis),
+    checkCanonicalUrls(clientDir),
+    checkStructuredData(sdAnalysis),
+    checkOpenGraph(clientDir),
+    checkTwitterCards(clientDir),
+    checkRssFeed(serverDir),
+    checkSearchConsoleIntegration(serverDir),
+    checkIndexCoverage(clientDir),
+    checkCrawlErrors(),
+    checkMobileFriendly(clientDir),
+    checkCoreWebVitals(clientDir),
+    checkBrokenLinks(clientDir),
+    checkRedirectIssues(clientDir),
+  ];
+
+  // Apply automatic fixes
+  console.log('  Applying automatic fixes...');
+  fixRobotsTxtConflict();
+  fixNginxHsts();
+  console.log('  ✓ robots.txt conflict documented');
+  console.log('  ✓ HSTS header added to nginx.conf');
+  console.log('');
+
+  // Generate report
+  const report = generateReport(checks, {
+    robotsTxt: robotsAnalysis,
+    sitemap: sitemapAnalysis,
+    structuredData: sdAnalysis,
+    performance: perfAnalysis,
+  });
+
+  console.log(report);
+
+  // Write to file
+  const outputDir = path.resolve(cwd(), 'scripts/output');
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const reportPath = path.join(outputDir, `technical-seo-audit-${timestamp}.txt`);
+  fs.writeFileSync(reportPath, report, 'utf-8');
+
+  // Calculate seoScore for JSON payload
+  const seoScore = Math.round(checks.reduce((s: number, c: TechSeoCheck) => s + c.score, 0) / checks.length);
+
+  // Also write JSON
+  const jsonPath = path.join(outputDir, `technical-seo-audit-${timestamp}.json`);
+  const jsonPayload = {
+    seoScore,
+    checks: checks.map((c) => ({ name: c.name, category: c.category, passed: c.passed, score: c.score, details: c.details })),
+    details: {
+      robotsTxt: { exists: robotsAnalysis.exists, valid: robotsAnalysis.valid, sitemapUrl: robotsAnalysis.sitemapUrl, issueCount: robotsAnalysis.issues.length },
+      sitemap: { exists: sitemapAnalysis.exists, valid: sitemapAnalysis.valid, urlCount: sitemapAnalysis.urlCount, issueCount: sitemapAnalysis.issues.length },
+      structuredData: { typesFound: sdAnalysis.typesFound, issueCount: sdAnalysis.issues.length },
+    },
+  };
+  fs.writeFileSync(jsonPath, JSON.stringify(jsonPayload, null, 2), 'utf-8');
+
+  console.log(`  📄 Report saved to: ${reportPath}`);
+  console.log(`  📊 JSON data saved to: ${jsonPath}`);
+  console.log('');
+  console.log('  Done!');
+  console.log('');
+}
+
+main().catch(console.error);

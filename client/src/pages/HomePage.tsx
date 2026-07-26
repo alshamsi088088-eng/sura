@@ -23,9 +23,6 @@ export function HomePage() {
     description: locale === 'ar' ? 'مدونة ومتجر رقمي للقراءة العميقة.' : 'A publishing platform for deep reading.',
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/`,
     locale,
-    // TODO: Add a dedicated 1200×630 Open Graph image (e.g., /og-default.png)
-    //       When available, pass it via openGraph={{ image: { url: '...', alt: '...' } }}
-    //       and twitter={{ image: { url: '...', alt: '...' } }}
     jsonLd: [
       {
         '@context': 'https://schema.org',

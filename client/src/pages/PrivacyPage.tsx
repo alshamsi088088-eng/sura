@@ -12,9 +12,6 @@ export function PrivacyPage() {
       : 'Learn how we collect, use, and protect your information on Sura Codex, including Google services (Analytics, Search Console, AdSense) and cookie usage.',
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/privacy`,
     locale,
-    // TODO: Add a dedicated 1200×630 Open Graph image (e.g., /og-privacy.png)
-    //       When available, pass it via openGraph={{ image: { url: '...', alt: '...' } }}
-    //       and twitter={{ image: { url: '...', alt: '...' } }}
     jsonLd: [
       {
         '@context': 'https://schema.org',

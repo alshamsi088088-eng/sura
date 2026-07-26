@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
 import { trackEvent } from '../lib/analytics';
 import { AvatarUpload } from '../components/AvatarUpload';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 interface PurchasedOrderItem {
   id: string;
@@ -39,9 +40,16 @@ interface DownloadStatus {
 }
 
 export function ProfilePage() {
-  const { user, loading } = useAuth();
+const { user, loading } = useAuth();
   const { locale } = useLocale();
   const navigate = useNavigate();
+
+  useSeoTags({
+    title: locale === 'ar' ? 'الملف الشخصي | سُرى' : 'Profile | Sura Codex',
+    description: locale === 'ar' ? 'ملفك الشخصي ومشترياتك في سُرى.' : 'Your Sura Codex profile and purchases.',
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/profile`,
+    noIndex: true,
+  });
 
   const [orders, setOrders] = useState<PurchasedOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);

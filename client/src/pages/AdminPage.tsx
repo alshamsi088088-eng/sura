@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useLocale } from '../context/LocaleContext';
 import { supabase } from '../lib/supabaseClient';
+import { useSeoTags } from '../hooks/useSeoTags';
 
 
 interface ModerationComment {
@@ -26,6 +27,13 @@ interface OverviewData {
 export function AdminPage() {
   const { locale } = useLocale();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  useSeoTags({
+    title: locale === 'ar' ? 'لوحة الإدارة | سُرى' : 'Admin | Sura Codex',
+    description: locale === 'ar' ? 'لوحة إدارة سُرى.' : 'Sura Codex Admin Dashboard.',
+    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/admin`,
+    noIndex: true,
+  });
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [overviewError, setOverviewError] = useState<string | null>(null);

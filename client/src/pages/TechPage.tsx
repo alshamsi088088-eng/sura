@@ -33,11 +33,9 @@ export function TechPage() {
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/tech`,
     openGraph: {
       type: 'website',
-      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex Tech' },
     },
     twitter: {
       cardType: 'summary_large_image',
-      image: { url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`, alt: 'Sura Codex Tech' },
     },
     locale,
     jsonLd: [
