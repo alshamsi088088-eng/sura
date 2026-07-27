@@ -54,7 +54,34 @@ const ALLOWED_ORIGINS = [
   'https://api.sura-codex.com',
   'https://sura-client-mu.vercel.app'
 ];
-export const ALLOWED_ORIGINS_STR = process.env.ALLOWED_ORIGINS?.split(',') || ALLOWED_ORIGINS;
+/**
+ * ✅ Production-safe CORS origins list.
+ *
+ * REQUIRED PRODUCTION ORIGINS (always present, cannot be removed by env vars):
+ *   - https://sura-codex.com        (canonical)
+ *   - https://www.sura-codex.com    (browser may send www origin after redirect)
+ *
+ * The ALLOWED_ORIGINS env var is additive only — it can append extra origins
+ * (e.g. staging domains, preview deployments) but can NEVER remove the
+ * required production origins above. Duplicates are automatically deduplicated.
+ */
+const REQUIRED_PRODUCTION_ORIGINS = [
+  'https://sura-codex.com',
+  'https://www.sura-codex.com',
+];
+
+const envOrigins = process.env.ALLOWED_ORIGINS
+  ?.split(',')
+  .map(o => o.trim())
+  .filter(Boolean) || [];
+
+const ALLOWED_ORIGINS_SET = new Set([
+  ...REQUIRED_PRODUCTION_ORIGINS,
+  ...ALLOWED_ORIGINS,
+  ...envOrigins,
+]);
+
+export const ALLOWED_ORIGINS_LIST = [...ALLOWED_ORIGINS_SET];
 
 
 export function validateEnvironment() {

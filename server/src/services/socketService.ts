@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import type http from 'http';
-import { ALLOWED_ORIGINS_STR } from './config.js';
+import { ALLOWED_ORIGINS_LIST } from './config.js';
 
 /**
  * ✅ Socket.IO Service - Production Fixed
@@ -16,7 +16,7 @@ import { ALLOWED_ORIGINS_STR } from './config.js';
 export function registerSocketServer(server: http.Server) {
   const io = new Server(server, {
     /**
-     * ✅ CORS - function-based, driven entirely by ALLOWED_ORIGINS_STR from config.ts
+     * ✅ CORS - function-based, driven entirely by ALLOWED_ORIGINS_LIST from config.ts
      * Covers production (sura-codex.com + www fallback) and dev (localhost).
      */
     cors: {
@@ -33,11 +33,11 @@ export function registerSocketServer(server: http.Server) {
         // Normalize - remove trailing slash
         const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
 
-        if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
+        if (ALLOWED_ORIGINS_LIST.includes(normalizedOrigin)) {
           console.log(`[Socket.IO] Origin ACCEPTED: ${normalizedOrigin}`);
           callback(null, true);
         } else {
-          console.log(`[Socket.IO] Origin REJECTED: ${normalizedOrigin} — not in allowed list: [${ALLOWED_ORIGINS_STR.join(', ')}]`);
+          console.log(`[Socket.IO] Origin REJECTED: ${normalizedOrigin} — not in allowed list: [${ALLOWED_ORIGINS_LIST.join(', ')}]`);
           callback(new Error(`CORS: origin '${normalizedOrigin}' is not allowed`), false);
         }
       },

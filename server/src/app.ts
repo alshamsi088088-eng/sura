@@ -18,7 +18,7 @@ import { communityRoutes } from './routes/communityRoutes.js';
 import { readingProgressRoutes } from './routes/readingProgressRoutes.js';
 import { rssFeed } from './controllers/rssController.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import { ALLOWED_ORIGINS_STR } from './services/config.js';
+import { ALLOWED_ORIGINS_LIST } from './services/config.js';
 
 export const app = express();
 app.get('/health', (req, res) => {
@@ -32,50 +32,42 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 /**
- * ✅ CORS Production-Fix: allowed domains
- * Fixes 308 redirect loops and prevents origin duplication.
+ * ✅ CORS — Unified across all environments.
+ *
+ * ALLOWED_ORIGINS_LIST (from config.ts) always includes:
+ *   - https://sura-codex.com       (required production)
+ *   - https://www.sura-codex.com   (required production — browser may send
+ *                                   www origin even after a redirect)
+ *   - localhost origins             (development)
+ *   - any origins from ALLOWED_ORIGINS env var (additive only)
+ *
+ * This eliminates the brittle production/dev branch split. The origin list
+ * is immutable for required domains and extensible via env var.
  */
-const isProduction = process.env.NODE_ENV === 'production';
-
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow no origin (server-to-server, curl, Postman)
+      // Allow no origin (server-to-server, curl, Postman, Railway health checks)
       if (!origin) {
         callback(null, true);
         return;
       }
 
-      // ✅ Normalize origin - remove trailing slash
+      // Normalize origin — remove trailing slash
       const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
 
-      // Production: allow BOTH https://sura-codex.com and https://www.sura-codex.com
-      if (isProduction) {
-        const allowedProductionOrigins = [
-          'https://sura-codex.com',
-          'https://www.sura-codex.com'
-        ];
-        
-        const allowed = allowedProductionOrigins.includes(normalizedOrigin);
-        if (allowed) return callback(null, true);
-
-        console.log(`CORS REJECTED in production: ${normalizedOrigin}`);
-        return callback(new Error('Not allowed by CORS'), false);
+      if (ALLOWED_ORIGINS_LIST.includes(normalizedOrigin)) {
+        callback(null, true);
+        return;
       }
 
-      // Development: allow configured local origins
-      if (ALLOWED_ORIGINS_STR.includes(normalizedOrigin)) {
-        return callback(null, true);
-      }
-
-      console.log(`CORS REJECTED in dev: ${normalizedOrigin}`);
-      return callback(new Error('Not allowed by CORS (dev)'), false);
+      console.log(`CORS REJECTED: ${normalizedOrigin} (NODE_ENV=${process.env.NODE_ENV || 'unknown'})`);
+      callback(new Error(`Origin '${normalizedOrigin}' is not allowed by CORS`), false);
     },
     credentials: true,
     allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     exposedHeaders: ['Content-Length', 'X-CSRF-Token', 'X-Frame-Options'],
-    // Railway proxy compatible settings
     maxAge: 86400,
     preflightContinue: false,
     optionsSuccessStatus: 204
