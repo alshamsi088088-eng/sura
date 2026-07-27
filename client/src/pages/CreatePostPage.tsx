@@ -225,8 +225,13 @@ export function CreatePostPage() {
     try {
       const finalExcerpt = excerpt.trim() || content.trim().substring(0, 150);
 
+      // Generate a UUID client-side — the Article table has no default value
+      // for its `id` column, so we must supply one before hitting Supabase.
+      const articleId = crypto.randomUUID();
+
       // category & language already inputs
       const payload = {
+        id: articleId,
         title: title.trim(),
         slug,
         excerpt: finalExcerpt,

@@ -238,45 +238,33 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
   useEffect(() => {
     if (!quillInstance) return;
 
-    type QuillClipboardWithConvert = {
-      convert?: (html: string) => any;
-      addMatcher: (nodeType: any, matcher: (node: Node, delta: any) => any) => void;
-    };
-
-    const clipboard = quillInstance.clipboard as unknown as QuillClipboardWithConvert;
-
-    const handler = (node: Node, delta: any) => {
+    /**
+     * ✅ Paste sanitization without recursion.
+     *
+     * PROBLEM (old code): The handler called `clipboard.convert(cleanHtml)`
+     * inside the matcher callback. Since `convert()` triggers matchers again,
+     * this caused infinite recursion → RangeError: Maximum call stack size.
+     *
+     * FIX (this code):
+     * - Registers ONE global matcher on Node.ELEMENT_NODE (covers all elements).
+     * - Sanitizes the DOM node **in place** by overwriting its innerHTML with
+     *   the cleaned version.
+     * - Returns `undefined` — Quill's default HTML→Delta conversion then runs
+     *   on the now-sanitized DOM, without ever re-triggering matchers.
+     */
+    quillInstance.clipboard.addMatcher(Node.ELEMENT_NODE, (node: Node, _delta: any) => {
       if (node instanceof HTMLElement) {
-        const rawHtml = node.outerHTML;
+        // Sanitize the entire pasted HTML tree in-place
+        const rawHtml = node.innerHTML;
         const cleanHtml = sanitizePastedHtml(rawHtml);
-
-        if (typeof clipboard.convert === 'function') {
-          return clipboard.convert(cleanHtml);
-        }
+        node.innerHTML = cleanHtml;
       }
-      return delta;
-    };
-
-    quillInstance.clipboard.addMatcher('BODY', handler);
-    quillInstance.clipboard.addMatcher('P', handler);
-    quillInstance.clipboard.addMatcher('DIV', handler);
-    quillInstance.clipboard.addMatcher('SPAN', handler);
-    quillInstance.clipboard.addMatcher('A', handler);
-    quillInstance.clipboard.addMatcher('IMG', handler);
-    quillInstance.clipboard.addMatcher('UL', handler);
-    quillInstance.clipboard.addMatcher('OL', handler);
-    quillInstance.clipboard.addMatcher('LI', handler);
-
-    quillInstance.clipboard.addMatcher('STRONG', handler);
-    quillInstance.clipboard.addMatcher('EM', handler);
-    quillInstance.clipboard.addMatcher('I', handler);
-    quillInstance.clipboard.addMatcher('B', handler);
-    quillInstance.clipboard.addMatcher('H1', handler);
-    quillInstance.clipboard.addMatcher('H2', handler);
-    quillInstance.clipboard.addMatcher('H3', handler);
+      // Return undefined → let Quill use its default conversion on the now-clean DOM.
+      return;
+    });
 
     return () => {
-      // No-op: Quill matcher removal isn't exposed.
+      // No-op: Quill does not expose matcher removal.
     };
   }, [quillInstance]);
 
