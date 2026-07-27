@@ -35,6 +35,19 @@ function stripHtml(value: string | null | undefined): string {
     .trim();
 }
 
+/**
+ * Safely decodes HTML entities (e.g. <h1> → <h1>) without
+ * executing scripts or parsing DOM elements. Uses a textarea
+ * element which only decodes text entities — no script execution.
+ *
+ * This is a no-op for content that does not contain HTML entities.
+ */
+function decodeHtmlEntities(html: string): string {
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = html;
+  return textarea.value;
+}
+
 export function ArticleDetailsPage() {
   const { locale } = useLocale();
   const { user } = useAuth();
@@ -296,12 +309,12 @@ export function ArticleDetailsPage() {
           <QuoteHighlighter
             contentId={article.id}
             contentType="article"
-            contentHtml={article.content}
+            contentHtml={decodeHtmlEntities(article.content)}
             authorName={article.authorName}
           />
           <div
             className="prose max-w-none text-sura-ivory"
-            dangerouslySetInnerHTML={{ __html: article.content }}
+            dangerouslySetInnerHTML={{ __html: decodeHtmlEntities(article.content) }}
           />
         </section>
 

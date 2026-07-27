@@ -1,10 +1,11 @@
-# Sprint 7 — AdSense Preparation
+# HTML Entity Decode Fix for Article Content
 
-## Safe Fixes to Implement
-
-- [x] 1. Create `ads.txt` with correct structure (no fake publisher ID)
-- [x] 2. Fix duplicate Gallery link in Navbar
-- [x] 3. Fix Footer social links (remove "#" dead links)
-- [x] 4. Add Cookie Policy link to Footer
-- [x] 5. Update Breadcrumbs pathNames (privacy, terms-of-service, cookie-policy)
+## All Steps Completed ✓
+- [x] Analyze root cause: affected article has HTML-entity-encoded content stored in DB
+- [x] Create plan and get approval
+- [x] 1. Add `decodeHtmlEntities` utility function to `ArticleDetailsPage.tsx`
+- [x] 2. Apply decoder to `article.content` before rendering in QuoteHighlighter and content `<div>`
+- [x] 3. TypeScript check (server) — ✅ Passed (no errors)
+- [x] 4. TypeScript check (client) — ✅ Passed (no errors)
+- [x] 5. Report findings
 
