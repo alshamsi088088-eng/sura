@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactQuill, { Quill } from 'react-quill';
-import type { Sources, Quill as QuillType } from 'quill';
+import type { Sources, Quill as QuillType, DeltaStatic } from 'quill';
 import 'react-quill/dist/quill.snow.css';
 
 type ReactQuillEditorProps = {
@@ -252,15 +252,16 @@ export function ReactQuillEditor({ value, onChange, placeholder }: ReactQuillEdi
      * - Returns `undefined` — Quill's default HTML→Delta conversion then runs
      *   on the now-sanitized DOM, without ever re-triggering matchers.
      */
-    quillInstance.clipboard.addMatcher(Node.ELEMENT_NODE, (node: Node, _delta: any) => {
+    quillInstance.clipboard.addMatcher(Node.ELEMENT_NODE, (node: Node, _delta: DeltaStatic): DeltaStatic => {
       if (node instanceof HTMLElement) {
         // Sanitize the entire pasted HTML tree in-place
         const rawHtml = node.innerHTML;
         const cleanHtml = sanitizePastedHtml(rawHtml);
         node.innerHTML = cleanHtml;
       }
-      // Return undefined → let Quill use its default conversion on the now-clean DOM.
-      return;
+      // Return the original delta — Quill's default HTML→Delta conversion runs
+      // on the now-sanitized DOM, without ever re-triggering matchers.
+      return _delta;
     });
 
     return () => {

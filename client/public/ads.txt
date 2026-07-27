@@ -1,4 +1,2 @@
-# AdSense ads.txt — Ready for publisher ID insertion
-# Replace ca-pub-XXXXXXXXXXXXXXXX with your actual AdSense publisher ID
-# google.com, ca-pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+# ads.txt will be updated after AdSense approval
 

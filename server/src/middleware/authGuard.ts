@@ -21,7 +21,6 @@ export async function authGuard(req: Request, res: Response, next: NextFunction)
     // 2. إذا لم يوجد مستخدم، تحقق من التوكن القادم من الواجهة (Supabase Header)
     if (!user) {
       const authHeader = req.headers.authorization;
-      console.log("Authorization Header:", authHeader); // <--- سيظهر التوكن في كونسول السيرفر
 
       if (authHeader?.startsWith('Bearer ')) {
         const accessToken = authHeader.substring(7);
