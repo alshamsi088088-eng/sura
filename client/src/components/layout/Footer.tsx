@@ -20,8 +20,6 @@ export function Footer() {
   const links = [
     { to: '/', label: strings.home || 'Home' },
     { to: '/articles', label: strings.articles || 'Articles' },
-    { to: '/novels', label: strings.novels || 'Novels' },
-    { to: '/gallery', label: strings.gallery || 'Gallery' },
     { to: '/about', label: strings.about || 'About' },
     { to: '/contact', label: strings.contact || 'Contact' },
     { to: '/privacy', label: strings.privacy || 'Privacy' },
@@ -71,7 +69,6 @@ export function Footer() {
                 </Link>
               ))}
             </div>
-          </div>
 
           {/* Info */}
           <div>
@@ -92,7 +89,6 @@ export function Footer() {
                 {locale === 'ar' ? 'محتوى أدبي وثقافي' : 'Literary & cultural content'}
               </span>
             </div>
-          </div>
         </div>
 
         {/* Social links */}
@@ -182,7 +178,6 @@ export function Footer() {
               YouTube
             </a>
           </div>
-        </div>
 
         {/* Bottom bar */}
         <div style={{ borderTop: `1px solid ${c.border}`, paddingTop: 24, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
@@ -193,7 +188,9 @@ export function Footer() {
             {locale === 'ar' ? 'تقاطع الكود والأدب' : 'The Intersection of Code and Literature'}
           </span>
         </div>
-      </div>
     </footer>
   );
 }
+</｜｜DSML｜｜parameter>
+</｜｜DSML｜｜invoke>
+</｜｜DSML｜｜tool_calls>

@@ -10,9 +10,6 @@ import logoImg from '/logo.svg';
 const navItems = [
   { path: '/', key: 'home' },
   { path: '/articles', key: 'articles' },
-  { path: '/novels', key: 'novels' },
-  { path: '/gallery', key: 'gallery' },
-  { path: '/store', key: 'store' },
   { path: '/tech', key: 'tech' },
   { path: '/about', key: 'about' }
 ];
@@ -522,18 +519,6 @@ export function Navbar() {
                 </div>
 
                 <NavLink
-                  to="/create-novel"
-                  onClick={() => setMobileOpen(false)}
-                  className={({ isActive }) =>
-                    `rounded-lg px-4 py-2.5 text-sm font-medium transition ${
-                      isActive ? 'glass text-sura-ink' : 'text-sura-ink/60 hover:text-sura-ink'
-                    }`
-                  }
-                >
-                  {locale === 'ar' ? 'إنشاء رواية' : 'Create Novel'}
-                </NavLink>
-
-                <NavLink
                   to="/create-post"
                   onClick={() => setMobileOpen(false)}
                   className={({ isActive }) =>
@@ -558,18 +543,6 @@ export function Navbar() {
                 </NavLink>
 
                 <div className="my-1 h-px bg-white/10" />
-
-                <NavLink
-                  to="/gallery"
-                  onClick={() => setMobileOpen(false)}
-                  className={({ isActive }) =>
-                    `rounded-lg px-4 py-2.5 text-sm font-medium transition ${
-                      isActive ? 'glass text-sura-ink' : 'text-sura-ink/60 hover:text-sura-ink'
-                    }`
-                  }
-                >
-                  {locale === 'ar' ? 'المعرض' : 'Gallery'}
-                </NavLink>
 
                 <NavLink
                   to="/dashboard"

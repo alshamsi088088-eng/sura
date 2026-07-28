@@ -4,11 +4,7 @@ import { useLocale } from '../context/LocaleContext';
 const pathNames: Record<string, string> = {
   '': 'Home',
   articles: 'Articles',
-  novels: 'Novels',
-  gallery: 'Gallery',
-  store: 'Store',
   tech: 'Tech',
-  products: 'Products',
   about: 'About',
   contact: 'Contact',
   privacy: 'Privacy',
@@ -65,4 +61,4 @@ export function Breadcrumbs() {
       </ol>
     </nav>
   );
-}
+

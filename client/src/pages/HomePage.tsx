@@ -94,7 +94,7 @@ export function HomePage() {
     return () => { mounted = false; };
   }, []);
 
-  // 2. Trending Content Effect
+  // 2. Trending Content Effect (articles only)
   useEffect(() => {
     let mounted = true;
     const loadTrending = async () => {
@@ -110,16 +110,8 @@ export function HomePage() {
           .order('createdAt', { ascending: false })
           .limit(5);
 
-        const { data: novels } = await supabase
-          .from('Novel')
-          .select('id, title, slug')
-          .order('createdAt', { ascending: false })
-          .limit(5);
-
         const articleItems: TrendingItem[] = (articles || []).map(a => ({ id: a.id, title: a.title, type: 'article', views: a.views || 0, slug: a.slug }));
-        const novelItems: TrendingItem[] = (novels || []).map(n => ({ id: n.id, title: n.title, type: 'novel', views: 0, slug: n.slug }));
-        const allItems: TrendingItem[] = [...articleItems, ...novelItems].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 6);
-        if (mounted) setTrending(allItems);
+        if (mounted) setTrending(articleItems);
       } catch {} finally {
         if (mounted) setTrendingLoading(false);
       }
@@ -129,8 +121,7 @@ export function HomePage() {
   }, []);
 
   const trendingHref = (item: TrendingItem) => {
-    const base = item.type === 'novel' ? '/novels' : '/articles';
-    return `${base}/${encodeURIComponent(item.slug || item.id)}`;
+    return `/articles/${encodeURIComponent(item.slug || item.id)}`;
   };
 
   return (
@@ -169,18 +160,10 @@ export function HomePage() {
           >
             {isArabic ? 'تصفّح المقالات' : 'Browse Articles'}
           </Link>
-          <Link
-            to="/novels"
-            className="rounded-full border border-sura-ivory/30 px-6 py-2.5 text-sm font-semibold text-sura-ivory/90 transition hover:border-sura-gold/50 select-none"
-          >
-            {isArabic ? 'استكشف الروايات' : 'Explore Novels'}
-          </Link>
         </div>
       </motion.header>
 
       {/* Weekly Progress */}
-      {/* WeeklyTargetBanner is fully self-contained: it fetches/derives its own
-          weekly reading data (localStorage + API), so no props are passed here. */}
       {user ? <WeeklyTargetBanner /> : null}
 
       {/* Featured Articles */}
@@ -243,14 +226,12 @@ export function HomePage() {
                 className="block rounded-2xl border border-sura-line bg-sura-canvas p-5 transition hover:-translate-y-1 hover:border-sura-gold/50"
               >
                 <div className="text-xs uppercase tracking-[0.3em] text-sura-teal">
-                  {item.type === 'novel' ? (isArabic ? 'رواية' : 'Novel') : (isArabic ? 'مقال' : 'Article')}
+                  {isArabic ? 'مقال' : 'Article'}
                 </div>
                 <h3 className="mt-2 text-base font-semibold">{item.title}</h3>
-                {item.type === 'article' ? (
-                  <p className="mt-2 text-xs text-sura-navy/60">
-                    {item.views} {isArabic ? 'مشاهدة' : 'views'}
-                  </p>
-                ) : null}
+                <p className="mt-2 text-xs text-sura-navy/60">
+                  {item.views} {isArabic ? 'مشاهدة' : 'views'}
+                </p>
               </Link>
             ))}
           </div>
@@ -259,3 +240,4 @@ export function HomePage() {
     </div>
   );
 }
+</｜｜DSML｜｜parameter>

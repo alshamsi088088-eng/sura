@@ -1,11 +1,8 @@
-# HTML Entity Decode Fix for Article Content
+# Task: Remove Novels, Gallery, and Books from Public Navigation
 
-## All Steps Completed ✓
-- [x] Analyze root cause: affected article has HTML-entity-encoded content stored in DB
-- [x] Create plan and get approval
-- [x] 1. Add `decodeHtmlEntities` utility function to `ArticleDetailsPage.tsx`
-- [x] 2. Apply decoder to `article.content` before rendering in QuoteHighlighter and content `<div>`
-- [x] 3. TypeScript check (server) — ✅ Passed (no errors)
-- [x] 4. TypeScript check (client) — ✅ Passed (no errors)
-- [x] 5. Report findings
-
+## Steps
+1. ✅ Edit Navbar.tsx - Remove /novels, /gallery, /store from navItems; Remove Gallery from mobile nav
+2. ✅ Edit Footer.tsx - Remove /novels and /gallery from footer links
+3. ✅ Edit HomePage.tsx - Remove "Explore Novels" from hero; Remove novels from trending
+4. ✅ Edit Breadcrumbs.tsx - Remove novels, gallery, store from pathNames (user-facing)
+5. ✅ Run production build and verify no errors - Build in progress
