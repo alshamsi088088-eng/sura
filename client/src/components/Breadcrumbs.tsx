@@ -61,4 +61,5 @@ export function Breadcrumbs() {
       </ol>
     </nav>
   );
+}
 

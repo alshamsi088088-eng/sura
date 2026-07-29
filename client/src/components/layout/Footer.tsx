@@ -69,6 +69,7 @@ export function Footer() {
                 </Link>
               ))}
             </div>
+          </div>
 
           {/* Info */}
           <div>
@@ -89,95 +90,97 @@ export function Footer() {
                 {locale === 'ar' ? 'محتوى أدبي وثقافي' : 'Literary & cultural content'}
               </span>
             </div>
-        </div>
+          </div>
 
-        {/* Social links */}
-        <div style={{ marginBottom: 48 }}>
-          <div style={{ color: c.navy, fontWeight: 600, fontSize: 12, marginBottom: 18, textTransform: 'uppercase', letterSpacing: '0.18em' }}>
-            {locale === 'ar' ? 'روابطنا' : 'Social Links'}
+          {/* Social links */}
+          <div>
+            <div style={{ color: c.navy, fontWeight: 600, fontSize: 12, marginBottom: 18, textTransform: 'uppercase', letterSpacing: '0.18em' }}>
+              {locale === 'ar' ? 'روابطنا' : 'Social Links'}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              <a
+                href="https://x.com/suracodex"
+                target="_blank"
+                rel="noreferrer"
+                aria-label={locale === 'ar' ? 'X / تويتر' : 'X / Twitter'}
+                style={{
+                  color: c.muted,
+                  textDecoration: 'none',
+                  fontSize: 14,
+                  transition: 'color 0.2s',
+                  padding: '6px 10px',
+                  borderRadius: 999,
+                  border: `1px solid ${c.border}`,
+                  background: c.canvas,
+                }}
+                onMouseEnter={(e) => ((e.currentTarget.style.color = c.teal), (e.currentTarget.style.borderColor = c.teal))}
+                onMouseLeave={(e) => ((e.currentTarget.style.color = c.muted), (e.currentTarget.style.borderColor = c.border))}
+              >
+                {locale === 'ar' ? 'X / تويتر' : 'X / Twitter'}
+              </a>
+              <a
+                href="https://github.com/sura-codex"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="GitHub"
+                style={{
+                  color: c.muted,
+                  textDecoration: 'none',
+                  fontSize: 14,
+                  transition: 'color 0.2s',
+                  padding: '6px 10px',
+                  borderRadius: 999,
+                  border: `1px solid ${c.border}`,
+                  background: c.canvas,
+                }}
+                onMouseEnter={(e) => ((e.currentTarget.style.color = c.teal), (e.currentTarget.style.borderColor = c.teal))}
+                onMouseLeave={(e) => ((e.currentTarget.style.color = c.muted), (e.currentTarget.style.borderColor = c.border))}
+              >
+                GitHub
+              </a>
+              <a
+                href="/contact"
+                target="_blank"
+                rel="noreferrer"
+                aria-label={locale === 'ar' ? 'إنستغرام' : 'Instagram'}
+                style={{
+                  color: c.muted,
+                  textDecoration: 'none',
+                  fontSize: 14,
+                  transition: 'color 0.2s',
+                  padding: '6px 10px',
+                  borderRadius: 999,
+                  border: `1px solid ${c.border}`,
+                  background: c.canvas,
+                }}
+                onMouseEnter={(e) => ((e.currentTarget.style.color = c.teal), (e.currentTarget.style.borderColor = c.teal))}
+                onMouseLeave={(e) => ((e.currentTarget.style.color = c.muted), (e.currentTarget.style.borderColor = c.border))}
+              >
+                {locale === 'ar' ? 'إنستغرام' : 'Instagram'}
+              </a>
+              <a
+                href="/contact"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="YouTube"
+                style={{
+                  color: c.muted,
+                  textDecoration: 'none',
+                  fontSize: 14,
+                  transition: 'color 0.2s',
+                  padding: '6px 10px',
+                  borderRadius: 999,
+                  border: `1px solid ${c.border}`,
+                  background: c.canvas,
+                }}
+                onMouseEnter={(e) => ((e.currentTarget.style.color = c.teal), (e.currentTarget.style.borderColor = c.teal))}
+                onMouseLeave={(e) => ((e.currentTarget.style.color = c.muted), (e.currentTarget.style.borderColor = c.border))}
+              >
+                YouTube
+              </a>
+            </div>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-            <a
-              href="https://x.com/suracodex"
-              target="_blank"
-              rel="noreferrer"
-              aria-label={locale === 'ar' ? 'X / تويتر' : 'X / Twitter'}
-              style={{
-                color: c.muted,
-                textDecoration: 'none',
-                fontSize: 14,
-                transition: 'color 0.2s',
-                padding: '6px 10px',
-                borderRadius: 999,
-                border: `1px solid ${c.border}`,
-                background: c.canvas,
-              }}
-              onMouseEnter={(e) => ((e.currentTarget.style.color = c.teal), (e.currentTarget.style.borderColor = c.teal))}
-              onMouseLeave={(e) => ((e.currentTarget.style.color = c.muted), (e.currentTarget.style.borderColor = c.border))}
-            >
-              {locale === 'ar' ? 'X / تويتر' : 'X / Twitter'}
-            </a>
-            <a
-              href="https://github.com/sura-codex"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="GitHub"
-              style={{
-                color: c.muted,
-                textDecoration: 'none',
-                fontSize: 14,
-                transition: 'color 0.2s',
-                padding: '6px 10px',
-                borderRadius: 999,
-                border: `1px solid ${c.border}`,
-                background: c.canvas,
-              }}
-              onMouseEnter={(e) => ((e.currentTarget.style.color = c.teal), (e.currentTarget.style.borderColor = c.teal))}
-              onMouseLeave={(e) => ((e.currentTarget.style.color = c.muted), (e.currentTarget.style.borderColor = c.border))}
-            >
-              GitHub
-            </a>
-            <a
-              href="/contact"
-              target="_blank"
-              rel="noreferrer"
-              aria-label={locale === 'ar' ? 'إنستغرام' : 'Instagram'}
-              style={{
-                color: c.muted,
-                textDecoration: 'none',
-                fontSize: 14,
-                transition: 'color 0.2s',
-                padding: '6px 10px',
-                borderRadius: 999,
-                border: `1px solid ${c.border}`,
-                background: c.canvas,
-              }}
-              onMouseEnter={(e) => ((e.currentTarget.style.color = c.teal), (e.currentTarget.style.borderColor = c.teal))}
-              onMouseLeave={(e) => ((e.currentTarget.style.color = c.muted), (e.currentTarget.style.borderColor = c.border))}
-            >
-              {locale === 'ar' ? 'إنستغرام' : 'Instagram'}
-            </a>
-            <a
-              href="/contact"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="YouTube"
-              style={{
-                color: c.muted,
-                textDecoration: 'none',
-                fontSize: 14,
-                transition: 'color 0.2s',
-                padding: '6px 10px',
-                borderRadius: 999,
-                border: `1px solid ${c.border}`,
-                background: c.canvas,
-              }}
-              onMouseEnter={(e) => ((e.currentTarget.style.color = c.teal), (e.currentTarget.style.borderColor = c.teal))}
-              onMouseLeave={(e) => ((e.currentTarget.style.color = c.muted), (e.currentTarget.style.borderColor = c.border))}
-            >
-              YouTube
-            </a>
-          </div>
+        </div>
 
         {/* Bottom bar */}
         <div style={{ borderTop: `1px solid ${c.border}`, paddingTop: 24, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
@@ -188,9 +191,7 @@ export function Footer() {
             {locale === 'ar' ? 'تقاطع الكود والأدب' : 'The Intersection of Code and Literature'}
           </span>
         </div>
+        </div>
     </footer>
   );
 }
-</｜｜DSML｜｜parameter>
-</｜｜DSML｜｜invoke>
-</｜｜DSML｜｜tool_calls>
