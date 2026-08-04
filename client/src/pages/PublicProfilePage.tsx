@@ -1,7 +1,9 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+import { useSeoTags } from '../hooks/useSeoTags';
 import { supabase } from '../lib/supabaseClient';
 import { Avatar } from '../components/AvatarUpload';
 import { FollowButton } from '../components/FollowButton';
@@ -40,6 +42,16 @@ export function PublicProfilePage() {
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  // SEO: public profile pages are user-generated and often thin, so noindex.
+  useSeoTags({
+    title: profile?.name ? `${profile.name} | Sura Codex` : (locale === 'ar' ? 'الملف الشخصي | سُرى' : 'Profile | Sura Codex'),
+    description: profile?.bio || (locale === 'ar' ? 'ملف مستخدم على سُرى كودكس.' : 'A user profile on Sura Codex.'),
+    canonicalUrl: typeof window !== 'undefined' ? window.location.href : '',
+    noIndex: true,
+    locale,
+  });
+
   const [stats, setStats] = useState<UserStats>({
     articlesCount: 0,
     novelsCount: 0,

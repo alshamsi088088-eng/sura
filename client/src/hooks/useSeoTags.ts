@@ -174,12 +174,27 @@ export function useSeoTags(input: SeoTagsInput) {
     });
     twDescription.setAttribute('content', description);
 
-    const twUrl = ensureMetaTag('meta[name="twitter:url"]', () => {
+const twUrl = ensureMetaTag('meta[name="twitter:url"]', () => {
       const meta = document.createElement('meta');
       meta.setAttribute('name', 'twitter:url');
       return meta;
     });
     twUrl.setAttribute('content', canonicalUrl);
+
+    // twitter:site and twitter:creator
+    const twSite = ensureMetaTag('meta[name="twitter:site"]', () => {
+      const meta = document.createElement('meta');
+      meta.setAttribute('name', 'twitter:site');
+      return meta;
+    });
+    twSite.setAttribute('content', '@suracodex');
+
+    const twCreator = ensureMetaTag('meta[name="twitter:creator"]', () => {
+      const meta = document.createElement('meta');
+      meta.setAttribute('name', 'twitter:creator');
+      return meta;
+    });
+    twCreator.setAttribute('content', '@suracodex');
 
     // twitter:image - only set if explicitly provided
     if (input.twitter?.image?.url) {

@@ -1,5 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useLocale } from '../context/LocaleContext';
+import { canonicalUrl } from '../lib/seoUrl';
 
 const pathNames: Record<string, string> = {
   '': 'Home',
@@ -35,6 +37,42 @@ export function Breadcrumbs() {
   const parts = location.pathname.split('/').filter(Boolean);
 
   if (parts.length === 0) return null;
+
+  // Build BreadcrumbList JSON-LD for structured data (helps rich results)
+  const baseUrl = (import.meta.env.VITE_PUBLIC_BASE_URL || 'https://sura-codex.com').replace(/\/$/, '');
+  const crumbItems = [
+    { name: locale === 'ar' ? 'الرئيسية' : 'Home', path: '/' },
+    ...parts.map((part, index) => ({
+      name: pathNames[part] || decodePart(part),
+      path: `/${parts.slice(0, index + 1).join('/')}`,
+    })),
+  ];
+
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: crumbItems.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      item: `${baseUrl}${item.path}`,
+    })),
+  };
+
+  // Inject BreadcrumbList JSON-LD (managed separately from page-level JSON-LD)
+  try {
+    const id = 'breadcrumb-jsonld';
+    let script = document.getElementById(id) as HTMLScriptElement | null;
+    if (!script) {
+      script = document.createElement('script');
+      script.type = 'application/ld+json';
+      script.id = id;
+      document.head.appendChild(script);
+    }
+    script.textContent = JSON.stringify(breadcrumbJsonLd);
+  } catch {
+    // SSR safety — ignore in non-browser environments
+  }
 
   return (
     <nav aria-label="breadcrumb" className="mb-6 rounded-3xl border border-sura-sky/20 bg-sura-beige/80 px-4 py-3 text-sm text-sura-navy/70">

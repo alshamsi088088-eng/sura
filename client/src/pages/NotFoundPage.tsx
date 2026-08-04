@@ -51,7 +51,7 @@ export function NotFoundPage() {
 
       <div className="mt-8 border-t border-sura-line pt-6 text-start">
         <h2 className="text-sm font-medium text-sura-navy">
-          {isArabic ? 'قد感兴趣的页面' : 'You might be interested in'}
+          {isArabic ? 'قد تكون مهتماً بـ' : 'You might be interested in'}
         </h2>
         <ul className="mt-3 space-y-2 text-sm" role="navigation" aria-label="Suggested links">
           {[

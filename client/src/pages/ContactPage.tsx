@@ -2,6 +2,7 @@
 import { useState, FormEvent } from 'react';
 import { useLocale } from '../context/LocaleContext';
 import { useSeoTags } from '../hooks/useSeoTags';
+import { canonicalUrl } from '../lib/seoUrl';
 
 export function ContactPage() {
   const { locale } = useLocale();
@@ -15,7 +16,7 @@ export function ContactPage() {
     description: locale === 'ar'
       ? 'تواصل مع فريق Sura Codex لطرح الأسئلة أو اقتراح الشراكات أو الدعم. نرد عادةً خلال يوم عمل واحد.'
       : 'Contact the Sura Codex team with questions, partnership ideas, or support requests. We typically respond within one business day.',
-    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/contact`,
+    canonicalUrl: canonicalUrl('/contact'),
     locale,
     jsonLd: [
       {
@@ -23,7 +24,7 @@ export function ContactPage() {
         '@type': 'ContactPage',
         name: locale === 'ar' ? 'تواصل معنا | سُرى' : 'Contact Us | Sura Codex',
         description: locale === 'ar' ? 'تواصل مع فريق سُرى.' : 'Contact the Sura Codex team.',
-        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/contact`,
+        url: canonicalUrl('/contact'),
         inLanguage: locale === 'ar' ? 'ar' : 'en',
       },
     ],

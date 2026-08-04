@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+import { useSeoTags } from '../hooks/useSeoTags';
 import { getApiBaseUrl } from '../lib/runtimeConfig';
 
 const API_URL = getApiBaseUrl();
@@ -44,6 +45,15 @@ interface BookmarksData {
 export function LibraryPage() {
   const { user } = useAuth();
   const { locale } = useLocale();
+  const isArabic = locale === 'ar';
+
+  useSeoTags({
+    title: isArabic ? 'مكتبتي | سُرى' : 'My Library | Sura Codex',
+    description: isArabic ? 'قائمة الكتب والمقالات المحفوظة للقراءة لاحقاً.' : 'Your saved books and articles for later reading.',
+    canonicalUrl: typeof window !== 'undefined' ? window.location.href : '',
+    noIndex: true,
+  });
+
   const [bookmarks, setBookmarks] = useState<BookmarksData>({
     articles: [],
     novels: [],
@@ -55,8 +65,6 @@ export function LibraryPage() {
   const [activeTab, setActiveTab] = useState<'articles' | 'novels' | 'chapters' | 'books' | 'discussions' | 'history'>('articles');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const isArabic = locale === 'ar';
 
   // Fetch bookmarks and saved content
   const fetchBookmarks = useCallback(async () => {

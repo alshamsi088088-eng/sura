@@ -1,6 +1,7 @@
 
 import { useLocale } from '../context/LocaleContext';
 import { useSeoTags } from '../hooks/useSeoTags';
+import { canonicalUrl } from '../lib/seoUrl';
 
 export function AboutPage() {
   const { locale } = useLocale();
@@ -10,7 +11,7 @@ export function AboutPage() {
     description: locale === 'ar'
       ? 'تعرّف على Sura Codex: منصة ثنائية اللغة للكتب والبرمجة والذكاء الاصطناعي واللغات والتكنولوجيا—بهدف التعلم والمعرفة والكتابة المدروسة.'
       : 'Learn about Sura Codex: a bilingual platform for books, programming, AI, languages, technology, and learning—built for thoughtful writing and better discovery.',
-    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/about`,
+    canonicalUrl: canonicalUrl('/about'),
     locale,
     jsonLd: [
       {
@@ -20,12 +21,12 @@ export function AboutPage() {
         description: locale === 'ar'
           ? 'تعرّف على Sura Codex: منصة لنشر الكتب والمقالات التقنية.'
           : 'Learn about Sura Codex: a platform for books, programming, and thoughtful writing.',
-        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/about`,
+        url: canonicalUrl('/about'),
         inLanguage: locale === 'ar' ? 'ar' : 'en',
         mainEntity: {
           '@type': 'Organization',
           name: 'Sura Codex',
-          url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/about`,
+          url: canonicalUrl('/about'),
         },
       },
     ],

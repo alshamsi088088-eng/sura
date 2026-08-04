@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { LikeShareBar } from '../components/LikeShareBar';
 import { supabase } from '../lib/supabaseClient';
 import { useSeoTags } from '../hooks/useSeoTags';
+import { canonicalUrl } from '../lib/seoUrl';
 
 type TechArticle = {
   id: string;
@@ -30,7 +31,7 @@ export function TechPage() {
     description: locale === 'ar'
       ? 'مكتبة متنامية من المقالات التقنية مع شروحات وأكواد برمجية.'
       : 'A growing library of developer narratives and code-rich essays on Sura Codex.',
-    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/tech`,
+    canonicalUrl: canonicalUrl('/tech'),
     openGraph: {
       type: 'website',
     },
@@ -46,7 +47,7 @@ export function TechPage() {
         description: locale === 'ar'
           ? 'مكتبة متنامية من المقالات التقنية مع شروحات وأكواد برمجية.'
           : 'A growing library of developer narratives and code-rich essays on Sura Codex.',
-        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/tech`,
+        url: canonicalUrl('/tech'),
         inLanguage: locale === 'ar' ? 'ar' : 'en',
       },
     ],

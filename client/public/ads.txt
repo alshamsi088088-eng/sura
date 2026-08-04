@@ -1,2 +1,5 @@
-# ads.txt will be updated after AdSense approval
+# ads.txt - Google AdSense Publisher Account
+# This file will be updated with the actual AdSense publisher ID after approval.
+# Format: google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
 

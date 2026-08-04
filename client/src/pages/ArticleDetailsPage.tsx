@@ -48,6 +48,72 @@ function decodeHtmlEntities(html: string): string {
   return textarea.value;
 }
 
+/**
+ * Lightweight HTML sanitizer for XSS prevention.
+ * Removes dangerous tags (script, iframe, object, embed, link, meta, style,
+ * form, input, button, base, frameset, frame) and event handler attributes.
+ * Preserves safe rich-text tags (p, h1-h6, a, img, ul, ol, li, blockquote,
+ * pre, code, strong, em, br, hr, table, etc.) used by the editor.
+ */
+function sanitizeHtml(html: string): string {
+  if (!html) return '';
+  if (typeof document === 'undefined') return html;
+
+  const template = document.createElement('template');
+  template.innerHTML = html;
+
+  const DANGEROUS_TAGS = new Set([
+    'script', 'iframe', 'object', 'embed', 'link', 'meta', 'style',
+    'form', 'input', 'button', 'base', 'frameset', 'frame', 'svg',
+    'math', 'template', 'noscript', 'title',
+  ]);
+
+  const DANGEROUS_ATTRS = [
+    /^on/i, // onload, onclick, onerror, etc.
+    /^style$/i, // style attribute (can be used for overlay/clickjacking)
+    /^srcdoc$/i,
+    /^formaction$/i,
+    /^xlink:href$/i,
+  ];
+
+  const walk = (node: Node) => {
+    const children = Array.from(node.childNodes);
+    for (const child of children) {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const el = child as HTMLElement;
+        const tag = el.tagName.toLowerCase();
+
+        // Remove dangerous elements entirely
+        if (DANGEROUS_TAGS.has(tag)) {
+          el.remove();
+          continue;
+        }
+
+        // Remove dangerous attributes
+        for (const attr of Array.from(el.attributes)) {
+          const name = attr.name;
+          if (DANGEROUS_ATTRS.some((re) => (typeof re === 'string' ? name.toLowerCase() === re : re.test(name)))) {
+            el.removeAttribute(name);
+          }
+          // Block javascript: and data:text/html URLs
+          if (name.toLowerCase() === 'href' || name.toLowerCase() === 'src') {
+            const value = (attr.value || '').trim().toLowerCase();
+            if (value.startsWith('javascript:') || value.startsWith('data:text/html') || value.startsWith('vbscript:')) {
+              el.removeAttribute(name);
+            }
+          }
+        }
+
+        // Recurse into children
+        walk(el);
+      }
+    }
+  };
+
+  walk(template.content);
+  return template.innerHTML;
+}
+
 export function ArticleDetailsPage() {
   const { locale } = useLocale();
   const { user } = useAuth();
@@ -76,10 +142,11 @@ export function ArticleDetailsPage() {
 
   const { settings: readingSettings, getContentClass } = useReadingSettings();
 
+  const siteBaseUrl = (import.meta.env.VITE_PUBLIC_BASE_URL || 'https://sura-codex.com').replace(/\/$/, '');
+
   const canonicalUrl = useMemo(() => {
-    const base = import.meta.env.VITE_PUBLIC_BASE_URL || '';
-    return `${base}/articles/${encodeURIComponent(decodedSlug || '')}`;
-  }, [decodedSlug]);
+    return `${siteBaseUrl}/articles/${encodeURIComponent(decodedSlug || '')}`;
+  }, [decodedSlug, siteBaseUrl]);
 
   const cleanExcerpt = useMemo(() => stripHtml(article?.excerpt), [article?.excerpt]);
 
@@ -118,6 +185,7 @@ export function ArticleDetailsPage() {
           name: article.authorName || 'Sura Codex',
         },
         datePublished: article.publishedAt || undefined,
+        dateModified: article.publishedAt || undefined,
         publisher: {
           '@type': 'Organization',
           name: 'Sura Codex',
@@ -305,7 +373,7 @@ export function ArticleDetailsPage() {
           </div>
         </header>
 
-        <section className="pt-6">
+<section className="pt-6">
           <QuoteHighlighter
             contentId={article.id}
             contentType="article"
@@ -314,7 +382,7 @@ export function ArticleDetailsPage() {
           />
           <div
             className="prose max-w-none text-sura-ivory"
-            dangerouslySetInnerHTML={{ __html: decodeHtmlEntities(article.content) }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(decodeHtmlEntities(article.content)) }}
           />
         </section>
 

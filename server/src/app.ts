@@ -25,6 +25,8 @@ import { discussionRoutes } from './routes/discussionRoutes.js';
 import { studyCircleRoutes } from './routes/studyCircleRoutes.js';
 import { rssFeed } from './controllers/rssController.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { securityHeaders } from './middleware/securityHeaders.js';
+import { rateLimiter } from './middleware/rateLimiter.js';
 import { ALLOWED_ORIGINS_LIST } from './services/config.js';
 
 export const app = express();
@@ -34,6 +36,10 @@ app.get('/health', (req, res) => {
 // --------------------------
 
 app.set('trust proxy', 1);
+
+// Security headers (defense-in-depth; nginx also sets these in production)
+app.use(securityHeaders);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

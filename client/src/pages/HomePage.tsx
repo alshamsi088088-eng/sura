@@ -18,17 +18,18 @@ interface TrendingItem { id: string; title: string; type: string; views: number;
 
 export function HomePage() {
   const { locale, strings } = useLocale();
+  const SITE_URL = (import.meta.env.VITE_PUBLIC_BASE_URL || 'https://sura-codex.com').replace(/\/$/, '');
   useSeoTags({
     title: locale === 'ar' ? 'سُرى — مدونة القراءة العميقة' : 'Sura Codex — A Space for Thought & Creativity',
     description: locale === 'ar' ? 'مدونة ومتجر رقمي للقراءة العميقة.' : 'A publishing platform for deep reading.',
-    canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/`,
+    canonicalUrl: `${SITE_URL}/`,
     locale,
     jsonLd: [
       {
         '@context': 'https://schema.org',
         '@type': 'WebSite',
         name: 'Sura Codex',
-        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/`,
+        url: `${SITE_URL}/`,
         description: locale === 'ar'
           ? 'منصة للنشر العميق والقراءة المدروسة.'
           : 'A platform for thoughtful publishing and deep reading.',
@@ -37,7 +38,7 @@ export function HomePage() {
           '@type': 'SearchAction',
           target: {
             '@type': 'EntryPoint',
-            urlTemplate: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/articles?search={search_term_string}`,
+            urlTemplate: `${SITE_URL}/articles?search={search_term_string}`,
           },
           'query-input': 'required name=search_term_string',
         },
@@ -46,8 +47,8 @@ export function HomePage() {
         '@context': 'https://schema.org',
         '@type': 'Organization',
         name: 'Sura Codex',
-        url: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/`,
-        logo: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/logo.svg`,
+        url: `${SITE_URL}/`,
+        logo: `${SITE_URL}/logo.svg`,
         sameAs: [
           'https://sura-codex.com',
         ],
