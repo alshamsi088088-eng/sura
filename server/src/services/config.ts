@@ -9,23 +9,27 @@ function assertEnv(name: string, fallbackWhenDev?: string) {
 }
 
 function getDatabaseUrl() {
-  // Try SUPABASE_DB_URL first (Railway won't override this var)
-  const supabaseDbUrl = process.env.SUPABASE_DB_URL;
-  if (supabaseDbUrl) return supabaseDbUrl;
-
-  // Fallback to DATABASE_URL (may be overridden by Railway)
   const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    const isDev = process.env.NODE_ENV === 'development';
-    if (isDev) return 'postgresql://postgres:postgres@localhost:5432/sura';
-    throw new Error('Missing required environment variable: SUPABASE_DB_URL or DATABASE_URL');
+  if (databaseUrl && (databaseUrl.startsWith('postgresql://') || databaseUrl.startsWith('postgres://'))) {
+    return databaseUrl;
   }
-  return databaseUrl;
+
+  const supabaseDbUrl = process.env.SUPABASE_DB_URL;
+  if (supabaseDbUrl && (supabaseDbUrl.startsWith('postgresql://') || supabaseDbUrl.startsWith('postgres://'))) {
+    return supabaseDbUrl;
+  }
+
+  const isDev = process.env.NODE_ENV === 'development';
+  if (isDev) return 'postgresql://postgres:postgres@localhost:5432/sura';
+  throw new Error('Missing required environment variable: DATABASE_URL');
 }
 
 export const JWT_SECRET = assertEnv('JWT_SECRET', 'dev_jwt_secret');
 export const JWT_REFRESH_SECRET = assertEnv('JWT_REFRESH_SECRET', 'dev_jwt_refresh_secret');
 export const DATABASE_URL = getDatabaseUrl();
+export const SUPABASE_URL = assertEnv('SUPABASE_URL', 'http://localhost:54321');
+export const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export const ADSENSE_PUBLISHER_ID = process.env.ADSENSE_PUBLISHER_ID;
 // Use HTTPS in production to avoid Mixed Content - non-www only (www causes 308 redirect loops)
 export const CLIENT_URL = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://sura-codex.com' : 'http://localhost:5173');
 export const SERVER_URL = process.env.SERVER_URL || (process.env.NODE_ENV === 'production' ? 'https://api.sura-codex.com' : 'http://localhost:5000');

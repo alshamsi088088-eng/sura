@@ -4,7 +4,9 @@ import { Request, Response, NextFunction } from 'express';
 function normalizeRole(role?: string) {
   const value = (role || '').toLowerCase();
   if (value === 'admin') return 'admin';
+  if (value === 'moderator') return 'moderator';
   if (value === 'editor') return 'editor';
+  if (value === 'author') return 'author';
   if (value === 'writer') return 'writer';
   if (value === 'reader' || value === 'member') return 'member';
   if (value === 'guest') return 'guest';

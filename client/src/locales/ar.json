@@ -1,12 +1,13 @@
-
 {
   "home": "الرئيسية",
   "articles": "مقالات",
+  "series": "سلاسل",
   "novels": "روايات",
   "gallery": "معرض",
   "store": "الكتب",
   "tech": "تقنية",
   "products": "منتجات",
+  "leaderboard": "المتصدرون",
   "about": "حول",
   "contact": "اتصل",
   "privacy": "الخصوصية",
@@ -27,5 +28,9 @@
   "tagline": "مساحة للفكر والإبداع",
   "heroSubtitle": "منصة نشر راقية للأدب والمعرفة والثقافة الرقمية.",
   "joinNow": "انضم إلى غرفة القراءة",
-  "learnMore": "اكتشف المزيد"
+  "learnMore": "اكتشف المزيد",
+  "liveRooms": "غرف مباشرة",
+  "studyCircles": "حلقات الدراسة",
+  "community": "المجتمع"
 }
+

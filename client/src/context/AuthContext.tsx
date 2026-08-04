@@ -56,7 +56,9 @@ function normalizeRole(raw: unknown): UserProfile['role'] | null {
   if (typeof raw !== 'string') return null;
   const normalized = raw.toLowerCase();
   if (normalized === 'admin') return 'admin';
+  if (normalized === 'moderator') return 'moderator';
   if (normalized === 'editor') return 'editor';
+  if (normalized === 'author') return 'author';
   if (normalized === 'member') return 'member';
   if (normalized === 'writer') return 'writer';
   // handle possible DB variants

@@ -1,12 +1,13 @@
-
 {
   "home": "Home",
   "articles": "Articles",
+  "series": "Series",
   "novels": "Novels",
   "gallery": "Gallery",
   "store": "Books",
   "tech": "Tech",
   "products": "Products",
+  "leaderboard": "Leaderboard",
   "about": "About",
   "contact": "Contact",
   "privacy": "Privacy",
@@ -27,5 +28,9 @@
   "tagline": "A Space for Thought & Creativity",
   "heroSubtitle": "A refined publishing platform for literature, knowledge, and digital culture.",
   "joinNow": "Join the reading room",
-  "learnMore": "Learn more"
+  "learnMore": "Learn more",
+  "liveRooms": "Live Rooms",
+  "studyCircles": "Study Circles",
+  "community": "Community"
 }
+

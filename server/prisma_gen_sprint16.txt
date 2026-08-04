@@ -1,0 +1,16 @@
+﻿node.exe : Environment variables loaded from ..\.env
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\ALSHAMSI\AppData\Roami ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Environment var...ed from ..\.env:String) [], Remot 
+   eException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Prisma schema loaded from ..\schema.prisma
+
+ظ£¤ Generated Prisma Client (v6.19.3) to .\..\node_modules\@prisma\client in 527ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+

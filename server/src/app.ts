@@ -9,6 +9,7 @@ import { storeRoutes } from './routes/storeRoutes.js';
 import { seoRouter } from './routes/seoRoutes.js';
 
 import { adminRoutes } from './routes/adminRoutes.js';
+import { adRoutes } from './routes/adRoutes.js';
 import { webhookRoutes } from './routes/webhookRoutes.js';
 import { contactRoutes } from './routes/contactRoutes.js';
 import { partRoutes } from './routes/partRoutes.js';
@@ -16,6 +17,12 @@ import { engagementRoutes } from './routes/engagementRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import { communityRoutes } from './routes/communityRoutes.js';
 import { readingProgressRoutes } from './routes/readingProgressRoutes.js';
+import { readerRoutes } from './routes/readerRoutes.js';
+import { seriesRoutes } from './routes/seriesRoutes.js';
+import { bookReviewRoutes } from './routes/bookReviewRoutes.js';
+import { leaderboardRoutes } from './routes/leaderboardRoutes.js';
+import { discussionRoutes } from './routes/discussionRoutes.js';
+import { studyCircleRoutes } from './routes/studyCircleRoutes.js';
 import { rssFeed } from './controllers/rssController.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { ALLOWED_ORIGINS_LIST } from './services/config.js';
@@ -95,7 +102,15 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api/engagement/')) {
     return next();
   }
-  return (csrfProtection as any)(req, res, next);
+  // Discussion rooms & study circles authenticate via Bearer/cookie JWT
+  // (authGuard) and the client never sends CSRF tokens, so exempt them.
+  if (
+    req.path.startsWith('/api/discussion/') ||
+    req.path.startsWith('/api/study-circles/')
+  ) {
+    return next();
+  }
+return (csrfProtection as any)(req, res, next);
 });
 
 app.get('/api/csrf-token', (req, res) => {
@@ -110,8 +125,15 @@ app.use('/api/engagement', engagementRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api', readingProgressRoutes);
+app.use('/api', readerRoutes);
+app.use('/api', seriesRoutes);
+app.use('/api', bookReviewRoutes);
+app.use('/api', leaderboardRoutes);
+app.use('/api/discussion', discussionRoutes);
+app.use('/api/study-circles', studyCircleRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/ads', adRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
 // SEO: robots.txt + sitemap.xml

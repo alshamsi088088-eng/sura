@@ -10,7 +10,11 @@ import logoImg from '/logo.svg';
 const navItems = [
   { path: '/', key: 'home' },
   { path: '/articles', key: 'articles' },
+  { path: '/series', key: 'series' },
+  { path: '/live-rooms', key: 'liveRooms' },
+  { path: '/study-circles', key: 'studyCircles' },
   { path: '/tech', key: 'tech' },
+  { path: '/leaderboard', key: 'leaderboard' },
   { path: '/about', key: 'about' }
 ];
 

@@ -1,359 +1,331 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
-import { supabase } from '../lib/supabaseClient';
-import { AvatarUpload } from '../components/AvatarUpload';
 import { useSeoTags } from '../hooks/useSeoTags';
+import { DashboardLayout } from '../components/layout/DashboardLayout';
+import { ReaderDashboardOverview } from '../components/ReaderDashboardOverview';
+import { ReaderStats } from '../components/ReaderStats';
+import { BadgeSystem } from '../components/BadgeSystem';
+import { ReadingHistoryList } from '../components/ReadingHistoryList';
+import { AvatarUpload } from '../components/AvatarUpload';
+import { NotificationCenter } from '../components/NotificationCenter';
+import { ContinueReading } from '../components/ContinueReading';
+import { WeeklyTargetBanner } from '../components/WeeklyTargetBanner';
+import { fetchGoals, updateGoal } from '../services/readerService';
+import type { GoalInfo } from '../services/readerService';
 
-interface WeeklyData {
-  articles: number;
-  chapters: number;
-  date: string;
-}
-
-interface ReadingEntry {
-  id: string;
-  title: string;
-  type: 'article' | 'novel';
-  progress: number;
-  lastRead: string;
-}
-
-interface UserContent {
-  articles: number;
-  novels: number;
-  chapters: number;
-}
-
-interface Badge {
-  id: string;
-  name: string;
-  icon: string;
-  earned: boolean;
-}
-
-const WEEKLY_READING_KEY = 'sura_weekly_reading';
-const PROGRESS_KEY = 'sura_reading_progress';
-const READING_STREAK_KEY = 'sura_reading_streak';
-const LAST_READ_DATE_KEY = 'sura_last_read_date';
-
-function loadWeeklyData(): WeeklyData {
-  try {
-    const key = `${WEEKLY_READING_KEY}_${new Date().toISOString().slice(0, 7)}`;
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : { articles: 0, chapters: 0, date: new Date().toISOString() };
-  } catch {
-    return { articles: 0, chapters: 0, date: new Date().toISOString() };
-  }
-}
-
-function loadLastRead(): ReadingEntry[] {
-  try {
-    const data = localStorage.getItem(PROGRESS_KEY);
-    if (!data) return [];
-    const parsed = JSON.parse(data) as Record<string, ReadingEntry>;
-    return Object.entries(parsed)
-      .map(([id, entry]) => ({ ...entry, id }))
-      .sort((a, b) => new Date(b.lastRead).getTime() - new Date(a.lastRead).getTime())
-      .slice(0, 10);
-  } catch {
-    return [];
-  }
-}
-
-function getReadingStreak(): { days: number; lastDate: string } {
-  try {
-    const streak = localStorage.getItem(READING_STREAK_KEY);
-    const lastDate = localStorage.getItem(LAST_READ_DATE_KEY);
-    const today = new Date().toDateString();
-    if (lastDate === today) {
-      return streak ? JSON.parse(streak) : { days: 0, lastDate: '' };
-    }
-    const last = lastDate ? new Date(lastDate) : null;
-    if (!last) return { days: 0, lastDate: '' };
-    const diff = Math.floor((new Date().getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
-    if (diff <= 2) {
-      return streak ? JSON.parse(streak) : { days: diff, lastDate: lastDate || '' };
-    }
-    return { days: 0, lastDate: '' };
-  } catch {
-    return { days: 0, lastDate: '' };
-  }
-}
-
-function updateReadingStreak() {
-  const today = new Date().toDateString();
-  const streak = getReadingStreak();
-  const newStreak = {
-    days: streak.days + 1,
-    lastDate: today,
-  };
-  localStorage.setItem(READING_STREAK_KEY, JSON.stringify(newStreak));
-  localStorage.setItem(LAST_READ_DATE_KEY, today);
-}
-
-function generateWeeklyChartData(localeValue: string): { day: string; articles: number; chapters: number }[] {
-  const days: { day: string; articles: number; chapters: number }[] = [];
-  const now = new Date();
-  for (let i = 6; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    const key = `${WEEKLY_READING_KEY}_${date.toISOString().slice(0, 7)}`;
-    const dayData = {
-      day: date.toLocaleDateString(localeValue === 'ar' ? 'ar-SA' : 'en-US', { weekday: 'short' }),
-      articles: 0,
-      chapters: 0,
-    };
-    try {
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        dayData.articles = parsed.articles || 0;
-        dayData.chapters = parsed.chapters || 0;
-      }
-    } catch {
-      // Ignore
-    }
-    days.push(dayData);
-  }
-  return days;
+function ComingSoonPlaceholder({ icon, title, description }: { icon: string; title: string; description: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-sura-ivory/20 bg-sura-dark/50 py-16 text-center">
+      <span className="text-5xl" role="img" aria-hidden="true">{icon}</span>
+      <h3 className="mt-4 text-xl font-semibold text-sura-ivory">{title}</h3>
+      <p className="mt-2 max-w-md text-sm text-sura-ivory/50">{description}</p>
+    </div>
+  );
 }
 
 export function DashboardPage() {
+  const [activeSection, setActiveSection] = useState('dashboard-home');
   const { user } = useAuth();
   const { locale } = useLocale();
+  const isArabic = locale === 'ar';
 
   useSeoTags({
-    title: locale === 'ar' ? 'لوحة التحكم | سُرى' : 'Dashboard | Sura Codex',
-    description: locale === 'ar' ? 'لوحة تحكم المستخدم في سُرى.' : 'Your Sura Codex member dashboard.',
+    title: isArabic ? 'لوحة القارئ | سُرى' : 'Reader Dashboard | Sura Codex',
+    description: isArabic ? 'لوحة تحكم القارئ في سُرى.' : 'Your Sura Codex reader dashboard.',
     canonicalUrl: `${import.meta.env.VITE_PUBLIC_BASE_URL || ''}/dashboard`,
     noIndex: true,
   });
 
-  const [history] = useState<string[]>([]); // kept for UI compatibility (previously from /api/dashboard)
-
-  const [weeklyData, setWeeklyData] = useState<WeeklyData>({ articles: 0, chapters: 0, date: '' });
-  const [lastRead, setLastRead] = useState<ReadingEntry[]>([]);
-  const [userContent, setUserContent] = useState<UserContent>({ articles: 0, novels: 0, chapters: 0 });
-  const [streak, setStreak] = useState({ days: 0, lastDate: '' });
-  const [badges, setBadges] = useState<Badge[]>([
-    { id: 'first_article', name: 'New Writer', icon: '✍️', earned: false },
-    { id: 'reading_streak', name: '7 Day Reader', icon: '🔥', earned: false },
-    { id: 'bookworm', name: 'Bookworm', icon: '📚', earned: false },
-    { id: 'collector', name: 'Collector', icon: '📦', earned: false },
-  ]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [goals, setGoals] = useState<{ weekly: GoalInfo; monthly: GoalInfo } | null>(null);
 
   useEffect(() => {
-    const weekly = loadWeeklyData();
-    setWeeklyData(weekly);
-    const recent = loadLastRead();
-    setLastRead(recent);
-    const s = getReadingStreak();
-    setStreak(s);
-    updateReadingStreak();
-  }, []);
-
-  useEffect(() => {
-    if (!user || !supabase) return;
-
-    const loadUserContent = async () => {
-      // Direct Supabase calls for dashboard metrics (no /api/dashboard)
-      const sb = supabase!;
-      const { data: articles } = await sb.from('Article').select('id').eq('authorId', user.id);
-      const { data: novels } = await sb.from('Novel').select('id').eq('authorId', user.id);
-      const { data: chapters } = await sb.from('Chapter').select('id');
-
-
-      setUserContent({
-        articles: articles?.length || 0,
-        novels: novels?.length || 0,
-        chapters: chapters?.length || 0,
-      });
+    if (!user) return;
+    const loadGoals = async () => {
+      try {
+        const g = await fetchGoals();
+        setGoals(g);
+      } catch {
+        // ignore
+      }
     };
-
-    void loadUserContent();
+    loadGoals();
   }, [user]);
 
-  useEffect(() => {
-    const updated = [...badges];
-    const articleCount = userContent?.articles ?? 0;
-    const novelCount = userContent?.novels ?? 0;
-    const streakDays = streak?.days ?? 0;
-
-    if (articleCount >= 1) {
-      const badge = updated.find((b) => b.id === 'first_article');
-      if (badge) badge.earned = true;
+  const handleGoalUpdate = async (type: 'weekly' | 'monthly', target: number) => {
+    try {
+      const updated = await updateGoal(type, target);
+      setGoals((prev) => prev ? { ...prev, [type]: updated } : null);
+    } catch (err) {
+      console.error('Failed to update goal:', err);
     }
-    if (streakDays >= 7) {
-      const badge = updated.find((b) => b.id === 'reading_streak');
-      if (badge) badge.earned = true;
-    }
-    if (articleCount >= 5) {
-      const badge = updated.find((b) => b.id === 'bookworm');
-      if (badge) badge.earned = true;
-    }
-    if (articleCount + novelCount >= 10) {
-      const badge = updated.find((b) => b.id === 'collector');
-      if (badge) badge.earned = true;
-    }
+  };
 
-    setBadges(updated);
-  }, [userContent, streak]);
+  const renderSection = () => {
+    switch (activeSection) {
+      case 'dashboard-home':
+        return (
+          <div className="mx-auto max-w-6xl space-y-6">
+            {/* Dashboard Overview - Single aggregated endpoint */}
+            {user && <ReaderDashboardOverview userId={user.id} />}
 
-  const chartData = useMemo(() => generateWeeklyChartData(locale), [locale]);
-  const totalWeekly = weeklyData.articles + weeklyData.chapters;
-  const totalRead = lastRead.length;
-  const maxChartValue = Math.max(...chartData.map((d) => d.articles + d.chapters), 1);
-  const isArabic = locale === 'ar';
+            {/* Weekly Target Banner */}
+            <WeeklyTargetBanner />
 
-  return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <header className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
-        <h1 className="text-4xl font-semibold text-sura-ivory">{isArabic ? 'لوحة الأعضاء' : 'Member Dashboard'}</h1>
-        <p className="mt-3 text-sm leading-7 text-sura-ivory/60">
-          {isArabic ? 'مركز تحكمك الشخصي للكتب والمفضلات والمشتريات.' : 'Your hub for bookmarks, reading progress, and purchases.'}
-        </p>
-      </header>
-
-      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-5">
-        <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
-          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">{isArabic ? 'هذا الأسبوع' : 'This Week'}</div>
-          <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{totalWeekly}</div>
-          <div className="text-xs text-sura-ivory/50">{isArabic ? 'مقال/فصل' : 'items read'}</div>
-        </div>
-
-        <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
-          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">{isArabic ? 'المقالات' : 'Articles'}</div>
-          <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{userContent?.articles ?? 0}</div>
-          <div className="text-xs text-sura-ivory/50">{isArabic ? 'مقالات لك' : 'your articles'}</div>
-        </div>
-
-        <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
-          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">{isArabic ? 'الروايات' : 'Novels'}</div>
-          <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{userContent?.novels ?? 0}</div>
-          <div className="text-xs text-sura-ivory/50">{isArabic ? 'روايات لك' : 'your novels'}</div>
-        </div>
-
-        <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
-          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">{isArabic ? 'سلسلة القراءة' : 'Reading Streak'}</div>
-          <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{streak?.days ?? 0}</div>
-          <div className="text-xs text-sura-ivory/50">{isArabic ? 'أيام متتالية' : 'days in a row'}</div>
-        </div>
-
-        <div className="rounded-2xl border border-[#7F77DD]/30 bg-sura-dark/90 p-5 text-center">
-          <div className="text-xs uppercase tracking-widest text-[#7F77DD]">{isArabic ? 'الإجمالي' : 'Total'}</div>
-          <div className="mt-2 font-serif text-2xl font-bold text-sura-ivory">{totalRead}</div>
-          <div className="text-xs text-sura-ivory/50">{isArabic ? 'عنوان مقروء' : 'titles read'}</div>
-        </div>
-      </div>
-
-      <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-6 sm:p-8">
-        <h2 className="text-xl font-semibold text-sura-ivory">{isArabic ? 'القراءة الأسبوعية' : 'Weekly Reading'}</h2>
-        <div className="mt-6 flex h-40 items-end gap-2">
-          {chartData.map((day, i) => {
-            const value = day.articles + day.chapters;
-            const height = Math.max(4, (value / maxChartValue) * 100);
-
-            return (
-              <div key={i} className="flex flex-1 flex-col items-center gap-2">
-                <div className="w-full rounded-t-sm bg-[#7F77DD]/60 transition-all duration-300" style={{ height: `${height}%` }}>
-                  {value > 0 && <div className="text-center text-xs font-bold text-sura-dark">{value}</div>}
-                </div>
-                <div className="text-xs text-sura-ivory/50">{day.day}</div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="mt-4 flex justify-center gap-6 text-xs text-sura-ivory/50">
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-sm bg-[#7F77DD]/60" />
-            <span>{isArabic ? 'المقالات' : 'Articles'}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-sm bg-[#7F77DD]/30" />
-            <span>{isArabic ? 'الفصول' : 'Chapters'}</span>
-          </div>
-        </div>
-      </section>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
-          <div className="flex items-center gap-4">
-            <AvatarUpload size="lg" onAvatarChange={() => {}} />
-            <div>
-              <div className="text-xl font-semibold text-sura-ivory">{user?.name}</div>
-              <div className="text-sm text-sura-ivory/60">{user?.role}</div>
-            </div>
-          </div>
-          <div className="mt-6 space-y-3 text-sm text-sura-ivory/60">
-            <div>
-              {isArabic ? 'البريد الإلكتروني:' : 'Email:'} {user?.email}
-            </div>
-            <div>
-              {isArabic ? 'اللغة' : 'Language'}: {user?.locale.toUpperCase()} / {user?.theme}
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
-          <h2 className="text-xl font-semibold text-sura-ivory">{isArabic ? 'آخر قراءة' : 'Last Read'}</h2>
-          <div className="mt-4 space-y-3">
-            {lastRead.length === 0 ? (
-              <div className="text-sm text-sura-ivory/50">{isArabic ? 'لا توجد قراءات بعد.' : 'No reading history yet.'}</div>
-            ) : (
-              lastRead.slice(0, 5).map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between rounded-lg bg-sura-ivory/5 p-3">
+            {/* Profile & Continue Reading */}
+            <div className="grid gap-6 md:grid-cols-2">
+              <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
+                <div className="flex items-center gap-4">
+                  <AvatarUpload size="lg" onAvatarChange={() => {}} />
                   <div>
-                    <div className="text-sm font-medium text-sura-ivory">{entry.title}</div>
-                    <div className="text-xs text-sura-ivory/50">
-                      {entry.type === 'article' ? (isArabic ? 'مقال' : 'Article') : isArabic ? 'رواية' : 'Novel'}
+                    <div className="text-xl font-semibold text-sura-ivory">{user?.name}</div>
+                    <div className="text-sm text-sura-ivory/60">{user?.role}</div>
+                  </div>
+                </div>
+                <div className="mt-6 space-y-3 text-sm text-sura-ivory/60">
+                  <div>{isArabic ? 'البريد الإلكتروني:' : 'Email:'} {user?.email}</div>
+                  <div>{isArabic ? 'اللغة' : 'Language'}: {user?.locale.toUpperCase()} / {user?.theme}</div>
+                </div>
+              </section>
+
+              <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
+                <h2 className="text-xl font-semibold text-sura-ivory">
+                  {isArabic ? 'متابعة القراءة' : 'Continue Reading'}
+                </h2>
+                <div className="mt-4">
+                  <ContinueReading limit={3} showTitle={false} />
+                </div>
+              </section>
+            </div>
+
+            {/* Reading Goals */}
+            {goals && (
+              <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-6 sm:p-8">
+                <h2 className="text-xl font-semibold text-sura-ivory">
+                  {isArabic ? 'أهداف القراءة' : 'Reading Goals'}
+                </h2>
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  {/* Weekly Goal */}
+                  <div className="rounded-2xl border border-sura-ivory/10 bg-sura-ivory/5 p-5">
+                    <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
+                      {isArabic ? 'الهدف الأسبوعي' : 'WEEKLY GOAL'}
+                    </div>
+                    <div className="mt-2 font-serif text-3xl font-bold text-sura-ivory">
+                      {goals.weekly.progress}/{goals.weekly.target}
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-sura-ivory/10">
+                      <div
+                        className="h-full rounded-full bg-[#7F77DD] transition-all duration-500"
+                        style={{ width: `${goals.weekly.percentage}%` }}
+                      />
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {[3, 5, 7, 10].map((val) => (
+                        <button
+                          key={val}
+                          onClick={() => handleGoalUpdate('weekly', val)}
+                          className={`rounded-full border px-3 py-1 text-xs transition ${
+                            goals.weekly.target === val
+                              ? 'border-[#7F77DD] bg-[#7F77DD]/20 text-[#7F77DD]'
+                              : 'border-sura-ivory/20 text-sura-ivory/60 hover:border-[#7F77DD]/50'
+                          }`}
+                          type="button"
+                        >
+                          {val}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-[#7F77DD]">{entry.progress}%</div>
-                    <div className="text-xs text-sura-ivory/50">
-                      {new Date(entry.lastRead).toLocaleDateString(isArabic ? 'ar-SA' : 'en-US', { month: 'short', day: 'numeric' })}
+
+                  {/* Monthly Goal */}
+                  <div className="rounded-2xl border border-sura-ivory/10 bg-sura-ivory/5 p-5">
+                    <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
+                      {isArabic ? 'الهدف الشهري' : 'MONTHLY GOAL'}
+                    </div>
+                    <div className="mt-2 font-serif text-3xl font-bold text-sura-ivory">
+                      {goals.monthly.progress}/{goals.monthly.target}
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-sura-ivory/10">
+                      <div
+                        className="h-full rounded-full bg-[#7F77DD] transition-all duration-500"
+                        style={{ width: `${goals.monthly.percentage}%` }}
+                      />
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {[10, 20, 30, 50].map((val) => (
+                        <button
+                          key={val}
+                          onClick={() => handleGoalUpdate('monthly', val)}
+                          className={`rounded-full border px-3 py-1 text-xs transition ${
+                            goals.monthly.target === val
+                              ? 'border-[#7F77DD] bg-[#7F77DD]/20 text-[#7F77DD]'
+                              : 'border-sura-ivory/20 text-sura-ivory/60 hover:border-[#7F77DD]/50'
+                          }`}
+                          type="button"
+                        >
+                          {val}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
-              ))
+              </section>
+            )}
+
+            {/* Achievements - Badge System */}
+            {user && (
+              <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-6 sm:p-8">
+                <BadgeSystem userId={user.id} />
+              </section>
             )}
           </div>
-        </section>
-      </div>
+        );
 
-      <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
-        <h2 className="text-xl font-semibold text-sura-ivory">{isArabic ? 'الإنجازات' : 'Achievements'}</h2>
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {badges.map((badge) => (
-            <div
-              key={badge.id}
-              className={`flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition ${
-                badge.earned ? 'border-[#7F77DD]/50 bg-[#7F77DD]/10' : 'border-[#7F77DD]/20 bg-sura-dark/50 opacity-50'
-              }`}
-            >
-              <div className="text-3xl">{badge.icon}</div>
-              <div className={`text-sm font-medium ${badge.earned ? 'text-sura-ivory' : 'text-sura-ivory/50'}`}>{badge.name}</div>
-              {badge.earned && <div className="text-xs text-[#7F77DD]">{isArabic ? '✓ محقق' : '✓ Earned'}</div>}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {history.length > 0 && (
-        <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-8">
-          <h2 className="text-xl font-semibold text-sura-ivory">{isArabic ? 'الأنشطة الأخيرة' : 'Recent Activity'}</h2>
-          <div className="mt-4 space-y-3 text-sm text-sura-ivory/60">
-            {history.map((entry, i) => (
-              <div key={i} className="border-b border-sura-ivory/10 pb-2">
-                {entry}
-              </div>
-            ))}
+      case 'reading-stats':
+        return (
+          <div className="mx-auto max-w-6xl">
+            {user && <ReaderStats userId={user.id} />}
           </div>
-        </section>
-      )}
-    </div>
+        );
+
+      case 'achievements':
+        return (
+          <div className="mx-auto max-w-6xl">
+            {user && (
+              <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-6 sm:p-8">
+                <BadgeSystem userId={user.id} />
+              </section>
+            )}
+          </div>
+        );
+
+      case 'reading-history':
+        return (
+          <div className="mx-auto max-w-4xl">
+            <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-6 sm:p-8">
+              <h2 className="text-xl font-semibold text-sura-ivory">
+                {isArabic ? 'سجل القراءة' : 'Reading History'}
+              </h2>
+              <p className="mt-2 text-sm text-sura-ivory/50">
+                {isArabic ? 'سجل بكل ما قرأته.' : 'Your complete reading history.'}
+              </p>
+              <div className="mt-6">
+                <ReadingHistoryList />
+              </div>
+            </section>
+          </div>
+        );
+
+      case 'reading-goals':
+        return (
+          <div className="mx-auto max-w-4xl">
+            <section className="rounded-3xl border border-[#7F77DD]/30 bg-sura-dark/90 p-6 sm:p-8">
+              <h2 className="text-xl font-semibold text-sura-ivory">
+                {isArabic ? 'أهداف القراءة' : 'Reading Goals'}
+              </h2>
+              <p className="mt-2 text-sm text-sura-ivory/50">
+                {isArabic ? 'حدد أهداف قراءة أسبوعية وشهرية.' : 'Set weekly and monthly reading goals.'}
+              </p>
+              <div className="mt-6 space-y-6">
+                {goals && (
+                  <>
+                    <div className="rounded-2xl border border-sura-ivory/10 bg-sura-ivory/5 p-6">
+                      <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
+                        {isArabic ? 'الهدف الأسبوعي' : 'WEEKLY GOAL'}
+                      </div>
+                      <div className="mt-2 font-serif text-4xl font-bold text-sura-ivory">
+                        {goals.weekly.progress}/{goals.weekly.target}
+                      </div>
+                      <div className="mt-3 h-3 overflow-hidden rounded-full bg-sura-ivory/10">
+                        <div
+                          className="h-full rounded-full bg-[#7F77DD] transition-all duration-500"
+                          style={{ width: `${goals.weekly.percentage}%` }}
+                        />
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {[3, 5, 7, 10, 15, 20].map((val) => (
+                          <button
+                            key={val}
+                            onClick={() => handleGoalUpdate('weekly', val)}
+                            className={`rounded-full border px-4 py-1.5 text-sm transition ${
+                              goals.weekly.target === val
+                                ? 'border-[#7F77DD] bg-[#7F77DD]/20 text-[#7F77DD]'
+                                : 'border-sura-ivory/20 text-sura-ivory/60 hover:border-[#7F77DD]/50'
+                            }`}
+                            type="button"
+                          >
+                            {val} {isArabic ? 'قراءة' : 'reads'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-sura-ivory/10 bg-sura-ivory/5 p-6">
+                      <div className="text-xs uppercase tracking-widest text-[#7F77DD]">
+                        {isArabic ? 'الهدف الشهري' : 'MONTHLY GOAL'}
+                      </div>
+                      <div className="mt-2 font-serif text-4xl font-bold text-sura-ivory">
+                        {goals.monthly.progress}/{goals.monthly.target}
+                      </div>
+                      <div className="mt-3 h-3 overflow-hidden rounded-full bg-sura-ivory/10">
+                        <div
+                          className="h-full rounded-full bg-[#7F77DD] transition-all duration-500"
+                          style={{ width: `${goals.monthly.percentage}%` }}
+                        />
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {[10, 20, 30, 50, 75, 100].map((val) => (
+                          <button
+                            key={val}
+                            onClick={() => handleGoalUpdate('monthly', val)}
+                            className={`rounded-full border px-4 py-1.5 text-sm transition ${
+                              goals.monthly.target === val
+                                ? 'border-[#7F77DD] bg-[#7F77DD]/20 text-[#7F77DD]'
+                                : 'border-sura-ivory/20 text-sura-ivory/60 hover:border-[#7F77DD]/50'
+                            }`}
+                            type="button"
+                          >
+                            {val} {isArabic ? 'قراءة' : 'reads'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+                <WeeklyTargetBanner />
+              </div>
+            </section>
+          </div>
+        );
+
+      case 'notifications':
+        return (
+          <div className="mx-auto max-w-4xl">
+            <div className="relative">
+              <NotificationCenter
+                isOpen={true}
+                onClose={() => setActiveSection('dashboard-home')}
+              />
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <DashboardLayout
+      activeSection={activeSection}
+      onNavigate={setActiveSection}
+      title="Reader Dashboard"
+      titleAr="لوحة القارئ"
+      subtitle="Your reading hub — track progress, earn badges, and reach your goals."
+      subtitleAr="مركز القراءة الخاص بك — تتبع التقدم، احصل على الشارات، وحقق أهدافك."
+    >
+      {renderSection()}
+    </DashboardLayout>
   );
 }
 

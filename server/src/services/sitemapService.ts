@@ -81,6 +81,28 @@ export async function getCommunityThreadsForSitemap(): Promise<Array<{ id: strin
   }
 }
 
+export async function getSeriesForSitemap(): Promise<Array<{ id: string; slug?: string; updatedAt?: string; changefreq: string; priority: number }>> {
+  try {
+    const rows = await prisma.series.findMany({
+      select: { id: true, slug: true, updatedAt: true, createdAt: true },
+      take: 5000,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return rows
+      .map((r) => ({
+        id: safeId(r.id),
+        slug: r.slug || undefined,
+        updatedAt: (r.updatedAt || r.createdAt)?.toISOString?.() || undefined,
+        changefreq: 'weekly' as const,
+        priority: 0.7,
+      }))
+      .filter((x) => x.id);
+  } catch {
+    return [];
+  }
+}
+
 export async function getStaticPagesForSitemap(): Promise<StaticPageEntry[]> {
   return [
     { path: '/', changefreq: 'daily', priority: 1.0 },

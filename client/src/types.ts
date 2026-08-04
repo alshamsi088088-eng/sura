@@ -1,7 +1,7 @@
 
 export type Locale = 'en' | 'ar';
 export type ThemeMode = 'dark' | 'light';
-export type UserRole = 'guest' | 'member' | 'writer' | 'editor' | 'admin';
+export type UserRole = 'guest' | 'member' | 'writer' | 'editor' | 'author' | 'moderator' | 'admin';
 
 export interface UserProfile {
   id: string;

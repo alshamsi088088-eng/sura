@@ -4,41 +4,55 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("SUPABASE_DB_URL")
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id                String     @id @default(cuid())
-  name              String
-  email             String     @unique
-  password          String?
-  role              String     @default("member")
-  avatar            String?
-  bio               String?
-  locale            String     @default("en")
-  theme             String     @default("dark")
-  verified          Boolean    @default(false)
-  verificationToken String?
-  resetToken        String?
-  resetTokenExpires DateTime?
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
-  articles          Article[]  @relation("ArticleAuthor")
-  bookmarks         Bookmark[]
-  comments          Comment[]
-  novels            Novel[]    @relation("NovelAuthor")
-  orders            Order[]
-  ratings           Rating[]
-  likes             Like[]
-  reactions         Reaction[]
-  pollVotes         PollVote[]
-  communityThreads CommunityThread[]
-  notifications    Notification[]
-  badges           Badge[]
-  follows          Follow[]   @relation("UserFollows")
-  following        Follow[]   @relation("UserFollowing")
-  notificationSettings NotificationSettings?
-  quotes          Quote[]
+  id                         String                  @id @default(cuid())
+  name                       String
+  email                      String                  @unique
+  password                   String?
+  role                       String                  @default("member")
+  avatar                     String?
+  bio                        String?
+  locale                     String                  @default("en")
+  theme                      String                  @default("dark")
+  verified                   Boolean                 @default(false)
+  verificationToken          String?
+  resetToken                 String?
+  resetTokenExpires          DateTime?
+  level                      ReaderLevel             @default(BRONZE)
+  createdAt                  DateTime                @default(now())
+  updatedAt                  DateTime                @updatedAt
+  articles                   Article[]               @relation("ArticleAuthor")
+  bookmarks                  Bookmark[]
+  comments                   Comment[]
+  novels                     Novel[]                 @relation("NovelAuthor")
+  orders                     Order[]
+  ratings                    Rating[]
+  likes                      Like[]
+  reactions                  Reaction[]
+  pollVotes                  PollVote[]
+  communityThreads           CommunityThread[]
+  notifications              Notification[]
+  badges                     Badge[]
+  follows                    Follow[]                @relation("UserFollows")
+  following                  Follow[]                @relation("UserFollowing")
+  notificationSettings       NotificationSettings?
+  quotes                     Quote[]
+  series                     Series[]                @relation("SeriesAuthor")
+  bookReviews                BookReview[]
+  reviewHelpful              ReviewHelpful[]
+  readingStatuses            ReadingStatus[]
+  leaderboardSnapshots       LeaderboardSnapshot[]
+  communityThreadMemberships CommunityThreadMember[]
+  reportsMade                Report[]                @relation("ReportReporter")
+  reportsAgainst             Report[]                @relation("ReportResolver")
+  resolvedReports            Report[]                @relation("ReportResolverId")
+  studyCircleGoals           StudyCircleGoal[]
+  studyCircleNotes           StudyCircleNote[]
+  studyCircleAssignments     StudyCircleAssignment[]
+  studyCircleSubmissions     StudyCircleSubmission[]
 }
 
 model Article {
@@ -63,7 +77,7 @@ model Article {
   bookmarks   Bookmark[]
   comments    Comment[]
   ratings     Rating[]
-  likes      Like[]
+  likes       Like[]
 }
 
 model Novel {
@@ -86,14 +100,14 @@ model Novel {
 }
 
 model Part {
-  id          String     @id @default(cuid())
-  title       String
-  number     Int
-  novelId    String
-  novel      Novel      @relation(fields: [novelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  chapters   Chapter[]  @relation("PartChapters")
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id        String    @id @default(cuid())
+  title     String
+  number    Int
+  novelId   String
+  novel     Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  chapters  Chapter[] @relation("PartChapters")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@unique([novelId, number])
 }
@@ -120,23 +134,30 @@ model Chapter {
 }
 
 model Book {
-  id         String      @id @default(cuid())
-  title      String
-  author     String
-  price      Float
-  format     String
-  summary    String
-  coverImage String
-  stock      Int
-  fileUrl    String?
-  previewUrl String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  bookmarks  Bookmark[]
-  comments   Comment[]
-  orderItems OrderItem[]
-  ratings    Rating[]
-  likes      Like[]
+  id              String          @id @default(cuid())
+  title           String
+  author          String
+  price           Float
+  format          String
+  summary         String
+  coverImage      String
+  stock           Int
+  fileUrl         String?
+  previewUrl      String?
+  genre           String?
+  language        String?
+  pageCount       Int?
+  publishedAt     DateTime?
+  isbn            String?         @unique
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  bookmarks       Bookmark[]
+  comments        Comment[]
+  orderItems      OrderItem[]
+  ratings         Rating[]
+  likes           Like[]
+  reviews         BookReview[]
+  readingStatuses ReadingStatus[]
 }
 
 model Order {
@@ -169,26 +190,33 @@ model OrderItem {
 }
 
 model Comment {
-  id        String    @id @default(cuid())
-  content   String
-  approved  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  userId    String
-  articleId String?
-  novelId   String?
-  chapterId String?
-  bookId    String?
+  id          String           @id @default(cuid())
+  content     String
+  approved    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  userId      String
+  articleId   String?
+  novelId     String?
+  chapterId   String?
+  bookId      String?
   communityId String?
-  parentId  String?
-  article   Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  book      Book?     @relation(fields: [bookId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  chapter   Chapter?  @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  novel     Novel?    @relation(fields: [novelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  community CommunityThread? @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  replies   Comment[] @relation("CommentReplies")
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  parentId    String?
+  isEdited    Boolean          @default(false)
+  isDeleted   Boolean          @default(false)
+  isPinned    Boolean          @default(false)
+  article     Article?         @relation(fields: [articleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  book        Book?            @relation(fields: [bookId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  chapter     Chapter?         @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  novel       Novel?           @relation(fields: [novelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  community   CommunityThread? @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  parent      Comment?         @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  replies     Comment[]        @relation("CommentReplies")
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reports     Report[]
+
+  @@index([communityId])
+  @@index([userId])
 }
 
 model Rating {
@@ -234,26 +262,29 @@ model Bookmark {
 }
 
 model Like {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  userId    String
-  articleId String?
-  novelId   String?
-  chapterId String?
-  bookId    String?
+  id          String           @id @default(cuid())
+  createdAt   DateTime         @default(now())
+  userId      String
+  articleId   String?
+  novelId     String?
+  chapterId   String?
+  bookId      String?
   communityId String?
-  article   Article? @relation(fields: [articleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  book      Book?    @relation(fields: [bookId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  chapter   Chapter? @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  novel     Novel?   @relation(fields: [novelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  community CommunityThread? @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reviewId    String?
+  article     Article?         @relation(fields: [articleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  book        Book?            @relation(fields: [bookId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  chapter     Chapter?         @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  novel       Novel?           @relation(fields: [novelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  community   CommunityThread? @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  review      BookReview?      @relation(fields: [reviewId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([userId, articleId])
   @@unique([userId, bookId])
   @@unique([userId, chapterId])
   @@unique([userId, novelId])
   @@unique([userId, communityId])
+  @@unique([userId, reviewId])
 }
 
 model GalleryImage {
@@ -300,87 +331,103 @@ model Message {
 }
 
 model Reaction {
-  id           String   @id @default(cuid())
-  userId       String
-  contentId    String
+  id          String   @id @default(cuid())
+  userId      String
+  contentId   String
   contentType String
   emoji       String
-  createdAt    DateTime  @default(now())
+  createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([userId, contentId])
+  @@index([contentId, contentType])
 }
 
 model Poll {
-  id           String   @id @default(cuid())
-  contentId    String
+  id          String       @id @default(cuid())
+  contentId   String
   contentType String
-  chapterId    String?
+  chapterId   String?
   question    String
-  type        String   @default("single")
-  isAnonymous Boolean  @default(false)
-  isPublic    Boolean  @default(true)
-  closesAt     DateTime?
+  type        String       @default("single")
+  isAnonymous Boolean      @default(false)
+  isPublic    Boolean      @default(true)
+  closesAt    DateTime?
   createdBy   String
-  createdAt  DateTime  @default(now())
-  chapter     Chapter?      @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  createdAt   DateTime     @default(now())
+  chapter     Chapter?     @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   options     PollOption[]
   votes       PollVote[]
 
   @@unique([contentId, contentType])
+  @@index([createdBy])
 }
 
 model PollOption {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   pollId    String
   text      String
-  createdAt DateTime @default(now())
-  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  createdAt DateTime   @default(now())
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   votes     PollVote[]
 }
 
 model PollVote {
-  id        String      @id @default(cuid())
+  id        String     @id @default(cuid())
   pollId    String
   optionId  String
-  userId   String?
-  createdAt DateTime    @default(now())
-  poll     Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  option   PollOption  @relation(fields: [optionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  user     User?      @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  userId    String?
+  createdAt DateTime   @default(now())
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: NoAction)
 }
 
 model CommunityThread {
-  id           String   @id @default(cuid())
-  authorId     String
-  contentId   String?
-  contentType String?
-  category    String
-  title       String
-  body        String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  parentId    String?
-  parent      CommunityThread? @relation("ThreadReplies", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  replies     CommunityThread[] @relation("ThreadReplies")
-  likes       Like[]
-  comments    Comment[]
-  bookmarks   CommunityBookmark[]
+  id                     String                  @id @default(cuid())
+  authorId               String
+  contentId              String?
+  contentType            String?
+  category               String
+  title                  String
+  body                   String
+  threadType             String                  @default("discussion") // discussion | room | study_circle
+  isPinned               Boolean                 @default(false)
+  isLocked               Boolean                 @default(false)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  author                 User                    @relation(fields: [authorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  parentId               String?
+  parent                 CommunityThread?        @relation("ThreadReplies", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  replies                CommunityThread[]       @relation("ThreadReplies")
+  likes                  Like[]
+  comments               Comment[]
+  bookmarks              CommunityBookmark[]
+  members                CommunityThreadMember[]
+  reports                Report[]
+  schedule               StudyCircleSchedule?
+  studyCircleGoals       StudyCircleGoal[]
+  studyCircleNotes       StudyCircleNote[]
+  studyCircleAssignments StudyCircleAssignment[]
+
+  @@index([threadType])
+  @@index([category])
+  @@index([authorId])
+  @@index([contentId, contentType])
 }
 
 model Notification {
   id        String   @id @default(cuid())
   userId    String
-  type     String
-  title    String
-  body     String?
-  link     String?
-  actorId  String?
+  type      String
+  title     String
+  body      String?
+  link      String?
+  actorId   String?
   actorName String?
-  isRead   Boolean  @default(false)
+  isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([userId])
   @@index([userId, isRead])
@@ -390,9 +437,9 @@ model Follow {
   id          String   @id @default(cuid())
   followerId  String
   followingId String
-  createdAt  DateTime @default(now())
-  user       User     @relation("UserFollows", fields: [followerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  following  User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  createdAt   DateTime @default(now())
+  user        User     @relation("UserFollows", fields: [followerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  following   User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([followerId, followingId])
   @@index([followerId])
@@ -406,8 +453,8 @@ model Badge {
   title       String
   description String?
   icon        String?
-  createdAt  DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([userId, badgeKey])
   @@index([userId])
@@ -419,38 +466,40 @@ model ReadingHistory {
   contentType String
   contentId   String
   title       String?
-  progress   Int       @default(0)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  progress    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([userId, contentType, contentId])
   @@index([userId])
 }
 
 model CommunityBookmark {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   userId    String
   threadId  String
-  createdAt DateTime @default(now())
-  thread   CommunityThread @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  createdAt DateTime        @default(now())
+  thread    CommunityThread @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([userId, threadId])
   @@index([userId])
 }
 
 model NotificationSettings {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  likes       Boolean  @default(true)
-  comments   Boolean  @default(true)
-  replies    Boolean  @default(true)
-  reactions  Boolean  @default(true)
-  pollVotes  Boolean  @default(true)
-  newChapter Boolean  @default(true)
-  newArticle Boolean @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  likes              Boolean  @default(true)
+  comments           Boolean  @default(true)
+  replies            Boolean  @default(true)
+  reactions          Boolean  @default(true)
+  pollVotes          Boolean  @default(true)
+  newChapter         Boolean  @default(true)
+  newArticle         Boolean  @default(true)
+  discussionMentions Boolean  @default(true)
+  circleActivity     Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([userId])
 }
@@ -462,9 +511,9 @@ model Quote {
   contentType  String
   selectedText String
   startOffset  Int?
-  endOffset   Int?
-  createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  endOffset    Int?
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([userId, contentId, startOffset, endOffset])
   @@index([userId])
@@ -484,4 +533,329 @@ model PurchaseHistory {
   status          String   @default("paid")
   items           String?
   createdAt       DateTime @default(now())
+}
+
+// ─── Reading Series ────────────────────────────────────────────────────────
+// Polymorphic model allowing series to contain articles, chapters, novels, etc.
+
+model Series {
+  id                   String       @id @default(cuid())
+  title                String
+  slug                 String       @unique
+  description          String
+  coverImage           String?
+  estimatedReadingTime String // e.g. "15 min read"
+  difficulty           String       @default("intermediate") // beginner | intermediate | advanced
+  category             String
+  authorName           String
+  authorId             String?
+  author               User?        @relation("SeriesAuthor", fields: [authorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  items                SeriesItem[]
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@index([category])
+  @@index([authorId])
+}
+
+model SeriesItem {
+  id          String   @id @default(cuid())
+  seriesId    String
+  series      Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  contentType String // "article" | "chapter" | "novel" (future: "book")
+  contentId   String
+  order       Int // position within the series
+  createdAt   DateTime @default(now())
+
+  @@unique([seriesId, contentId, contentType])
+  @@unique([seriesId, order])
+  @@index([contentId, contentType])
+}
+
+// ─── Book Reviews ──────────────────────────────────────────────────────────
+
+enum ReadingStatusType {
+  WANT_TO_READ
+  CURRENTLY_READING
+  COMPLETED
+}
+
+model BookReview {
+  id           String   @id @default(cuid())
+  bookId       String
+  userId       String
+  rating       Int // 1-5 stars
+  content      String
+  title        String?
+  language     String   @default("en")
+  status       String   @default("published") // published | draft | hidden | pending_review
+  helpfulCount Int      @default(0) // denormalized count kept in sync with ReviewHelpful
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  book    Book            @relation(fields: [bookId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  helpful ReviewHelpful[]
+  likes   Like[]
+
+  @@unique([userId, bookId])
+  @@index([bookId])
+  @@index([userId])
+  @@index([rating])
+  @@index([language])
+  @@index([status])
+  @@index([createdAt])
+  @@index([helpfulCount])
+}
+
+model ReviewHelpful {
+  id        String   @id @default(cuid())
+  reviewId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  review BookReview @relation(fields: [reviewId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([reviewId, userId])
+  @@index([reviewId])
+  @@index([userId])
+}
+
+model ReadingStatus {
+  id        String            @id @default(cuid())
+  userId    String
+  bookId    String
+  status    ReadingStatusType // WANT_TO_READ | CURRENTLY_READING | COMPLETED
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([userId, bookId])
+  @@index([userId])
+  @@index([bookId])
+}
+
+// ─── Community Leaderboard ─────────────────────────────────────────────────
+
+enum ReaderLevel {
+  BRONZE
+  SILVER
+  GOLD
+  DIAMOND
+  LEGEND
+}
+
+// Cached per-period rankings for fast leaderboard reads.
+model LeaderboardSnapshot {
+  id        String   @id @default(cuid())
+  period    String // daily | weekly | monthly | alltime
+  periodKey String // e.g. 2025-06-01, 2025-W23, 2025-06, "all"
+  userId    String
+  score     Int
+  rank      Int
+  metrics   Json // per-metric breakdown for the row
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([period, periodKey, userId])
+  @@index([period, periodKey, score])
+}
+
+// ─── Sprint 15: Live Discussion Rooms & Study Circles ──────────────────────
+// All additions are additive and backward compatible. These models extend the
+// existing CommunityThread/Comment/Reaction/Poll/Notification infrastructure.
+
+// Membership for a live discussion room or study circle (threadType = "room"
+// or "study_circle"). Reuses CommunityThread as the parent entity.
+model CommunityThreadMember {
+  id         String          @id @default(cuid())
+  threadId   String
+  userId     String
+  role       String          @default("member") // member | moderator | owner
+  status     String          @default("active") // active | muted | left
+  mutedUntil DateTime?
+  joinedAt   DateTime        @default(now())
+  lastReadAt DateTime? // for unread-message tracking
+  thread     CommunityThread @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([threadId, userId])
+  @@index([threadId, status])
+  @@index([userId])
+}
+
+// Moderation reports for threads, chat messages (comments), and members.
+model Report {
+  id             String           @id @default(cuid())
+  threadId       String?
+  commentId      String?
+  reporterId     String
+  reportedUserId String
+  reason         String
+  status         String           @default("open") // open | resolved | dismissed
+  createdAt      DateTime         @default(now())
+  resolvedAt     DateTime?
+  resolverId     String?
+  thread         CommunityThread? @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  comment        Comment?         @relation(fields: [commentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reporter       User             @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reportedUser   User             @relation("ReportResolver", fields: [reportedUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  resolver       User?            @relation("ReportResolverId", fields: [resolverId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([threadId])
+  @@index([commentId])
+  @@index([status])
+  @@index([reporterId])
+  @@index([reportedUserId])
+}
+
+// ─── Study Circles ─────────────────────────────────────────────────────────
+
+// Reading schedule for a study circle (one per circle, replaces the need for a
+// separate generic calendar model).
+model StudyCircleSchedule {
+  id        String          @id @default(cuid())
+  circleId  String          @unique // CommunityThread of threadType = "study_circle"
+  dayOfWeek Int             @default(1) // 1=Mon ... 7=Sun
+  timeOfDay String          @default("18:00")
+  timezone  String          @default("UTC")
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  circle    CommunityThread @relation(fields: [circleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+// Weekly goals within a study circle.
+model StudyCircleGoal {
+  id          String          @id @default(cuid())
+  circleId    String
+  title       String
+  description String?
+  target      Int             @default(1)
+  progress    Int             @default(0)
+  week        String // e.g. "2025-W23"
+  status      String          @default("active") // active | completed | archived
+  createdBy   String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  circle      CommunityThread @relation(fields: [circleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user        User            @relation(fields: [createdBy], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([circleId, week, title])
+  @@index([circleId, week])
+  @@index([createdBy])
+}
+
+// Shared notes for a study circle.
+model StudyCircleNote {
+  id        String          @id @default(cuid())
+  circleId  String
+  authorId  String
+  title     String
+  content   String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  circle    CommunityThread @relation(fields: [circleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  author    User            @relation(fields: [authorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([circleId])
+  @@index([authorId])
+}
+
+// Assignments within a study circle.
+model StudyCircleAssignment {
+  id          String                  @id @default(cuid())
+  circleId    String
+  createdBy   String
+  title       String
+  description String?
+  dueDate     DateTime?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  circle      CommunityThread         @relation(fields: [circleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  creator     User                    @relation(fields: [createdBy], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  submissions StudyCircleSubmission[]
+
+  @@index([circleId])
+  @@index([createdBy])
+}
+
+// Submissions for study circle assignments.
+model StudyCircleSubmission {
+  id           String                @id @default(cuid())
+  assignmentId String
+  userId       String
+  content      String
+  score        Int?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  assignment   StudyCircleAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([assignmentId, userId])
+  @@index([assignmentId])
+  @@index([userId])
+}
+
+// ─── Sprint 16: Advertisement Management ────────────────────────────────────
+// Ad creatives, per-ad metrics, and a compliance audit trail. Additive and
+// backward compatible. `createdBy` is intentionally not FK-constrained so ad
+// records survive user deletion.
+
+enum AdPosition {
+  HOMEPAGE
+  SIDEBAR
+  BETWEEN_ARTICLES
+  FOOTER
+  CATEGORY
+}
+
+model Ad {
+  id           String      @id @default(cuid())
+  title        String
+  provider     String
+  providerData Json?
+  position     AdPosition
+  priority     Int         @default(0)
+  targeting    Json?
+  startAt      DateTime?
+  endAt        DateTime?
+  enabled      Boolean     @default(true)
+  bannerUrl    String?
+  clickUrl     String?
+  altText      String?
+  createdBy    String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  metrics      AdMetric[]
+}
+
+model AdMetric {
+  id        String   @id @default(cuid())
+  adId      String
+  type      String
+  meta      Json?
+  createdAt DateTime @default(now())
+  ad        Ad       @relation(fields: [adId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([adId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  target    String?
+  targetId  String?
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([target, targetId])
+  @@index([createdAt])
 }

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getArticlesForSitemap,
   getNovelsForSitemap,
+  getSeriesForSitemap,
   getCommunityThreadsForSitemap,
   getStaticPagesForSitemap,
 } from '../services/sitemapService';
@@ -35,9 +36,10 @@ seoRouter.get('/sitemap.xml', async (req, res) => {
   // If baseUrl is missing, return relative URLs (valid for some crawlers, but less ideal)
   const base = baseUrl || '';
 
-  const [articles, novels, communityThreads, staticPages] = await Promise.all([
+  const [articles, novels, series, communityThreads, staticPages] = await Promise.all([
     getArticlesForSitemap(),
     getNovelsForSitemap(),
+    getSeriesForSitemap(),
     getCommunityThreadsForSitemap(),
     getStaticPagesForSitemap(),
   ]);
@@ -70,10 +72,18 @@ seoRouter.get('/sitemap.xml', async (req, res) => {
     priority: t.priority,
   }));
 
+  const seriesUrlEntries = series.map((s) => ({
+    loc: `/series/${s.slug || s.id}`,
+    lastmod: s.updatedAt,
+    changefreq: s.changefreq,
+    priority: s.priority,
+  }));
+
   const urls = [
     ...staticUrlEntries,
     ...articleUrlEntries,
     ...novelUrlEntries,
+    ...seriesUrlEntries,
     ...communityUrlEntries,
   ];
 

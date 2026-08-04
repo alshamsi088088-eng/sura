@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import { useLocale } from '../context/LocaleContext';
 import { useAuth } from '../context/AuthContext';
 import { useEffect, useState } from 'react';
@@ -240,4 +240,4 @@ export function HomePage() {
     </div>
   );
 }
-</｜｜DSML｜｜parameter>
+

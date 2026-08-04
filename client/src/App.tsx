@@ -4,6 +4,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { LocaleProvider } from './context/LocaleContext';
 import { AuthProvider } from './context/AuthContext';
 import { ChatProvider } from './context/ChatContext';
+import { LiveRoomProvider } from './context/LiveRoomContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { Breadcrumbs } from './components/Breadcrumbs';
@@ -47,6 +48,15 @@ const CommunityPage = lazy(async () => ({ default: (await import('./pages/Commun
 const CommunityThreadPage = lazy(async () => ({ default: (await import('./pages/CommunityThreadPage')).CommunityThreadPage }));
 const PublicProfilePage = lazy(async () => ({ default: (await import('./pages/PublicProfilePage')).PublicProfilePage }));
 const QuoteLibraryPage = lazy(async () => ({ default: (await import('./pages/QuoteLibraryPage')).QuoteLibraryPage }));
+const SeriesPage = lazy(async () => ({ default: (await import('./pages/SeriesPage')).SeriesPage }));
+const SeriesDetailPage = lazy(async () => ({ default: (await import('./pages/SeriesDetailPage')).SeriesDetailPage }));
+const LeaderboardPage = lazy(async () => ({ default: (await import('./pages/LeaderboardPage')).LeaderboardPage }));
+const LiveRoomsPage = lazy(async () => ({ default: (await import('./pages/LiveRoomsPage')).LiveRoomsPage }));
+const LiveRoomPage = lazy(async () => ({ default: (await import('./pages/LiveRoomPage')).LiveRoomPage }));
+const StudyCirclesPage = lazy(async () => ({ default: (await import('./pages/StudyCirclesPage')).StudyCirclesPage }));
+const StudyCircleDetailPage = lazy(async () => ({ default: (await import('./pages/StudyCircleDetailPage')).StudyCircleDetailPage }));
+const CreateStudyCirclePage = lazy(async () => ({ default: (await import('./pages/CreateStudyCirclePage')).CreateStudyCirclePage }));
+const AdManagementPage = lazy(async () => ({ default: (await import('./pages/AdManagementPage')).AdManagementPage }));
 
 
 function AppInner() {
@@ -92,9 +102,18 @@ function AppInner() {
               <Route path="/create-tech" element={<ProtectedRoute><CreateTechPage /></ProtectedRoute>} />
               <Route path="/edit-parts" element={<ProtectedRoute><EditPartsPage /></ProtectedRoute>} />
               <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+              <Route path="/admin/ads" element={<AdminRoute><AdManagementPage /></AdminRoute>} />
               <Route path="/community" element={<CommunityPage />} />
               <Route path="/community/thread/:id" element={<CommunityThreadPage />} />
               <Route path="/community/:contentType/:contentId" element={<CommunityPage />} />
+              <Route path="/series" element={<SeriesPage />} />
+              <Route path="/series/:slug" element={<SeriesDetailPage />} />
+<Route path="/leaderboard" element={<LeaderboardPage />} />
+              <Route path="/live-rooms" element={<LiveRoomsPage />} />
+              <Route path="/live-rooms/:id" element={<LiveRoomPage />} />
+              <Route path="/study-circles" element={<StudyCirclesPage />} />
+              <Route path="/study-circles/new" element={<CreateStudyCirclePage />} />
+              <Route path="/study-circles/:id" element={<StudyCircleDetailPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -108,10 +127,12 @@ function AppInner() {
 export default function App() {
   return (
     <LocaleProvider>
-      <ThemeProvider>
+<ThemeProvider>
         <AuthProvider>
           <ChatProvider>
-            <AppInner />
+            <LiveRoomProvider>
+              <AppInner />
+            </LiveRoomProvider>
           </ChatProvider>
         </AuthProvider>
       </ThemeProvider>
