@@ -68,14 +68,32 @@ export function LikeButton({
 
   const targetCol = useMemo(() => targetColumnFor(contentType), [contentType]);
 
-  const load = useCallback(async () => {
-    if (!contentId || !supabase) return;
+const load = useCallback(async () => {
+    if (!contentId || !supabase) {
+      setLiked(false);
+      return;
+    }
+
+    // Anonymous visitors have no user id; skip the user-specific query to
+    // avoid firing authenticated Supabase reads (RLS) on public pages.
+    if (!user) {
+      setLiked(false);
+      // Still show the public count for anonymous users.
+      const { count: likeCount, error: countErr } = await supabase
+        .from('Like')
+        .select('*', { count: 'exact', head: true })
+        .eq(targetCol, contentId);
+      if (countErr) return;
+      setCount(Number(likeCount ?? 0));
+      onChange?.(false, Number(likeCount ?? 0));
+      return;
+    }
 
     // liked?
     const { data: likeRow, error: likeRowErr } = await supabase
       .from('Like')
       .select('userId')
-      .eq('userId', user?.id ?? '')
+      .eq('userId', user.id)
       .eq(targetCol, contentId)
       .maybeSingle();
 

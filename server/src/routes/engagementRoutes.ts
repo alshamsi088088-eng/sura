@@ -54,8 +54,12 @@ engagementRoutes.post('/like', authGuard, toggleLike);
 engagementRoutes.get('/like', getLikeStatus);
 
 // Bookmarks
+// GET /bookmark is intentionally NOT auth-protected so anonymous visitors can
+// read the public bookmark count. The controller returns { bookmarked:false }
+// when no authenticated user is present (safe default). POST /bookmark (toggle)
+// and GET /bookmarks (list) remain auth-protected.
 engagementRoutes.post('/bookmark', authGuard, toggleBookmark);
-engagementRoutes.get('/bookmark', authGuard, getBookmarkStatus);
+engagementRoutes.get('/bookmark', getBookmarkStatus);
 engagementRoutes.get('/bookmarks', authGuard, getUserBookmarks);
 
 // Ratings

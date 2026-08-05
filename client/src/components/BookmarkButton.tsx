@@ -65,13 +65,30 @@ export function BookmarkButton({
 
   const targetCol = useMemo(() => targetColumnFor(contentType), [contentType]);
 
-  const load = useCallback(async () => {
-    if (!contentId || !supabase) return;
+const load = useCallback(async () => {
+    if (!contentId || !supabase) {
+      setBookmarked(false);
+      return;
+    }
+
+    // Anonymous visitors have no user id; skip the user-specific query to
+    // avoid firing authenticated Supabase reads (RLS) on public pages.
+    if (!user) {
+      setBookmarked(false);
+      const { count: bookmarkCount, error: countErr } = await supabase
+        .from('Bookmark')
+        .select('*', { count: 'exact', head: true })
+        .eq(targetCol, contentId);
+      if (countErr) return;
+      setCount(Number(bookmarkCount ?? 0));
+      onChange?.(false, Number(bookmarkCount ?? 0));
+      return;
+    }
 
     const { data: bookmarkRow, error: bookmarkErr } = await supabase
       .from('Bookmark')
       .select('userId')
-      .eq('userId', user?.id ?? '')
+      .eq('userId', user.id)
       .eq(targetCol, contentId)
       .maybeSingle();
 

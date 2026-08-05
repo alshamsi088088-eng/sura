@@ -50,6 +50,26 @@ interface Article {
   claps: number;
 }
 
+/**
+ * Strip HTML tags from a string safely using the DOM (avoids XSS-prone regex).
+ * Returns plain text with entities decoded and whitespace collapsed.
+ */
+function stripHtml(html: string): string {
+  if (!html) return '';
+  // Decode common HTML entities first so &amp; < etc. render as text.
+  const decoded = html
+    .replace(/&amp;/g, '&')
+    .replace(/</g, '<')
+    .replace(/>/g, '>')
+    .replace(/"/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+  return decoded
+    .replace(/<[^>]*>/g, ' ') // strip all tags -> spaces
+    .replace(/\s+/g, ' ')      // collapse whitespace
+    .trim();
+}
+
 function mapArticle(row: ArticleRow): Article {
   const id = String(row.id ?? row.article_id ?? row.articleId ?? row.pk ?? '');
   const slug = String(row.slug ?? row.id ?? row.article_id ?? row.articleId ?? row.pk ?? '');
@@ -191,8 +211,8 @@ export function ArticlesPage() {
   const renderCardInner = (item: Article, idx: number, isAdSlot: boolean) => {
     const articleUrl = `/articles/${encodeURIComponent(item.slug)}`;
 
-    return (
-      <div key={item.id} className={idx === 2 ? 'lg:col-span-2' : undefined}>
+return (
+      <div key={item.id} className="flex min-w-0">
         {isAdSlot ? (
           <AdsenseAd
             adSlot={adsenseSlot}
@@ -201,10 +221,10 @@ export function ArticlesPage() {
           />
         ) : null}
 
-        <article className="rounded-3xl border border-sura-line bg-sura-canvas p-6 transition hover:-translate-y-1">
+        <article className="flex w-full flex-col rounded-3xl border border-sura-line bg-sura-canvas p-6 transition hover:-translate-y-1">
           <Link
             to={articleUrl}
-            className="block h-full w-full select-none"
+            className="flex flex-1 flex-col select-none"
             onClick={(e) => {
               // allow navigation; buttons/menus stop propagation themselves
               // (keep handler present only to ensure consistent event flow)
@@ -212,10 +232,10 @@ export function ArticlesPage() {
               void e;
             }}
           >
-            <div className="flex items-start justify-between">
-              <div className="text-xs uppercase tracking-[-0.3em] text-sura-teal">{item.category}</div>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 break-words text-xs uppercase tracking-[-0.3em] text-sura-teal">{item.category}</div>
               <div
-                className="select-none"
+                className="shrink-0 select-none"
                 onClick={stopCardEvent}
                 onMouseDown={stopCardEvent}
               >
@@ -223,10 +243,10 @@ export function ArticlesPage() {
               </div>
             </div>
 
-            <h2 className="mt-4 text-xl font-semibold">{item.title}</h2>
-            <p className="mt-3 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
+            <h2 className="mt-4 text-xl font-semibold break-words">{item.title}</h2>
+            <p className="mt-3 line-clamp-4 text-sm leading-7 text-sura-navy/80">{stripHtml(item.excerpt)}</p>
 
-            <div className="mt-6 flex flex-wrap items-center gap-3">
+            <div className="mt-auto flex flex-wrap items-center gap-3 pt-6">
               <Avatar name={item.author} size="xs" />
               <div className="flex flex-wrap items-center gap-2 text-xs text-sura-navy/70">
                 <span className="font-medium">{item.author}</span>
@@ -411,7 +431,7 @@ export function ArticlesPage() {
                     </div>
                   </Link>
 
-                  <p className="mt-4 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
+<p className="mt-4 line-clamp-3 text-sm leading-7 text-sura-navy/80">{stripHtml(item.excerpt)}</p>
 
                   <div className="mt-4 flex flex-wrap items-center gap-3">
                     <Avatar name={item.author} size="xs" />
