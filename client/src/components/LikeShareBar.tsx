@@ -51,7 +51,8 @@ export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps)
         setLikeCount(d.count || 0);
       }
     } catch (err) {
-      console.error('Failed to fetch like status:', err);
+      // Silent: transient network/API errors must not spam the console on
+      // public pages.
     }
   }, [query]);
 
@@ -68,7 +69,7 @@ export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps)
         setBookmarkCount(d.count || 0);
       }
     } catch (err) {
-      console.error('Failed to fetch bookmark status:', err);
+      // Silent.
     }
   }, [query, user]);
 
@@ -82,7 +83,7 @@ export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps)
         setRatingCount(d.count || 0);
       }
     } catch (err) {
-      console.error('Failed to fetch rating status:', err);
+      // Silent.
     }
   }, [query]);
 
@@ -95,7 +96,7 @@ export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps)
         setEmojiCounts(d.counts || {});
       }
     } catch (err) {
-      console.error('Failed to fetch reaction status:', err);
+      // Silent.
     }
   }, [entityId]);
 
@@ -106,12 +107,13 @@ export function LikeShareBar({ entityId, entityType, title }: LikeShareBarProps)
     fetchReaction();
   }, [fetchLike, fetchBookmark, fetchRating, fetchReaction]);
 
+  // Only run the light public reads on mount; avoid constant background
+  // polling on public pages (which generates avoidable network traffic and
+  // console noise). Interactions refresh data optimistically.
   useEffect(() => {
     fetchAll();
-    // Poll every 10 seconds for near-real-time updates
-    const interval = setInterval(fetchAll, 10000);
-    return () => clearInterval(interval);
-  }, [fetchAll]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, entityId, user?.id]);
 
   const handleLike = async () => {
     // Optimistic update

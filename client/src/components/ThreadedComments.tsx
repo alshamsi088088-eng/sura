@@ -41,6 +41,20 @@ function formatDate(dateStr?: string) {
   }
 }
 
+// The backend `getComments` controller uses `articleId` etc. as a relational
+// UUID filter. A slug or short id would make Prisma throw P2023 -> 500 on every
+// poll. Only treat a value as valid when it looks like a UUID (or is empty,
+// which upstream renders as no section). This keeps public pages free of
+// repeated 500 errors.
+function isLikelyUuid(value: string): boolean {
+  const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  return UUID_RE.test(value);
+}
+
+function isTabVisible(): boolean {
+  return typeof document !== 'undefined' ? document.visibilityState === 'visible' : true;
+}
+
 export function ThreadedComments({ entityId, entityType }: ThreadedCommentsProps) {
   const { user } = useAuth();
   const [comments, setComments] = useState<CommentItem[]>([]);
@@ -52,12 +66,20 @@ export function ThreadedComments({ entityId, entityType }: ThreadedCommentsProps
 
   const isModerator = ['admin', 'editor'].includes((user?.role || '').toLowerCase());
 
+// Only fetch comments when we have a valid relational UUID. Passing a slug or
+  // short id to the backend would make Prisma throw and return 500.
+  const validId = entityId && isLikelyUuid(entityId) ? entityId : null;
+
   const fetchComments = async () => {
+    if (!validId) {
+      setLoading(false);
+      return;
+    }
     try {
       // NOTE: backend route is /api/engagement/comments and expects
       // `type` + `id` query params (not entityType/entityId).
       const res = await fetch(
-        `${API_URL}/api/engagement/comments?type=${entityType}&id=${entityId}`,
+        `${API_URL}/api/engagement/comments?type=${entityType}&id=${validId}`,
         { credentials: 'include' }
       );
       if (res.ok) {
@@ -65,18 +87,25 @@ export function ThreadedComments({ entityId, entityType }: ThreadedCommentsProps
         setComments(data.comments || []);
       }
     } catch (err) {
-      console.error('Failed to fetch comments:', err);
+      // Silent: a transient network error must not spam the console on public pages.
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!validId) {
+      setLoading(false);
+      return;
+    }
     fetchComments();
-    // Poll for new comments every 10 seconds (alternative to Firestore realtime)
-    const interval = setInterval(fetchComments, 10000);
+    // Poll for new comments, but only while the tab is visible to avoid
+    // unnecessary background traffic on public pages.
+    const interval = setInterval(() => {
+      if (isTabVisible()) fetchComments();
+    }, 15000);
     return () => clearInterval(interval);
-  }, [entityId, entityType]);
+  }, [validId, entityType]);
 
   const visibleComments = useMemo(
     () => comments.filter((c) => (c.status || 'visible') === 'visible'),

@@ -200,10 +200,14 @@ export function ArticlesPage() {
     setPage(1);
   }, [selected, authorFilter, tagFilter, search]);
 
+// NOTE: Do NOT auto-select an article's engagement panel on mount/pagination.
+  // `activeArticleId` starts as null and is only set when a visitor clicks
+  // "Open comments". This keeps public pages free of automatic engagement
+  // (like/bookmark/rating/reaction) and comments requests for anonymous
+  // visitors — eliminating unwanted 401/500 traffic and polling.
   useEffect(() => {
+    if (!activeArticleId) return;
     if (paginated.length && !paginated.some((a) => a.id === activeArticleId)) {
-      setActiveArticleId(paginated[0].id);
-    } else if (!paginated.length) {
       setActiveArticleId(null);
     }
   }, [paginated, activeArticleId]);
