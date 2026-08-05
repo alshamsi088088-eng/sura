@@ -27,56 +27,15 @@ export default defineConfig({
     chunkSizeWarningLimit: 250,
     rollupOptions: {
       output: {
-        // Manual chunk splitting for vendors
-        manualChunks(id) {
-          // React core
-          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/scheduler/')) {
-            return 'vendor-react';
-          }
-          // Router
-          if (id.includes('node_modules/react-router-dom/') || id.includes('node_modules/react-router/')) {
-            return 'vendor-router';
-          }
-          // UI frameworks
-          if (id.includes('node_modules/framer-motion/')) {
-            return 'vendor-animation';
-          }
-          if (id.includes('node_modules/@heroicons/')) {
-            return 'vendor-icons';
-          }
-          // Supabase
-          if (id.includes('node_modules/@supabase/')) {
-            return 'vendor-supabase';
-          }
-          // Socket.io
-          if (id.includes('node_modules/socket.io-client/')) {
-            return 'vendor-socket';
-          }
-          // Tiptap / Quill editors (only for edit pages)
-          if (id.includes('node_modules/@tiptap/') || id.includes('node_modules/quill/') || id.includes('node_modules/react-quill/')) {
-            return 'vendor-editors';
-          }
-          // Charting
-          if (id.includes('node_modules/recharts/') || id.includes('node_modules/d3-')) {
-            return 'vendor-charts';
-          }
-          // Syntax highlighter
-          if (id.includes('node_modules/react-syntax-highlighter/') || id.includes('node_modules/prismjs/') || id.includes('node_modules/refractor/')) {
-            return 'vendor-syntax';
-          }
-          // Firebase
-          if (id.includes('node_modules/firebase/')) {
-            return 'vendor-firebase';
-          }
-          // Axios
-          if (id.includes('node_modules/axios/')) {
-            return 'vendor-http';
-          }
-          // Other vendor libs
-          if (id.includes('node_modules/')) {
-            return 'vendor-other';
-          }
-        },
+        // NOTE: Custom manualChunks removed to eliminate circular chunk dependencies.
+        // The previous manualChunks split recharts into 'vendor-charts' while its
+        // transitive deps (react-redux, @reduxjs/toolkit, reselect, victory-vendor,
+        // decimal.js-light, immer, es-toolkit, etc.) fell into 'vendor-other',
+        // creating a circular import between the two chunks. At module-eval time
+        // the imported binding `bo`/`w` (a reselect helper) was undefined, crashing
+        // production with "Uncaught TypeError: w is not a function".
+        // Vite/Rollup's automatic chunking avoids cycles and keeps the whole
+        // dependency graph correctly ordered.
         // Compact output format
         compact: true,
         // Generate entry file names with content hash
