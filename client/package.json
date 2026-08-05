@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node --input-type=commonjs -e \"require('fs').copyFileSync('serve.json','dist/serve.json')\"",
     "preview": "vite preview"
   },
   "dependencies": {
