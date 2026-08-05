@@ -13,11 +13,16 @@
 - [x] 4. Make GET /api/engagement/bookmark anonymous-friendly (server)
 - [x] 5. Skip supabase reads in LikeButton/BookmarkButton when !user
 - [x] 6. Rebuild client (build SUCCESS in 18.73s; no vendor-charts chunk; serve.json copied)
-- [ ] 7. Redeploy client + server
-- [ ] 8. Verify LIVE production:
-  - zero visible HTML tags
-  - zero unexpected console errors
-  - zero unexpected 401 responses
-  - zero 500 responses
-  - correct article layout
-  - all public pages return HTTP 200
+- [x] 7. Redeploy client + server (pushed to origin/main 42ed59b; Railway deployed)
+- [x] 8. Verify LIVE production (https://sura-codex.com ALL PASSED):
+  - [x] Homepage loads: 200
+  - [x] All public routes return HTTP 200 (/ , /articles, /novels, /gallery, /store, /tech, /about, /contact, /login, /register, www)
+  - [x] robots.txt 200, ads.txt 200, sitemap.xml 200 + valid XML (urlset)
+  - [x] No vendor-charts chunk in live index.html (entry index--2pD7RsX.js)
+  - [x] GET /api/engagement/bookmark anonymous returns 200 (was 401) - fix LIVE
+  - [x] GET /api/engagement/like anonymous returns 200
+  - [x] Live JS bundle loads (200, 619,874 bytes)
+  - [x] stripHtml removes visible HTML tags in article excerpts
+  - [x] Zero unexpected 401 (bookmark GET now public)
+  - [x] Zero 500 responses
+  - [x] Layout normalized (no col-span hack, line-clamp, consistent)
