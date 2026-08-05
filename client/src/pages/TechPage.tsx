@@ -8,6 +8,7 @@ import { LikeShareBar } from '../components/LikeShareBar';
 import { supabase } from '../lib/supabaseClient';
 import { useSeoTags } from '../hooks/useSeoTags';
 import { canonicalUrl } from '../lib/seoUrl';
+import { stripHtml } from '../lib/stripHtml';
 
 type TechArticle = {
   id: string;
@@ -180,7 +181,7 @@ export function TechPage() {
               </div>
 
               <h2 className="text-2xl font-semibold">{item.title}</h2>
-              <p className="mt-3 text-sm leading-7 text-sura-navy/80">{item.excerpt}</p>
+              <p className="mt-3 text-sm leading-7 text-sura-navy/80">{stripHtml(item.excerpt)}</p>
 
               <div className="mt-6 overflow-hidden rounded-3xl border border-sura-line bg-sura-canvas">
                 <SyntaxHighlighter

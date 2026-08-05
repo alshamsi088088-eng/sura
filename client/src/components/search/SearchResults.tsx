@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useLocale } from '../../context/LocaleContext';
 import { Avatar } from '../AvatarUpload';
+import { stripHtml } from '../../lib/stripHtml';
 
 export interface SearchResultItem {
   id: string;
@@ -127,9 +128,9 @@ export function SearchResults({ results, loading, query }: SearchResultsProps) {
                 {item.title}
               </h3>
 
-              {item.excerpt && (
+{item.excerpt && (
                 <p className="mt-1 line-clamp-2 text-sm text-sura-ivory/60">
-                  {item.excerpt}
+                  {stripHtml(item.excerpt)}
                 </p>
               )}
 

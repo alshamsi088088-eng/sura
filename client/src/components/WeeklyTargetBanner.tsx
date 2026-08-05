@@ -74,12 +74,20 @@ export function WeeklyTargetBanner() {
 
     if (!user) return;
 
-    // Sync from API if logged in
+// Sync from API only when we have a valid authenticated access token.
+    // The /api/weekly-target route is authGuard-protected; sending it without
+    // a token would produce a 401. Anonymous/expired sessions must not request
+    // authenticated resources.
     const fetchTarget = async () => {
+      const token = await getSupabaseAccessToken();
+      if (!token) {
+        const savedWeekly = loadWeeklyReadingFromLocalStorage();
+        setWeeklyData(savedWeekly);
+        return;
+      }
       try {
-        const token = await getSupabaseAccessToken();
         const res = await fetch(`${API_URL}/api/weekly-target`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
           const data = await res.json();

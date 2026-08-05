@@ -7,6 +7,7 @@ import { WeeklyTargetBanner } from '../components/WeeklyTargetBanner';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useSeoTags } from '../hooks/useSeoTags';
+import { stripHtml } from '../lib/stripHtml';
 
 interface FeatureCard {
   id: string;
@@ -194,9 +195,9 @@ export function HomePage() {
                 to={item.slug ? `/articles/${encodeURIComponent(item.slug)}` : '/articles'}
                 className="block rounded-2xl border border-sura-line bg-sura-canvas p-5 transition hover:-translate-y-1 hover:border-sura-gold/50"
               >
-                <h3 className="text-lg font-semibold">{item.title}</h3>
+<h3 className="text-lg font-semibold">{item.title}</h3>
                 {item.description ? (
-                  <p className="mt-2 line-clamp-3 text-sm leading-6 text-sura-navy/80">{item.description}</p>
+                  <p className="mt-2 line-clamp-3 text-sm leading-6 text-sura-navy/80">{stripHtml(item.description)}</p>
                 ) : null}
               </Link>
             ))}

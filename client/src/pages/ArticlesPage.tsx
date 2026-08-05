@@ -13,6 +13,7 @@ import { RatingStars } from '../components/RatingStars';
 import { AdminMenu } from '../components/AdminMenu';
 import { Avatar } from '../components/AvatarUpload';
 import { useSeoTags } from '../hooks/useSeoTags';
+import { stripHtml } from '../lib/stripHtml';
 
 interface ArticleRow {
   id?: string;
@@ -48,26 +49,6 @@ interface Article {
   author: string;
   views: number;
   claps: number;
-}
-
-/**
- * Strip HTML tags from a string safely using the DOM (avoids XSS-prone regex).
- * Returns plain text with entities decoded and whitespace collapsed.
- */
-function stripHtml(html: string): string {
-  if (!html) return '';
-  // Decode common HTML entities first so &amp; < etc. render as text.
-  const decoded = html
-    .replace(/&amp;/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
-    .replace(/&#0?39;/g, "'")
-    .replace(/&nbsp;/g, ' ');
-  return decoded
-    .replace(/<[^>]*>/g, ' ') // strip all tags -> spaces
-    .replace(/\s+/g, ' ')      // collapse whitespace
-    .trim();
 }
 
 function mapArticle(row: ArticleRow): Article {
