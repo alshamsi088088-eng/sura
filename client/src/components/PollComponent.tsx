@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
+
+const API_URL = getApiBaseUrl();
 
 interface PollOption {
   id: string;
@@ -40,7 +43,7 @@ export function PollComponent({ contentId, contentType, onVote }: PollComponentP
     if (!contentId) return;
 
     setIsLoading(true);
-    fetch(`/api/engagement/polls?contentId=${contentId}&contentType=${contentType}`)
+fetch(`${API_URL}/api/engagement/polls?contentId=${contentId}&contentType=${contentType}`)
       .then(res => res.ok ? res.json() : [])
       .then(data => {
         setPolls(data);
@@ -65,7 +68,7 @@ export function PollComponent({ contentId, contentType, onVote }: PollComponentP
     if (!user || optionIds.length === 0) return;
 
     try {
-      const res = await fetch('/api/engagement/vote', {
+const res = await fetch(`${API_URL}/api/engagement/vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -76,7 +79,7 @@ export function PollComponent({ contentId, contentType, onVote }: PollComponentP
         setSelectedOptions(new Set(optionIds));
         onVote?.(pollId, optionIds);
         // Refresh polls to get updated results
-        const refreshRes = await fetch(`/api/engagement/polls?contentId=${contentId}&contentType=${contentType}`);
+const refreshRes = await fetch(`${API_URL}/api/engagement/polls?contentId=${contentId}&contentType=${contentType}`);
         const data = await refreshRes.json();
         setPolls(data);
       }
@@ -87,7 +90,7 @@ export function PollComponent({ contentId, contentType, onVote }: PollComponentP
 
   const getResults = useCallback(async (pollId: string) => {
     try {
-      const res = await fetch(`/api/engagement/results?pollId=${pollId}`);
+const res = await fetch(`${API_URL}/api/engagement/results?pollId=${pollId}`);
       return res.ok ? res.json() : null;
     } catch {
       return null;

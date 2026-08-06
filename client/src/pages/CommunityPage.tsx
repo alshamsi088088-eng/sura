@@ -4,6 +4,9 @@ import { DiscussionCard } from '../components/DiscussionCard';
 import { DiscussionEditor } from '../components/DiscussionEditor';
 import { useSeoTags } from '../hooks/useSeoTags';
 import { useLocale } from '../context/LocaleContext';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
+
+const API_URL = getApiBaseUrl();
 
 interface Thread {
   id: string;
@@ -70,7 +73,7 @@ export function CommunityPage() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/community/categories');
+const res = await fetch(`${API_URL}/api/community/categories`);
       if (res.ok) {
         const data = await res.json();
         setCategories(data.categories);
@@ -99,7 +102,7 @@ export function CommunityPage() {
         params.set('contentType', contentType);
       }
 
-      const res = await fetch(`/api/community/threads?${params}`);
+const res = await fetch(`${API_URL}/api/community/threads?${params}`);
       if (res.ok) {
         const data = await res.json();
         setThreads(data.threads);

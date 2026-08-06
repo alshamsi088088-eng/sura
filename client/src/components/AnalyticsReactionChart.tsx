@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
 import { EMOJI_MAP } from './emojis';
+
+const API_URL = getApiBaseUrl();
 
 interface ReactionBreakdown {
   [emoji: string]: number;
@@ -18,8 +21,8 @@ export function AnalyticsReactionChart() {
   useEffect(() => {
     if (!user) return;
 
-    setIsLoading(true);
-    fetch('/api/analytics/reactions', { credentials: 'include' })
+setIsLoading(true);
+    fetch(`${API_URL}/api/analytics/reactions`, { credentials: 'include' })
       .then(res => res.ok ? res.json() : {})
       .then(data => {
         setReactions(data);

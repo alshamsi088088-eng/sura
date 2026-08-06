@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
+
+const API_URL = getApiBaseUrl();
 
 interface DiscussionEditorProps {
   contentId?: string;
@@ -56,7 +59,7 @@ export function DiscussionEditor({
 
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/community/threads', {
+const res = await fetch(`${API_URL}/api/community/threads`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

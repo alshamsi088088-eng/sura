@@ -1,6 +1,9 @@
 import { useCallback, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
+
+const API_URL = getApiBaseUrl();
 
 interface PollCreatorProps {
   contentId: string;
@@ -54,7 +57,7 @@ export function PollCreator({ contentId, contentType, onPollCreated }: PollCreat
     setError('');
 
     try {
-      const res = await fetch('/api/engagement/poll', {
+const res = await fetch(`${API_URL}/api/engagement/poll`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

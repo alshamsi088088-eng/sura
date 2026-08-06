@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
+
+const API_URL = getApiBaseUrl();
 
 interface OverviewStats {
   views: number;
@@ -24,8 +27,8 @@ export function AnalyticsOverview() {
   useEffect(() => {
     if (!user) return;
 
-    setIsLoading(true);
-    fetch('/api/analytics/overview', { credentials: 'include' })
+setIsLoading(true);
+    fetch(`${API_URL}/api/analytics/overview`, { credentials: 'include' })
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data) setStats(data);
