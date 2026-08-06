@@ -3,6 +3,9 @@ import { useState, FormEvent } from 'react';
 import { useLocale } from '../context/LocaleContext';
 import { useSeoTags } from '../hooks/useSeoTags';
 import { canonicalUrl } from '../lib/seoUrl';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
+
+const API_URL = getApiBaseUrl();
 
 export function ContactPage() {
   const { locale } = useLocale();
@@ -34,7 +37,7 @@ export function ContactPage() {
     event.preventDefault();
     setStatus('');
     try {
-      const res = await fetch('/api/contact', {
+const res = await fetch(`${API_URL}/api/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, message }),

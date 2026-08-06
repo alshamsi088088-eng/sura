@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
 import { QuoteCard, type QuoteItem } from '../components/QuoteCard';
+
+const API_URL = getApiBaseUrl();
 
 interface QuoteWithContent extends QuoteItem {
   contentTitle?: string;
@@ -35,7 +38,7 @@ export function QuoteLibraryPage() {
       setLoading(true);
 
       try {
-        const res = await fetch('/api/quotes', {
+const res = await fetch(`${API_URL}/api/quotes`, {
           credentials: 'include'
         });
 

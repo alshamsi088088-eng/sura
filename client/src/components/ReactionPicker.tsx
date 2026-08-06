@@ -4,6 +4,9 @@ import { useLocale } from '../context/LocaleContext';
 import type { ContentType } from './LikeButton';
 import { EMOJI_MAP, EMOJI_KEYS } from './emojis';
 import { getAuthHeaders } from '../lib/authHeaders';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
+
+const API_URL = getApiBaseUrl();
 
 interface ReactionCounts {
   [emoji: string]: number;
@@ -34,7 +37,7 @@ export function ReactionPicker({
   useEffect(() => {
     if (!contentId) return;
 
-    fetch(`/api/engagement/reaction?contentId=${contentId}`)
+fetch(`${API_URL}/api/engagement/reaction?contentId=${contentId}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data) {
@@ -54,7 +57,7 @@ export function ReactionPicker({
 
     try {
       const authHeaders = await getAuthHeaders();
-      const res = await fetch('/api/engagement/reaction', {
+const res = await fetch(`${API_URL}/api/engagement/reaction`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         credentials: 'include',

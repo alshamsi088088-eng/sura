@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getApiBaseUrl } from '../lib/runtimeConfig';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,7 @@ export interface UnreadResponse {
 // ─── API Service ────────────────────────────────────────────────────────────
 
 const api = axios.create({
+  baseURL: getApiBaseUrl(),
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
