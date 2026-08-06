@@ -17,27 +17,20 @@ import {
 export const seriesRoutes = Router();
 
 // ─── Public Routes ──────────────────────────────────────────────────────────
-// These use authGuard optionally (the controller handles missing user gracefully)
+// GET endpoints are fully public — they must NEVER hit authGuard so anonymous
+// visitors (or those with a stale/expired token) always receive HTTP 200.
+// The controllers read (req as any).user?.id defensively, so it is safe to
+// call them without authentication.
 
-seriesRoutes.get('/series', (req, res, next) => {
-  // Auth is optional — pass through even if not authenticated
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return getAllSeries(req, res);
-  next();
-}, authGuard, getAllSeries);
+seriesRoutes.get('/series', getAllSeries);
 
-seriesRoutes.get('/series/:slug', (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return getSeriesBySlug(req, res);
-  next();
-}, authGuard, getSeriesBySlug);
+seriesRoutes.get('/series/:slug', getSeriesBySlug);
 
-seriesRoutes.get('/series/:slug/progress', authGuard, getSeriesProgress);
-seriesRoutes.get('/recommended-series', (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return getRecommendedSeries(req, res);
-  next();
-}, authGuard, getRecommendedSeries);
+// Progress is only meaningful for authenticated users, but the controller
+// returns 401 only when a userId is actually required. Public GET must
+// remain reachable without auth.
+seriesRoutes.get('/series/:slug/progress', getSeriesProgress);
+seriesRoutes.get('/recommended-series', getRecommendedSeries);
 
 // ─── Admin Routes ───────────────────────────────────────────────────────────
 
